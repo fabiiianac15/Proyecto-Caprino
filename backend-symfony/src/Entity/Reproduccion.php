@@ -8,6 +8,9 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use App\Repository\ReproduccionRepository;
+use App\Validator\ConsanguinidadPermitida;
+use App\Validator\EdadReproductiva;
+use App\Validator\IntervaloReproductivo;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -21,6 +24,8 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 #[ORM\Entity(repositoryClass: ReproduccionRepository::class)]
 #[ORM\Table(name: 'REPRODUCCION')]
+#[ConsanguinidadPermitida]
+#[IntervaloReproductivo]
 #[ApiResource(
     operations: [
         new GetCollection(),
@@ -38,21 +43,23 @@ class Reproduccion
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(name: 'id_reproduccion', type: Types::INTEGER)]
     #[Groups(['reproduccion:read'])]
-    private ?int $id = null;
-
     /**
      * Hembra que recibe el servicio
      */
     #[ORM\ManyToOne(targetEntity: Animal::class)]
     #[ORM\JoinColumn(name: 'id_hembra', referencedColumnName: 'id_animal', nullable: false)]
     #[Assert\NotNull(message: 'La hembra es obligatoria')]
+    #[EdadReproductiva]
     #[Groups(['reproduccion:read', 'reproduccion:write'])]
-    private ?Animal $hembra = null;
-
+    private ?Animal $hembra = null;embra es obligatoria')]
     /**
      * Macho que realiza el servicio (puede ser null si es inseminación)
      */
     #[ORM\ManyToOne(targetEntity: Animal::class)]
+    #[ORM\JoinColumn(name: 'id_macho', referencedColumnName: 'id_animal', nullable: true)]
+    #[EdadReproductiva]
+    #[Groups(['reproduccion:read', 'reproduccion:write'])]
+    private ?Animal $macho = null;Animal::class)]
     #[ORM\JoinColumn(name: 'id_macho', referencedColumnName: 'id_animal', nullable: true)]
     #[Groups(['reproduccion:read', 'reproduccion:write'])]
     private ?Animal $macho = null;
