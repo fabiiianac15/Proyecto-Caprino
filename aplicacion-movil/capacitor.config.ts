@@ -1,6 +1,6 @@
-import { CapacitorConfig } from '@capacitor/cli';
+// import { CapacitorConfig } from '@capacitor/cli';
 
-const config: CapacitorConfig = {
+const config = {
   appId: 'com.zootecnia.caprino',
   appName: 'Gestión Caprino',
   webDir: 'dist',

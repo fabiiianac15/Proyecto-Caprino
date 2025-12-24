@@ -43,6 +43,8 @@ class Reproduccion
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(name: 'id_reproduccion', type: Types::INTEGER)]
     #[Groups(['reproduccion:read'])]
+    private ?int $id = null;
+
     /**
      * Hembra que recibe el servicio
      */
@@ -51,16 +53,14 @@ class Reproduccion
     #[Assert\NotNull(message: 'La hembra es obligatoria')]
     #[EdadReproductiva]
     #[Groups(['reproduccion:read', 'reproduccion:write'])]
-    private ?Animal $hembra = null;embra es obligatoria')]
+    private ?Animal $hembra = null;
+
     /**
      * Macho que realiza el servicio (puede ser null si es inseminación)
      */
     #[ORM\ManyToOne(targetEntity: Animal::class)]
     #[ORM\JoinColumn(name: 'id_macho', referencedColumnName: 'id_animal', nullable: true)]
     #[EdadReproductiva]
-    #[Groups(['reproduccion:read', 'reproduccion:write'])]
-    private ?Animal $macho = null;Animal::class)]
-    #[ORM\JoinColumn(name: 'id_macho', referencedColumnName: 'id_animal', nullable: true)]
     #[Groups(['reproduccion:read', 'reproduccion:write'])]
     private ?Animal $macho = null;
 
