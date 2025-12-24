@@ -1,0 +1,79 @@
+# Git ignore para todo el proyecto
+
+# IDEs y Editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Archivos de configuración local
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Backend Symfony
+/backend-symfony/var/
+/backend-symfony/vendor/
+/backend-symfony/.env.local
+/backend-symfony/.env.local.php
+/backend-symfony/.phpunit.result.cache
+/backend-symfony/config/jwt/*.pem
+/backend-symfony/public/bundles/
+/backend-symfony/symfony.lock
+
+# Frontend Web
+/frontend-web/node_modules/
+/frontend-web/dist/
+/frontend-web/.env.local
+/frontend-web/.env.production.local
+/frontend-web/npm-debug.log*
+/frontend-web/yarn-debug.log*
+/frontend-web/yarn-error.log*
+/frontend-web/coverage/
+
+# Aplicación Móvil
+/aplicacion-movil/node_modules/
+/aplicacion-movil/dist/
+/aplicacion-movil/.env.local
+/aplicacion-movil/android/
+/aplicacion-movil/ios/
+/aplicacion-movil/.capacitor/
+
+# Base de datos
+*.sql.backup
+*.dmp
+*.log
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos temporales
+tmp/
+temp/
+*.tmp
+*.cache
+
+# Backups
+*.bak
+*.backup
+
+# Archivos comprimidos
+*.zip
+*.tar.gz
+*.rar
+
+# Sistema operativo
+Thumbs.db
+Desktop.ini
