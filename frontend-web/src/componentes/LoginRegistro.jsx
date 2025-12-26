@@ -528,8 +528,6 @@ const LoginRegistro = () => {
                     <option value="">Seleccione un rol</option>
                     <option value="administrador">Administrador de Granja</option>
                     <option value="pasante">Pasante</option>
-                    <option value="zootecnista">Zootecnista</option>
-                    <option value="veterinario">Veterinario</option>
                   </select>
                 </div>
                 {errores.rol && (
