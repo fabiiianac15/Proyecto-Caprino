@@ -15,7 +15,7 @@ import Dashboard from './componentes/Dashboard';
 import ListaAnimales from './componentes/ListaAnimales';
 import RegistroCabra from './componentes/RegistroCabra';
 import RegistroProduccion from './componentes/RegistroProduccion';
-import RegistroReproduccion from './componentes/RegistroReproduccion';
+import ModuloReproduccion from './componentes/ModuloReproduccion';
 import Notificaciones from './componentes/Notificaciones';
 
 function App() {
@@ -190,12 +190,7 @@ function App() {
           
           <Route
             path="/reproduccion"
-            element={
-              <RegistroReproduccion
-                onGuardar={() => {}}
-                onCancelar={() => {}}
-              />
-            }
+            element={<ModuloReproduccion />}
           />
           
           <Route
