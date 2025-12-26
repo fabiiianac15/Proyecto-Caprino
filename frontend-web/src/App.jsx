@@ -103,7 +103,11 @@ function App() {
               className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => navigate('/')}
             >
-              <div className="text-3xl mr-3">🐐</div>
+              <img 
+                src="/img/LogoCabra.jpg" 
+                alt="Logo Caprino" 
+                className="w-12 h-12 mr-3 rounded-full object-cover"
+              />
               <div>
                 <h1 className="text-xl font-bold text-white">
                   Sistema Caprino
