@@ -14,7 +14,7 @@ import LoginRegistro from './componentes/LoginRegistro';
 import Dashboard from './componentes/Dashboard';
 import ListaAnimales from './componentes/ListaAnimales';
 import RegistroCabra from './componentes/RegistroCabra';
-import RegistroProduccion from './componentes/RegistroProduccion';
+import ModuloProduccion from './componentes/ModuloProduccion';
 import ModuloReproduccion from './componentes/ModuloReproduccion';
 import ModuloSalud from './componentes/ModuloSalud';
 import Notificaciones from './componentes/Notificaciones';
@@ -181,12 +181,7 @@ function App() {
           
           <Route
             path="/produccion"
-            element={
-              <RegistroProduccion
-                onGuardar={() => {}}
-                onCancelar={() => {}}
-              />
-            }
+            element={<ModuloProduccion />}
           />
           
           <Route
