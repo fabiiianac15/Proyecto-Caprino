@@ -48,6 +48,22 @@
       transform: translateY(0);
     }
   }
+  
+  /* Animación para transición de formularios */
+  .animate-fadeIn {
+    animation: fadeInSlide 0.4s ease-in-out;
+  }
+  
+  @keyframes fadeInSlide {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
 }
 
 /* Estilos para scrollbar */

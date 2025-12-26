@@ -236,28 +236,35 @@ const LoginRegistro = () => {
     <div className="min-h-screen flex relative">
       {/* Fondo con imagen */}
       <div 
-        className="absolute inset-0 bg-gradient-to-br from-green-100 via-blue-100 to-green-50"
+        className="absolute inset-0 bg-gradient-to-br from-green-50 via-blue-50 to-green-100"
         style={{
           backgroundImage: 'url(/img/FondoCabra.png)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
-          opacity: 0.15
+          opacity: 0.6
         }}
       />
       
       {/* Lado izquierdo - Información */}
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12 relative z-10">
-        <div className="text-center">
-          <img 
-            src="/img/FondoCabra.png" 
-            alt="Granja Caprina" 
-            className="w-full max-w-lg mx-auto mb-8 drop-shadow-2xl"
-          />
-          <h2 className="text-4xl font-bold mb-4 text-green-800">Sistema de Gestión Caprina</h2>
-          <p className="text-xl text-green-700">
-            Control integral de producción, reproducción y salud de tu rebaño
-          </p>
+        <div className="flex flex-col items-center justify-center space-y-8 w-full max-w-lg">
+          {/* Título arriba de la imagen */}
+          <div className="text-center">
+            <h2 className="text-4xl font-bold mb-3 text-green-800">Sistema de Gestión Caprina</h2>
+            <p className="text-lg text-green-700">
+              Control integral de producción, reproducción y salud de tu rebaño
+            </p>
+          </div>
+          
+          {/* Imagen redondeada */}
+          <div className="w-full flex justify-center">
+            <img 
+              src="/img/CabraSonrie.png" 
+              alt="Granja Caprina" 
+              className="w-96 h-96 object-cover rounded-3xl shadow-2xl"
+            />
+          </div>
         </div>
       </div>
 
@@ -272,12 +279,12 @@ const LoginRegistro = () => {
           </div>
 
           {/* Selector Login/Registro */}
-          <div className="flex mb-6 bg-white rounded-lg p-1 shadow">
+          <div className="flex mb-6 bg-white rounded-lg p-1 shadow-lg relative">
             <button
               onClick={() => setVistaActual('login')}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
+              className={`flex-1 py-3 px-4 rounded-md font-medium transition-all duration-300 relative z-10 ${
                 vistaActual === 'login'
-                  ? 'bg-green-600 text-white'
+                  ? 'text-white'
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
@@ -285,14 +292,20 @@ const LoginRegistro = () => {
             </button>
             <button
               onClick={() => setVistaActual('registro')}
-              className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
+              className={`flex-1 py-3 px-4 rounded-md font-medium transition-all duration-300 relative z-10 ${
                 vistaActual === 'registro'
-                  ? 'bg-green-600 text-white'
+                  ? 'text-white'
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
               Registrarse
             </button>
+            {/* Indicador deslizante */}
+            <div 
+              className={`absolute top-1 bottom-1 w-[calc(50%-0.25rem)] bg-green-600 rounded-md transition-all duration-300 ease-in-out shadow-md ${
+                vistaActual === 'login' ? 'left-1' : 'left-[calc(50%+0.25rem)]'
+              }`}
+            />
           </div>
 
           {/* Mensaje de feedback */}
@@ -311,7 +324,13 @@ const LoginRegistro = () => {
 
           {/* Formulario de Login */}
           {vistaActual === 'login' && (
-            <form onSubmit={manejarLogin} className="bg-white rounded-lg shadow-md p-8">
+            <form 
+              onSubmit={manejarLogin} 
+              className="bg-white rounded-lg shadow-lg p-8 animate-fadeIn"
+              style={{
+                animation: 'fadeIn 0.4s ease-in-out'
+              }}
+            >
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Iniciar Sesión</h2>
               
               {/* Email */}
@@ -326,7 +345,7 @@ const LoginRegistro = () => {
                     name="email"
                     value={loginForm.email}
                     onChange={manejarCambioLogin}
-                    placeholder="usuario@institucion.edu"
+                    placeholder="tu@ufpso.edu.co"
                     className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.email 
                         ? 'border-red-300 focus:ring-red-500' 
@@ -408,7 +427,13 @@ const LoginRegistro = () => {
 
           {/* Formulario de Registro */}
           {vistaActual === 'registro' && (
-            <form onSubmit={manejarRegistro} className="bg-white rounded-lg shadow-md p-8">
+            <form 
+              onSubmit={manejarRegistro} 
+              className="bg-white rounded-lg shadow-lg p-8 animate-fadeIn"
+              style={{
+                animation: 'fadeIn 0.4s ease-in-out'
+              }}
+            >
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear Cuenta</h2>
               
               {/* Código */}
@@ -421,7 +446,7 @@ const LoginRegistro = () => {
                   name="codigo"
                   value={registroForm.codigo}
                   onChange={manejarCambioRegistro}
-                  placeholder="ADM001 o PAS001"
+                  placeholder="00198 o 192168"
                     className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                     errores.codigo 
                       ? 'border-red-300 focus:ring-red-500' 
@@ -445,7 +470,7 @@ const LoginRegistro = () => {
                     name="nombre"
                     value={registroForm.nombre}
                     onChange={manejarCambioRegistro}
-                    placeholder="Juan Pérez García"
+                    placeholder="Pedrito Pérez García"
                     className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.nombre 
                         ? 'border-red-300 focus:ring-red-500' 
@@ -470,7 +495,7 @@ const LoginRegistro = () => {
                     name="email"
                     value={registroForm.email}
                     onChange={manejarCambioRegistro}
-                    placeholder="usuario@institucion.edu"
+                    placeholder="tu@ufpso.edu.co"
                     className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.email 
                         ? 'border-red-300 focus:ring-red-500' 
