@@ -21,6 +21,7 @@ import ModuloPeso from './componentes/ModuloPeso';
 import ModuloGenealogia from './componentes/ModuloGenealogia';
 import ModuloReportes from './componentes/ModuloReportes';
 import Notificaciones from './componentes/Notificaciones';
+import PerfilUsuario from './componentes/PerfilUsuario';
 
 function App() {
   const { estaAutenticado, usuario, cerrarSesion, cargando } = useAuth();
@@ -28,6 +29,7 @@ function App() {
   const [fechaHora, setFechaHora] = useState(new Date());
   const [animalEditar, setAnimalEditar] = useState(null);
   const [vistaActual, setVistaActual] = useState('lista');
+  const [mostrarPerfil, setMostrarPerfil] = useState(false);
 
   // Actualizar fecha y hora cada segundo
   useEffect(() => {
@@ -136,7 +138,10 @@ function App() {
 
             {/* Usuario y cerrar sesión */}
             <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center space-x-3 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
+              <button
+                onClick={() => setMostrarPerfil(true)}
+                className="hidden md:flex items-center space-x-3 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-white/20 transition-colors cursor-pointer"
+              >
                 <div className="flex items-center justify-center w-8 h-8 bg-white rounded-full">
                   <User className="w-5 h-5 text-green-600" />
                 </div>
@@ -148,7 +153,7 @@ function App() {
                     {usuario?.rol}
                   </p>
                 </div>
-              </div>
+              </button>
               
               <button
                 onClick={cerrarSesion}
@@ -227,6 +232,11 @@ function App() {
           />
         </Routes>
       </main>
+
+      {/* Modal de Perfil */}
+      {mostrarPerfil && (
+        <PerfilUsuario onCerrar={() => setMostrarPerfil(false)} />
+      )}
     </div>
   );
 }
