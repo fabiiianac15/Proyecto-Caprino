@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
   Users, 
@@ -26,25 +26,8 @@ function App() {
   const { estaAutenticado, usuario, cerrarSesion, cargando } = useAuth();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [animalEditar, setAnimalEditar] = useState(null);
-  const [vistaActual, setVistaActual] = useState('lista'); // lista o registro
+  const [vistaActual, setVistaActual] = useState('lista');
   const location = useLocation();
-
-  // Mostrar loading mientras verifica autenticación
-  if (cargando) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Si no está autenticado, mostrar login
-  if (!estaAutenticado) {
-    return <LoginRegistro />;
-  }
 
   const navegacion = [
     { nombre: 'Dashboard', ruta: '/', icono: Home },
@@ -67,6 +50,41 @@ function App() {
   const manejarEditarAnimal = (animal) => {
     setAnimalEditar(animal);
     setVistaActual('registro');
+  };
+
+  const manejarGuardarAnimal = () => {
+    setVistaActual('lista');
+    setAnimalEditar(null);
+  };
+
+  const manejarCancelar = () => {
+    setVistaActual('lista');
+    setAnimalEditar(null);
+  };
+
+  // Mostrar loading mientras verifica autenticación
+  if (cargando) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si no está autenticado, mostrar login
+  if (!estaAutenticado) {
+    return <LoginRegistro />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Barra de navegación superior */}
+      <nav className="bg-white shadow-md fixed w-full top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
             <div className="flex items-center">
               <h1 className="text-xl font-bold text-gray-800">
                 🐐 Sistema Caprino
@@ -78,31 +96,6 @@ function App() {
               <span className="text-sm text-gray-600 mr-2">
                 {usuario?.nombre}
               </span>
-    setVistaActual('lista');
-    setAnimalEditar(null);
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Barra de navegación superior */}
-      <nav className="bg-white shadow-md fixed w-full top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-                  </Link>
-                );
-              })}
-              <button
-                onClick={cerrarSesion}
-                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Salir
-              </button>
-            </div>
-
-            {/* Botón menú móvil */}
-            <div className="hidden md:flex items-center space-x-4">
               {navegacion.map((item) => {
                 const Icono = item.icono;
                 return (
@@ -120,6 +113,13 @@ function App() {
                   </Link>
                 );
               })}
+              <button
+                onClick={cerrarSesion}
+                className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Salir
+              </button>
             </div>
 
             {/* Botón menú móvil */}
@@ -147,6 +147,16 @@ function App() {
                 return (
                   <Link
                     key={item.ruta}
+                    to={item.ruta}
+                    onClick={() => setMenuAbierto(false)}
+                    className={`flex items-center px-3 py-2 rounded-md text-base font-medium ${
+                      estaActivo(item.ruta)
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Icono className="w-5 h-5 mr-3" />
+                    {item.nombre}
                   </Link>
                 );
               })}
@@ -160,16 +170,6 @@ function App() {
                 <LogOut className="w-5 h-5 mr-3" />
                 Cerrar Sesión
               </button>
-            </div>
-          </div>
-        )}
-      </nav>        }`}
-                  >
-                    <Icono className="w-5 h-5 mr-3" />
-                    {item.nombre}
-                  </Link>
-                );
-              })}
             </div>
           </div>
         )}

@@ -238,19 +238,10 @@ const LoginRegistro = () => {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 to-blue-700 items-center justify-center p-12">
         <div className="text-center text-white">
           <img 
-            src="/img/granja-caprino.png" 
+            src="/img/FondoCabra.png" 
             alt="Granja Caprina" 
             className="w-full max-w-lg mx-auto mb-8 drop-shadow-2xl"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'block';
-            }}
           />
-          <div style={{ display: 'none' }} className="text-center">
-            <div className="text-8xl mb-4">🐐</div>
-            <h2 className="text-4xl font-bold mb-4">Sistema Caprino</h2>
-            <p className="text-xl opacity-90">Gestión Zootécnica Profesional</p>
-          </div>
           <h2 className="text-4xl font-bold mb-4">Sistema de Gestión Caprina</h2>
           <p className="text-xl opacity-90">
             Control integral de producción, reproducción y salud de tu rebaño
