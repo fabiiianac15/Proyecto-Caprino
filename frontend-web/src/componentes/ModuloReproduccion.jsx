@@ -627,6 +627,11 @@ const FormularioReproduccion = ({ tipo, eventoEditar, onGuardar, onCancelar }) =
                     placeholder="Seleccionar resultado..."
                     requerido
                   />
+                  <div className="mt-2 text-xs text-gray-600 space-y-1">
+                    <p><span className="font-semibold">Gestante:</span> Confirmado que está preñada</p>
+                    <p><span className="font-semibold">Vacía:</span> Confirmado que NO está preñada (puede ser montada nuevamente)</p>
+                    <p><span className="font-semibold">Dudoso:</span> Resultado no concluyente, repetir diagnóstico en 7-15 días</p>
+                  </div>
                 </div>
               </div>
 
