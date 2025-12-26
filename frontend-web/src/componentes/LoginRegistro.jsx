@@ -14,10 +14,13 @@ import {
   EyeOff,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  Users
 } from 'lucide-react';
 import { useAuth } from '../contextos/AuthContext';
 import { validarEmail } from '../utilidades/validaciones';
+import SelectPersonalizado from './SelectPersonalizado';
 
 const LoginRegistro = () => {
   const [vistaActual, setVistaActual] = useState('login'); // 'login' o 'registro'
@@ -513,23 +516,29 @@ const LoginRegistro = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Rol <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <UserCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <select
-                    name="rol"
-                    value={registroForm.rol}
-                    onChange={manejarCambioRegistro}
-                    className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      errores.rol 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  >
-                    <option value="">Seleccione un rol</option>
-                    <option value="administrador">Administrador de Granja</option>
-                    <option value="pasante">Pasante</option>
-                  </select>
-                </div>
+                <SelectPersonalizado
+                  valor={registroForm.rol}
+                  onChange={(valor) => manejarCambioRegistro({ target: { name: 'rol', value: valor } })}
+                  opciones={[
+                    { 
+                      value: 'administrador', 
+                      label: 'Administrador de Granja', 
+                      icono: <Shield />,
+                      colorFondo: 'bg-purple-100',
+                      colorIcono: 'text-purple-600'
+                    },
+                    { 
+                      value: 'pasante', 
+                      label: 'Pasante', 
+                      icono: <Users />,
+                      colorFondo: 'bg-blue-100',
+                      colorIcono: 'text-blue-600'
+                    }
+                  ]}
+                  placeholder="Seleccione un rol..."
+                  error={!!errores.rol}
+                  requerido
+                />
                 {errores.rol && (
                   <p className="mt-1 text-sm text-red-600">{errores.rol}</p>
                 )}
