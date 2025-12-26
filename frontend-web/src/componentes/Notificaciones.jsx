@@ -33,8 +33,6 @@ const Notificaciones = () => {
   const [filtroPrioridad, setFiltroPrioridad] = useState('todas');
   const [notificacionDetalle, setNotificacionDetalle] = useState(null);
 
-  const [notificacionDetalle, setNotificacionDetalle] = useState(null);
-
   // Categorías de notificaciones
   const categorias = [
     { id: 'todas', nombre: 'Todas', icono: Bell, color: 'gray' },
