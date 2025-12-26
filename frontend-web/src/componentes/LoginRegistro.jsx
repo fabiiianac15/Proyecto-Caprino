@@ -238,7 +238,7 @@ const LoginRegistro = () => {
       <div 
         className="absolute inset-0 bg-gradient-to-br from-green-50 via-blue-50 to-green-100"
         style={{
-          backgroundImage: 'url(/img/FondoCabra.png)',
+          backgroundImage: 'url(/img/AtrasCabra.jpeg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
@@ -260,7 +260,7 @@ const LoginRegistro = () => {
           {/* Imagen redondeada */}
           <div className="w-full flex justify-center">
             <img 
-              src="/img/CabraSonrie.png" 
+              src="/img/LogoCabra.jpg" 
               alt="Granja Caprina" 
               className="w-96 h-96 object-cover rounded-3xl shadow-2xl"
             />
