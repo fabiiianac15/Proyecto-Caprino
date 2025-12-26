@@ -18,8 +18,15 @@ import {
   Baby,
   Stethoscope,
   User,
-  X
+  X,
+  Sparkles,
+  HelpCircle,
+  XCircle,
+  Activity,
+  UserPlus,
+  Scissors
 } from 'lucide-react';
+import SelectPersonalizado from './SelectPersonalizado';
 
 const ModuloReproduccion = () => {
   const [vistaActual, setVistaActual] = useState('lista'); // 'lista', 'registro', 'detalle'
@@ -388,6 +395,79 @@ const ModuloReproduccion = () => {
  * Componente de Formulario de Reproducción
  */
 const FormularioReproduccion = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
+  // Opciones para selectores personalizados
+  const opcionesTipoMonta = [
+    { 
+      value: 'natural', 
+      label: 'Monta Natural', 
+      icono: <Heart />,
+      colorFondo: 'bg-pink-100',
+      colorIcono: 'text-pink-600'
+    },
+    { 
+      value: 'inseminacion', 
+      label: 'Inseminación Artificial', 
+      icono: <Sparkles />,
+      colorFondo: 'bg-purple-100',
+      colorIcono: 'text-purple-600'
+    }
+  ];
+
+  const opcionesResultado = [
+    { 
+      value: '', 
+      label: 'Seleccionar...', 
+      icono: <HelpCircle />,
+      colorFondo: 'bg-gray-100',
+      colorIcono: 'text-gray-500'
+    },
+    { 
+      value: 'gestante', 
+      label: 'Gestante', 
+      icono: <CheckCircle />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'vacia', 
+      label: 'Vacía', 
+      icono: <XCircle />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    },
+    { 
+      value: 'dudoso', 
+      label: 'Dudoso (repetir)', 
+      icono: <HelpCircle />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    }
+  ];
+
+  const opcionesTipoParto = [
+    { 
+      value: 'normal', 
+      label: 'Normal', 
+      icono: <CheckCircle />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'asistido', 
+      label: 'Asistido', 
+      icono: <UserPlus />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    },
+    { 
+      value: 'cesarea', 
+      label: 'Cesárea', 
+      icono: <Scissors />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    }
+  ];
+
   const [formData, setFormData] = useState({
     // Común
     hembraId: eventoEditar?.hembra?.codigo || '',
@@ -506,15 +586,12 @@ const FormularioReproduccion = ({ tipo, eventoEditar, onGuardar, onCancelar }) =
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tipo de Monta
                   </label>
-                  <select
-                    name="tipoMonta"
-                    value={formData.tipoMonta}
-                    onChange={manejarCambio}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  >
-                    <option value="natural">Monta Natural</option>
-                    <option value="inseminacion">Inseminación Artificial</option>
-                  </select>
+                  <SelectPersonalizado
+                    valor={formData.tipoMonta}
+                    onChange={(valor) => manejarCambio({ target: { name: 'tipoMonta', value: valor } })}
+                    opciones={opcionesTipoMonta}
+                    placeholder="Seleccionar tipo de monta..."
+                  />
                 </div>
               </div>
             </>
@@ -543,18 +620,13 @@ const FormularioReproduccion = ({ tipo, eventoEditar, onGuardar, onCancelar }) =
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Resultado <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    name="resultado"
-                    value={formData.resultado}
-                    onChange={manejarCambio}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option value="gestante">Gestante</option>
-                    <option value="vacia">Vacía</option>
-                    <option value="dudoso">Dudoso (repetir)</option>
-                  </select>
+                  <SelectPersonalizado
+                    valor={formData.resultado}
+                    onChange={(valor) => manejarCambio({ target: { name: 'resultado', value: valor } })}
+                    opciones={opcionesResultado}
+                    placeholder="Seleccionar resultado..."
+                    requerido
+                  />
                 </div>
               </div>
 
@@ -602,16 +674,12 @@ const FormularioReproduccion = ({ tipo, eventoEditar, onGuardar, onCancelar }) =
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tipo de Parto
                   </label>
-                  <select
-                    name="tipoParto"
-                    value={formData.tipoParto}
-                    onChange={manejarCambio}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="normal">Normal</option>
-                    <option value="asistido">Asistido</option>
-                    <option value="cesarea">Cesárea</option>
-                  </select>
+                  <SelectPersonalizado
+                    valor={formData.tipoParto}
+                    onChange={(valor) => manejarCambio({ target: { name: 'tipoParto', value: valor } })}
+                    opciones={opcionesTipoParto}
+                    placeholder="Seleccionar tipo de parto..."
+                  />
                 </div>
               </div>
 

@@ -19,8 +19,22 @@ import {
   X,
   Activity,
   BarChart3,
-  Scale
+  Scale,
+  Baby,
+  Milk,
+  DollarSign,
+  Stethoscope,
+  Clock,
+  Smile,
+  Frown,
+  Meh,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Ruler,
+  Zap
 } from 'lucide-react';
+import SelectPersonalizado from './SelectPersonalizado';
 
 const ModuloPeso = () => {
   const [vistaActual, setVistaActual] = useState('lista'); // 'lista', 'registro', 'detalle'
@@ -338,6 +352,169 @@ const ModuloPeso = () => {
  * Componente de Formulario de Peso
  */
 const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
+  // Opciones para selectores personalizados
+  const opcionesTipoPesaje = [
+    { 
+      value: 'periodico', 
+      label: 'Pesaje Periódico', 
+      icono: <Clock />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    },
+    { 
+      value: 'nacimiento', 
+      label: 'Nacimiento', 
+      icono: <Baby />,
+      colorFondo: 'bg-pink-100',
+      colorIcono: 'text-pink-600'
+    },
+    { 
+      value: 'destete', 
+      label: 'Destete', 
+      icono: <Milk />,
+      colorFondo: 'bg-cyan-100',
+      colorIcono: 'text-cyan-600'
+    },
+    { 
+      value: 'venta', 
+      label: 'Pre-venta', 
+      icono: <DollarSign />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'enfermedad', 
+      label: 'Control Enfermedad', 
+      icono: <Stethoscope />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    }
+  ];
+
+  const opcionesEstadoNutricional = [
+    { 
+      value: 'desnutrido', 
+      label: 'Desnutrido', 
+      icono: <TrendingDown />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    },
+    { 
+      value: 'bajo_peso', 
+      label: 'Bajo Peso', 
+      icono: <Frown />,
+      colorFondo: 'bg-orange-100',
+      colorIcono: 'text-orange-600'
+    },
+    { 
+      value: 'normal', 
+      label: 'Normal', 
+      icono: <CheckCircle />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'sobrepeso', 
+      label: 'Sobrepeso', 
+      icono: <AlertCircle />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: 'obeso', 
+      label: 'Obeso', 
+      icono: <AlertTriangle />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    }
+  ];
+
+  const opcionesEstadoSalud = [
+    { 
+      value: 'sano', 
+      label: 'Sano', 
+      icono: <Smile />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'en_observacion', 
+      label: 'En Observación', 
+      icono: <Eye />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: 'enfermo', 
+      label: 'Enfermo', 
+      icono: <XCircle />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    },
+    { 
+      value: 'en_recuperacion', 
+      label: 'En Recuperación', 
+      icono: <TrendingUp />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    }
+  ];
+
+  const opcionesMetodoPesaje = [
+    { 
+      value: 'bascula', 
+      label: 'Báscula Electrónica', 
+      icono: <Scale />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    },
+    { 
+      value: 'romana', 
+      label: 'Romana Mecánica', 
+      icono: <Weight />,
+      colorFondo: 'bg-gray-100',
+      colorIcono: 'text-gray-600'
+    },
+    { 
+      value: 'cinta', 
+      label: 'Cinta Métrica (estimado)', 
+      icono: <Ruler />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: 'dinamometro', 
+      label: 'Dinamómetro', 
+      icono: <Zap />,
+      colorFondo: 'bg-purple-100',
+      colorIcono: 'text-purple-600'
+    }
+  ];
+
+  const opcionesMomentoAlimentacion = [
+    { 
+      value: 'antes', 
+      label: 'Antes de alimentar', 
+      icono: <Clock />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: 'despues', 
+      label: 'Después de alimentar', 
+      icono: <CheckCircle />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'intermedio', 
+      label: 'Intermedio', 
+      icono: <Meh />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    }
+  ];
+
   const [formData, setFormData] = useState({
     // Datos básicos
     animalId: registroEditar?.animal?.codigo || '',
@@ -482,19 +659,13 @@ const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tipo de Pesaje <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="tipoPesaje"
-                  value={formData.tipoPesaje}
-                  onChange={manejarCambio}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                >
-                  <option value="periodico">Pesaje Periódico</option>
-                  <option value="nacimiento">Nacimiento</option>
-                  <option value="destete">Destete</option>
-                  <option value="venta">Pre-venta</option>
-                  <option value="enfermedad">Control Enfermedad</option>
-                </select>
+                <SelectPersonalizado
+                  valor={formData.tipoPesaje}
+                  onChange={(valor) => manejarCambio({ target: { name: 'tipoPesaje', value: valor } })}
+                  opciones={opcionesTipoPesaje}
+                  placeholder="Seleccionar tipo..."
+                  requerido
+                />
               </div>
 
               <div>
@@ -698,35 +869,24 @@ const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Estado Nutricional
                 </label>
-                <select
-                  name="estadoNutricional"
-                  value={formData.estadoNutricional}
-                  onChange={manejarCambio}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="desnutrido">Desnutrido</option>
-                  <option value="bajo_peso">Bajo Peso</option>
-                  <option value="normal">Normal</option>
-                  <option value="sobrepeso">Sobrepeso</option>
-                  <option value="obeso">Obeso</option>
-                </select>
+                <SelectPersonalizado
+                  valor={formData.estadoNutricional}
+                  onChange={(valor) => manejarCambio({ target: { name: 'estadoNutricional', value: valor } })}
+                  opciones={opcionesEstadoNutricional}
+                  placeholder="Seleccionar estado nutricional..."
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Estado de Salud
                 </label>
-                <select
-                  name="estadoSalud"
-                  value={formData.estadoSalud}
-                  onChange={manejarCambio}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="sano">Sano</option>
-                  <option value="en_observacion">En Observación</option>
-                  <option value="enfermo">Enfermo</option>
-                  <option value="en_recuperacion">En Recuperación</option>
-                </select>
+                <SelectPersonalizado
+                  valor={formData.estadoSalud}
+                  onChange={(valor) => manejarCambio({ target: { name: 'estadoSalud', value: valor } })}
+                  opciones={opcionesEstadoSalud}
+                  placeholder="Seleccionar estado de salud..."
+                />
               </div>
             </div>
           </div>
@@ -742,33 +902,24 @@ const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Método de Pesaje
                 </label>
-                <select
-                  name="metodoPesaje"
-                  value={formData.metodoPesaje}
-                  onChange={manejarCambio}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="bascula">Báscula Electrónica</option>
-                  <option value="romana">Romana Mecánica</option>
-                  <option value="cinta">Cinta Métrica (estimado)</option>
-                  <option value="dinamometro">Dinamómetro</option>
-                </select>
+                <SelectPersonalizado
+                  valor={formData.metodoPesaje}
+                  onChange={(valor) => manejarCambio({ target: { name: 'metodoPesaje', value: valor } })}
+                  opciones={opcionesMetodoPesaje}
+                  placeholder="Seleccionar método..."
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Momento Alimentación
                 </label>
-                <select
-                  name="momentoAlimentacion"
-                  value={formData.momentoAlimentacion}
-                  onChange={manejarCambio}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="antes">Antes de alimentar</option>
-                  <option value="despues">Después de alimentar</option>
-                  <option value="intermedio">Intermedio</option>
-                </select>
+                <SelectPersonalizado
+                  valor={formData.momentoAlimentacion}
+                  onChange={(valor) => manejarCambio({ target: { name: 'momentoAlimentacion', value: valor } })}
+                  opciones={opcionesMomentoAlimentacion}
+                  placeholder="Seleccionar momento..."
+                />
               </div>
 
               <div className="flex items-center">

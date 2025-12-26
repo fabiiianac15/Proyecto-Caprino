@@ -21,8 +21,13 @@ import {
   X,
   FileText,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Zap,
+  Droplet,
+  Wind,
+  Smile
 } from 'lucide-react';
+import SelectPersonalizado from './SelectPersonalizado';
 
 const ModuloSalud = () => {
   const [vistaActual, setVistaActual] = useState('lista'); // 'lista', 'registro', 'detalle'
@@ -414,6 +419,62 @@ const ModuloSalud = () => {
  * Componente de Formulario de Salud
  */
 const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
+  // Opciones para selectores personalizados
+  const opcionesViaAdministracion = [
+    { 
+      value: 'subcutanea', 
+      label: 'Subcutánea', 
+      icono: <Zap />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    },
+    { 
+      value: 'intramuscular', 
+      label: 'Intramuscular', 
+      icono: <Activity />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    },
+    { 
+      value: 'intranasal', 
+      label: 'Intranasal', 
+      icono: <Wind />,
+      colorFondo: 'bg-cyan-100',
+      colorIcono: 'text-cyan-600'
+    },
+    { 
+      value: 'oral', 
+      label: 'Oral', 
+      icono: <Smile />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    }
+  ];
+
+  const opcionesGravedad = [
+    { 
+      value: 'leve', 
+      label: 'Leve', 
+      icono: <CheckCircle />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'moderada', 
+      label: 'Moderada', 
+      icono: <AlertCircle />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: 'grave', 
+      label: 'Grave', 
+      icono: <AlertTriangle />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    }
+  ];
+
   const [formData, setFormData] = useState({
     // Común
     animalId: eventoEditar?.animal?.codigo || '',
@@ -592,18 +653,13 @@ const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Vía de Administración <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      name="viaAdministracion"
-                      value={formData.viaAdministracion}
-                      onChange={manejarCambio}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="subcutanea">Subcutánea</option>
-                      <option value="intramuscular">Intramuscular</option>
-                      <option value="intranasal">Intranasal</option>
-                      <option value="oral">Oral</option>
-                    </select>
+                    <SelectPersonalizado
+                      valor={formData.viaAdministracion}
+                      onChange={(valor) => manejarCambio({ target: { name: 'viaAdministracion', value: valor } })}
+                      opciones={opcionesViaAdministracion}
+                      placeholder="Seleccionar vía..."
+                      requerido
+                    />
                   </div>
 
                   <div>
@@ -728,17 +784,13 @@ const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Nivel de Gravedad <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    name="gravedad"
-                    value={formData.gravedad}
-                    onChange={manejarCambio}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                    required
-                  >
-                    <option value="leve">Leve</option>
-                    <option value="moderada">Moderada</option>
-                    <option value="grave">Grave</option>
-                  </select>
+                  <SelectPersonalizado
+                    valor={formData.gravedad}
+                    onChange={(valor) => manejarCambio({ target: { name: 'gravedad', value: valor } })}
+                    opciones={opcionesGravedad}
+                    placeholder="Seleccionar gravedad..."
+                    requerido
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

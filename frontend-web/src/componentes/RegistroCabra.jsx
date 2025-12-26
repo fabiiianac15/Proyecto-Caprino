@@ -15,8 +15,28 @@ import {
   Calendar,
   Tag,
   Weight,
-  Info
+  Info,
+  Sparkles,
+  Heart,
+  Palette,
+  Target,
+  Moon,
+  Mountain,
+  Droplet,
+  Beef,
+  Baby,
+  Users as UsersIcon,
+  Activity,
+  TrendingUp,
+  DollarSign,
+  Skull,
+  Gift,
+  Zap,
+  Hourglass,
+  Milk,
+  CloudOff
 } from 'lucide-react';
+import SelectPersonalizado from './SelectPersonalizado';
 
 const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const [formData, setFormData] = useState({
@@ -57,34 +77,247 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
   const inputFotoRef = useRef(null);
 
-  // Opciones para los selectores
-  const razas = [
-    'Saanen',
-    'Alpina Francesa',
-    'Toggenburg',
-    'Nubia',
-    'LaMancha',
-    'Boer',
-    'Criolla',
-    'Mestiza'
+  // Opciones para los selectores con iconos
+  const opcionesSexo = [
+    { 
+      value: 'macho', 
+      label: 'Macho', 
+      icono: <User />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    },
+    { 
+      value: 'hembra', 
+      label: 'Hembra', 
+      icono: <Heart />,
+      colorFondo: 'bg-pink-100',
+      colorIcono: 'text-pink-600'
+    }
   ];
 
-  const colores = [
-    'Blanco',
-    'Negro',
-    'Marrón',
-    'Beige',
-    'Gris',
-    'Manchado',
-    'Multicolor'
+  const opcionesRaza = [
+    { 
+      value: 'Saanen', 
+      label: 'Saanen', 
+      icono: <Sparkles />,
+      colorFondo: 'bg-purple-100',
+      colorIcono: 'text-purple-600'
+    },
+    { 
+      value: 'Alpina Francesa', 
+      label: 'Alpina Francesa', 
+      icono: <Mountain />,
+      colorFondo: 'bg-indigo-100',
+      colorIcono: 'text-indigo-600'
+    },
+    { 
+      value: 'Toggenburg', 
+      label: 'Toggenburg', 
+      icono: <Moon />,
+      colorFondo: 'bg-gray-100',
+      colorIcono: 'text-gray-600'
+    },
+    { 
+      value: 'Nubia', 
+      label: 'Nubia', 
+      icono: <Sparkles />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: 'LaMancha', 
+      label: 'LaMancha', 
+      icono: <UsersIcon />,
+      colorFondo: 'bg-orange-100',
+      colorIcono: 'text-orange-600'
+    },
+    { 
+      value: 'Boer', 
+      label: 'Boer', 
+      icono: <Beef />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    },
+    { 
+      value: 'Criolla', 
+      label: 'Criolla', 
+      icono: <Heart />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'Mestiza', 
+      label: 'Mestiza', 
+      icono: <Sparkles />,
+      colorFondo: 'bg-teal-100',
+      colorIcono: 'text-teal-600'
+    }
   ];
 
-  const propositos = [
-    'Leche',
-    'Carne',
-    'Doble propósito',
-    'Reproducción',
-    'Cría'
+  const opcionesColor = [
+    { 
+      value: 'Blanco', 
+      label: 'Blanco', 
+      icono: <Palette />,
+      colorFondo: 'bg-gray-50 border border-gray-200',
+      colorIcono: 'text-gray-600'
+    },
+    { 
+      value: 'Negro', 
+      label: 'Negro', 
+      icono: <Palette />,
+      colorFondo: 'bg-gray-800',
+      colorIcono: 'text-white'
+    },
+    { 
+      value: 'Marrón', 
+      label: 'Marrón', 
+      icono: <Palette />,
+      colorFondo: 'bg-amber-700',
+      colorIcono: 'text-white'
+    },
+    { 
+      value: 'Beige', 
+      label: 'Beige', 
+      icono: <Palette />,
+      colorFondo: 'bg-amber-100',
+      colorIcono: 'text-amber-700'
+    },
+    { 
+      value: 'Gris', 
+      label: 'Gris', 
+      icono: <Palette />,
+      colorFondo: 'bg-gray-300',
+      colorIcono: 'text-gray-700'
+    },
+    { 
+      value: 'Manchado', 
+      label: 'Manchado', 
+      icono: <Palette />,
+      colorFondo: 'bg-gradient-to-r from-white to-gray-800',
+      colorIcono: 'text-gray-600'
+    },
+    { 
+      value: 'Multicolor', 
+      label: 'Multicolor', 
+      icono: <Palette />,
+      colorFondo: 'bg-gradient-to-r from-red-200 via-yellow-200 to-blue-200',
+      colorIcono: 'text-gray-700'
+    }
+  ];
+
+  const opcionesProposito = [
+    { 
+      value: 'Leche', 
+      label: 'Leche', 
+      icono: <Droplet />,
+      colorFondo: 'bg-cyan-100',
+      colorIcono: 'text-cyan-600'
+    },
+    { 
+      value: 'Carne', 
+      label: 'Carne', 
+      icono: <Beef />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    },
+    { 
+      value: 'Doble propósito', 
+      label: 'Doble propósito', 
+      icono: <Target />,
+      colorFondo: 'bg-purple-100',
+      colorIcono: 'text-purple-600'
+    },
+    { 
+      value: 'Reproducción', 
+      label: 'Reproducción', 
+      icono: <Heart />,
+      colorFondo: 'bg-pink-100',
+      colorIcono: 'text-pink-600'
+    },
+    { 
+      value: 'Cría', 
+      label: 'Cría', 
+      icono: <Baby />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    }
+  ];
+
+  const opcionesEstadoGeneral = [
+    { 
+      value: 'activo', 
+      label: 'Activo', 
+      icono: <Activity />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'vendido', 
+      label: 'Vendido', 
+      icono: <DollarSign />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    },
+    { 
+      value: 'muerto', 
+      label: 'Muerto', 
+      icono: <Skull />,
+      colorFondo: 'bg-gray-100',
+      colorIcono: 'text-gray-600'
+    },
+    { 
+      value: 'donado', 
+      label: 'Donado', 
+      icono: <Gift />,
+      colorFondo: 'bg-purple-100',
+      colorIcono: 'text-purple-600'
+    }
+  ];
+
+  const opcionesEstadoReproductivo = [
+    { 
+      value: '', 
+      label: 'No aplica', 
+      icono: <CloudOff />,
+      colorFondo: 'bg-gray-100',
+      colorIcono: 'text-gray-500'
+    },
+    { 
+      value: 'apta', 
+      label: 'Apta para reproducción', 
+      icono: <CheckCircle />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'gestante', 
+      label: 'Gestante', 
+      icono: <Heart />,
+      colorFondo: 'bg-pink-100',
+      colorIcono: 'text-pink-600'
+    },
+    { 
+      value: 'lactante', 
+      label: 'Lactante', 
+      icono: <Milk />,
+      colorFondo: 'bg-cyan-100',
+      colorIcono: 'text-cyan-600'
+    },
+    { 
+      value: 'seca', 
+      label: 'Seca', 
+      icono: <CloudOff />,
+      colorFondo: 'bg-orange-100',
+      colorIcono: 'text-orange-600'
+    },
+    { 
+      value: 'joven', 
+      label: 'Muy joven', 
+      icono: <Baby />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    }
   ];
 
   /**
@@ -389,20 +622,14 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Sexo <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    name="sexo"
-                    value={formData.sexo}
-                    onChange={manejarCambio}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errores.sexo 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option value="macho">Macho</option>
-                    <option value="hembra">Hembra</option>
-                  </select>
+                  <SelectPersonalizado
+                    valor={formData.sexo}
+                    onChange={(valor) => manejarCambio({ target: { name: 'sexo', value: valor } })}
+                    opciones={opcionesSexo}
+                    placeholder="Seleccionar sexo..."
+                    error={!!errores.sexo}
+                    requerido
+                  />
                   {errores.sexo && (
                     <p className="mt-1 text-sm text-red-600">{errores.sexo}</p>
                   )}
@@ -413,21 +640,14 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Raza <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    name="raza"
-                    value={formData.raza}
-                    onChange={manejarCambio}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errores.raza 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  >
-                    <option value="">Seleccionar...</option>
-                    {razas.map(raza => (
-                      <option key={raza} value={raza}>{raza}</option>
-                    ))}
-                  </select>
+                  <SelectPersonalizado
+                    valor={formData.raza}
+                    onChange={(valor) => manejarCambio({ target: { name: 'raza', value: valor } })}
+                    opciones={opcionesRaza}
+                    placeholder="Seleccionar raza..."
+                    error={!!errores.raza}
+                    requerido
+                  />
                   {errores.raza && (
                     <p className="mt-1 text-sm text-red-600">{errores.raza}</p>
                   )}
@@ -438,17 +658,12 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Color
                   </label>
-                  <select
-                    name="color"
-                    value={formData.color}
-                    onChange={manejarCambio}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">Seleccionar...</option>
-                    {colores.map(color => (
-                      <option key={color} value={color}>{color}</option>
-                    ))}
-                  </select>
+                  <SelectPersonalizado
+                    valor={formData.color}
+                    onChange={(valor) => manejarCambio({ target: { name: 'color', value: valor } })}
+                    opciones={opcionesColor}
+                    placeholder="Seleccionar color..."
+                  />
                 </div>
 
                 {/* Propósito */}
@@ -456,17 +671,12 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Propósito
                   </label>
-                  <select
-                    name="proposito"
-                    value={formData.proposito}
-                    onChange={manejarCambio}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">Seleccionar...</option>
-                    {propositos.map(prop => (
-                      <option key={prop} value={prop}>{prop}</option>
-                    ))}
-                  </select>
+                  <SelectPersonalizado
+                    valor={formData.proposito}
+                    onChange={(valor) => manejarCambio({ target: { name: 'proposito', value: valor } })}
+                    opciones={opcionesProposito}
+                    placeholder="Seleccionar propósito..."
+                  />
                 </div>
               </div>
             </div>
@@ -613,17 +823,12 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Estado General
                   </label>
-                  <select
-                    name="estado"
-                    value={formData.estado}
-                    onChange={manejarCambio}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="activo">Activo</option>
-                    <option value="vendido">Vendido</option>
-                    <option value="muerto">Muerto</option>
-                    <option value="donado">Donado</option>
-                  </select>
+                  <SelectPersonalizado
+                    valor={formData.estado}
+                    onChange={(valor) => manejarCambio({ target: { name: 'estado', value: valor } })}
+                    opciones={opcionesEstadoGeneral}
+                    placeholder="Seleccionar estado..."
+                  />
                 </div>
 
                 {/* Estado reproductivo (solo si es hembra) */}
@@ -632,19 +837,12 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Estado Reproductivo
                     </label>
-                    <select
-                      name="estadoReproductivo"
-                      value={formData.estadoReproductivo}
-                      onChange={manejarCambio}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    >
-                      <option value="">Seleccionar...</option>
-                      <option value="apta">Apta para reproducción</option>
-                      <option value="gestante">Gestante</option>
-                      <option value="lactante">Lactante</option>
-                      <option value="seca">Seca</option>
-                      <option value="joven">Muy joven</option>
-                    </select>
+                    <SelectPersonalizado
+                      valor={formData.estadoReproductivo}
+                      onChange={(valor) => manejarCambio({ target: { name: 'estadoReproductivo', value: valor } })}
+                      opciones={opcionesEstadoReproductivo}
+                      placeholder="Seleccionar estado reproductivo..."
+                    />
                   </div>
                 )}
               </div>

@@ -18,8 +18,20 @@ import {
   X,
   Activity,
   BarChart3,
-  Thermometer
+  Thermometer,
+  Sunrise,
+  Sunset,
+  Moon,
+  Star,
+  ThumbsUp,
+  Smile,
+  Frown,
+  Meh,
+  CheckCircle,
+  XCircle,
+  TrendingDown
 } from 'lucide-react';
+import SelectPersonalizado from './SelectPersonalizado';
 
 const ModuloProduccion = () => {
   const [vistaActual, setVistaActual] = useState('lista'); // 'lista', 'registro', 'detalle'
@@ -310,6 +322,124 @@ const ModuloProduccion = () => {
  * Componente de Formulario de Producción
  */
 const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
+  // Opciones para selectores personalizados
+  const opcionesNumeroOrdenio = [
+    { 
+      value: '1', 
+      label: 'Primer ordeño (mañana)', 
+      icono: <Sunrise />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: '2', 
+      label: 'Segundo ordeño (tarde)', 
+      icono: <Sunset />,
+      colorFondo: 'bg-orange-100',
+      colorIcono: 'text-orange-600'
+    },
+    { 
+      value: '3', 
+      label: 'Tercer ordeño (noche)', 
+      icono: <Moon />,
+      colorFondo: 'bg-indigo-100',
+      colorIcono: 'text-indigo-600'
+    }
+  ];
+
+  const opcionesCalidadLeche = [
+    { 
+      value: 'excelente', 
+      label: 'Excelente', 
+      icono: <Star />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'buena', 
+      label: 'Buena', 
+      icono: <ThumbsUp />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    },
+    { 
+      value: 'regular', 
+      label: 'Regular', 
+      icono: <Meh />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: 'mala', 
+      label: 'Mala', 
+      icono: <Frown />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    }
+  ];
+
+  const opcionesEstadoAnimal = [
+    { 
+      value: 'normal', 
+      label: 'Normal', 
+      icono: <Smile />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'estresado', 
+      label: 'Estresado', 
+      icono: <AlertCircle />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: 'enfermo', 
+      label: 'Enfermo', 
+      icono: <XCircle />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    },
+    { 
+      value: 'en_recuperacion', 
+      label: 'En recuperación', 
+      icono: <TrendingUp />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    }
+  ];
+
+  const opcionesCondicionesOrdenio = [
+    { 
+      value: 'optimas', 
+      label: 'Óptimas', 
+      icono: <CheckCircle />,
+      colorFondo: 'bg-green-100',
+      colorIcono: 'text-green-600'
+    },
+    { 
+      value: 'buenas', 
+      label: 'Buenas', 
+      icono: <ThumbsUp />,
+      colorFondo: 'bg-blue-100',
+      colorIcono: 'text-blue-600'
+    },
+    { 
+      value: 'regulares', 
+      label: 'Regulares', 
+      icono: <Meh />,
+      colorFondo: 'bg-yellow-100',
+      colorIcono: 'text-yellow-600'
+    },
+    { 
+      value: 'deficientes', 
+      label: 'Deficientes', 
+      icono: <TrendingDown />,
+      colorFondo: 'bg-red-100',
+      colorIcono: 'text-red-600'
+    }
+  ];
+
   const [formData, setFormData] = useState({
     // Datos básicos
     hembraId: registroEditar?.hembra?.codigo || '',
@@ -454,17 +584,13 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Número de Ordeño <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="numeroOrdenio"
-                  value={formData.numeroOrdenio}
-                  onChange={manejarCambio}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  required
-                >
-                  <option value="1">Primer ordeño (mañana)</option>
-                  <option value="2">Segundo ordeño (tarde)</option>
-                  <option value="3">Tercer ordeño (noche)</option>
-                </select>
+                <SelectPersonalizado
+                  valor={formData.numeroOrdenio}
+                  onChange={(valor) => manejarCambio({ target: { name: 'numeroOrdenio', value: valor } })}
+                  opciones={opcionesNumeroOrdenio}
+                  placeholder="Seleccionar ordeño..."
+                  requerido
+                />
               </div>
 
               <div>
@@ -541,18 +667,13 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Calidad de la Leche <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="calidadLeche"
-                  value={formData.calidadLeche}
-                  onChange={manejarCambio}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  required
-                >
-                  <option value="excelente">Excelente</option>
-                  <option value="buena">Buena</option>
-                  <option value="regular">Regular</option>
-                  <option value="mala">Mala</option>
-                </select>
+                <SelectPersonalizado
+                  valor={formData.calidadLeche}
+                  onChange={(valor) => manejarCambio({ target: { name: 'calidadLeche', value: valor } })}
+                  opciones={opcionesCalidadLeche}
+                  placeholder="Seleccionar calidad..."
+                  requerido
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -733,34 +854,24 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Estado del Animal
                 </label>
-                <select
-                  name="estadoAnimal"
-                  value={formData.estadoAnimal}
-                  onChange={manejarCambio}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  <option value="normal">Normal</option>
-                  <option value="estresado">Estresado</option>
-                  <option value="enfermo">Enfermo</option>
-                  <option value="en_recuperacion">En recuperación</option>
-                </select>
+                <SelectPersonalizado
+                  valor={formData.estadoAnimal}
+                  onChange={(valor) => manejarCambio({ target: { name: 'estadoAnimal', value: valor } })}
+                  opciones={opcionesEstadoAnimal}
+                  placeholder="Seleccionar estado..."
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Condiciones de Ordeño
                 </label>
-                <select
-                  name="condicionesOrdenio"
-                  value={formData.condicionesOrdenio}
-                  onChange={manejarCambio}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                >
-                  <option value="optimas">Óptimas</option>
-                  <option value="buenas">Buenas</option>
-                  <option value="regulares">Regulares</option>
-                  <option value="deficientes">Deficientes</option>
-                </select>
+                <SelectPersonalizado
+                  valor={formData.condicionesOrdenio}
+                  onChange={(valor) => manejarCambio({ target: { name: 'condicionesOrdenio', value: valor } })}
+                  opciones={opcionesCondicionesOrdenio}
+                  placeholder="Seleccionar condiciones..."
+                />
               </div>
             </div>
           </div>
