@@ -17,6 +17,7 @@ import RegistroCabra from './componentes/RegistroCabra';
 import ModuloProduccion from './componentes/ModuloProduccion';
 import ModuloReproduccion from './componentes/ModuloReproduccion';
 import ModuloSalud from './componentes/ModuloSalud';
+import ModuloPeso from './componentes/ModuloPeso';
 import Notificaciones from './componentes/Notificaciones';
 
 function App() {
@@ -195,6 +196,8 @@ function App() {
           />
           
           <Route path="/notificaciones" element={<Notificaciones />} />
+          
+          <Route path="/peso" element={<ModuloPeso />} />
           
           <Route
             path="*"
