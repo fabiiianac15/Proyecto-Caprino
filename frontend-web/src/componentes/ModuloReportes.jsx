@@ -514,45 +514,11 @@ const ModuloReportes = () => {
       <div className="mt-8 bg-white rounded-lg shadow-md p-6">
         <h3 className="text-xl font-bold text-gray-800 mb-4">Resumen Ejecutivo</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <EstadisticaRapida
-            icono={Users}
-            valor="124"
-            etiqueta="Total Animales"
-            color="blue"
-          />
-          <EstadisticaRapida
-            icono={Droplet}
-            valor="485 L"
-            etiqueta="Producción Diaria"
-            color="cyan"
-            tendencia="up"
-          />
-          <EstadisticaRapida
-            icono={Heart}
-            valor="18"
-            etiqueta="Gestantes"
-            color="pink"
-          />
-          <EstadisticaRapida
-            icono={Activity}
-            valor="95%"
-            etiqueta="Salud del Rebaño"
-            color="green"
-          />
-          <EstadisticaRapida
-            icono={Weight}
-            valor="42.5 kg"
-            etiqueta="Peso Promedio"
-            color="indigo"
-            tendencia="up"
-          />
-          <EstadisticaRapida
-            icono={DollarSign}
-            valor="$24,580"
-            etiqueta="Ingresos Mes"
-            color="green"
-            tendencia="up"
-          />
+          {/* Las estadísticas se cargarán desde la API */}
+          <div className="col-span-2 md:col-span-4 lg:col-span-6 text-center py-8">
+            <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">Las estadísticas se cargarán desde el sistema</p>
+          </div>
         </div>
       </div>
     </div>
@@ -601,31 +567,26 @@ const VisualizadorReporte = ({ reporte, categoria, filtros, onCerrar, onExportar
     setGenerando(false);
   };
 
-  // Datos de ejemplo según el tipo de reporte
+  // Obtener datos del reporte desde la API
   const obtenerDatosReporte = () => {
     // Aquí se generarían los datos reales desde la API
+    // TODO: Implementar llamada a la API con filtros
     return {
       resumen: {
         periodo: filtros.fechaInicio && filtros.fechaFin 
           ? `${filtros.fechaInicio} a ${filtros.fechaFin}` 
           : 'Último mes',
-        registros: 156,
+        registros: 0,
         generado: new Date().toLocaleString('es-ES')
       },
       metricas: reporte.metricas.map((metrica, idx) => ({
         nombre: metrica,
-        valor: Math.floor(Math.random() * 1000),
+        valor: 0,
         unidad: idx % 2 === 0 ? 'unidades' : '%',
-        tendencia: Math.random() > 0.5 ? 'up' : 'down',
-        cambio: (Math.random() * 20).toFixed(1)
+        tendencia: 'up',
+        cambio: '0'
       })),
-      datos: Array.from({ length: 10 }, (_, i) => ({
-        id: i + 1,
-        animal: `CAB-${String(i + 1).padStart(3, '0')}`,
-        valor1: (Math.random() * 100).toFixed(2),
-        valor2: (Math.random() * 50).toFixed(2),
-        estado: Math.random() > 0.7 ? 'Óptimo' : Math.random() > 0.4 ? 'Normal' : 'Revisar'
-      }))
+      datos: []
     };
   };
 
