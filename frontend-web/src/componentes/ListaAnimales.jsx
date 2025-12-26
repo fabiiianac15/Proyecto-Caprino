@@ -12,15 +12,18 @@ import {
   Eye, 
   Plus,
   Download,
-  ChevronLeft,
-  ChevronRight,
-  AlertCircle
+  AlertCircle,
+  User,
+  Tag,
+  Calendar,
+  Weight,
+  Heart
 } from 'lucide-react';
 import animalService from '../servicios/animalService';
 
 const ListaAnimales = ({ onEditar, onNuevo }) => {
   const [animales, setAnimales] = useState([]);
-  const [cargando, setCargando] = useState(true);
+  const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
   const [paginaActual, setPaginaActual] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
@@ -70,6 +73,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
     setError(null);
     
     try {
+      // TODO: Reemplazar con llamada real a la API cuando esté lista
       const parametros = {
         ...filtros,
         pagina: paginaActual,
@@ -78,8 +82,8 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
 
       const respuesta = await animalService.buscarAnimales(parametros);
       
-      setAnimales(respuesta.data);
-      setTotalPaginas(Math.ceil(respuesta.total / animalesPorPagina));
+      setAnimales(respuesta.data || []);
+      setTotalPaginas(Math.ceil((respuesta.total || 0) / animalesPorPagina));
     } catch (error) {
       console.error('Error al cargar animales:', error);
       setError('Error al cargar la lista de animales. Intente nuevamente.');
@@ -198,18 +202,23 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Encabezado con búsqueda y acciones */}
-      <div className="p-4 border-b">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <h2 className="text-2xl font-bold text-gray-800">
-            Inventario de Animales
-          </h2>
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800">
+              Inventario de Animales
+            </h2>
+            <p className="text-gray-600 mt-1">
+              {animales.length} {animales.length === 1 ? 'cabra registrada' : 'cabras registradas'}
+            </p>
+          </div>
           
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setMostrarFiltros(!mostrarFiltros)}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 flex items-center"
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
             >
               <Filter className="w-4 h-4 mr-2" />
               Filtros
@@ -218,7 +227,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
             <button
               onClick={exportarCSV}
               disabled={animales.length === 0}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 flex items-center"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center"
             >
               <Download className="w-4 h-4 mr-2" />
               Exportar
@@ -226,7 +235,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
             
             <button
               onClick={onNuevo}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
             >
               <Plus className="w-4 h-4 mr-2" />
               Nuevo Animal
@@ -235,244 +244,189 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
         </div>
 
         {/* Barra de búsqueda */}
-        <div className="mt-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              name="busqueda"
-              value={filtros.busqueda}
-              onChange={manejarCambioFiltro}
-              placeholder="Buscar por identificación o nombre..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            name="busqueda"
+            value={filtros.busqueda}
+            onChange={manejarCambioFiltro}
+            placeholder="Buscar por identificación o nombre..."
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
         </div>
+      </div>
 
-        {/* Panel de filtros avanzados */}
-        {mostrarFiltros && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-md">
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              
-              {/* Filtro por sexo */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sexo
-                </label>
-                <select
-                  name="sexo"
-                  value={filtros.sexo}
-                  onChange={manejarCambioFiltro}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Todos</option>
-                  <option value="macho">Macho</option>
-                  <option value="hembra">Hembra</option>
-                </select>
-              </div>
-
-              {/* Filtro por raza */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Raza
-                </label>
-                <select
-                  name="raza"
-                  value={filtros.raza}
-                  onChange={manejarCambioFiltro}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Todas</option>
-                  {razas.map(raza => (
-                    <option key={raza.id} value={raza.id}>
-                      {raza.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro por estado */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Estado
-                </label>
-                <select
-                  name="estado"
-                  value={filtros.estado}
-                  onChange={manejarCambioFiltro}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Todos</option>
-                  <option value="activo">Activo</option>
-                  <option value="vendido">Vendido</option>
-                  <option value="muerto">Muerto</option>
-                  <option value="descartado">Descartado</option>
-                </select>
-              </div>
-
-              {/* Filtro por edad mínima */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Edad Min (meses)
-                </label>
-                <input
-                  type="number"
-                  name="edadMin"
-                  value={filtros.edadMin}
-                  onChange={manejarCambioFiltro}
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Filtro por edad máxima */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Edad Max (meses)
-                </label>
-                <input
-                  type="number"
-                  name="edadMax"
-                  value={filtros.edadMax}
-                  onChange={manejarCambioFiltro}
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+      {/* Panel de filtros avanzados */}
+      {mostrarFiltros && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Filtros Avanzados</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Filtro por sexo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Sexo
+              </label>
+              <select
+                name="sexo"
+                value={filtros.sexo}
+                onChange={manejarCambioFiltro}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Todos</option>
+                <option value="macho">Macho</option>
+                <option value="hembra">Hembra</option>
+              </select>
             </div>
 
-            <div className="mt-4 flex justify-end">
+            {/* Filtro por estado */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Estado
+              </label>
+              <select
+                name="estado"
+                value={filtros.estado}
+                onChange={manejarCambioFiltro}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Todos</option>
+                <option value="activo">Activo</option>
+                <option value="vendido">Vendido</option>
+                <option value="muerto">Muerto</option>
+              </select>
+            </div>
+
+            {/* Botón limpiar */}
+            <div className="flex items-end">
               <button
                 onClick={limpiarFiltros}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Limpiar filtros
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Tabla de animales */}
-      <div className="overflow-x-auto">
-        {cargando ? (
-          <div className="flex justify-center items-center p-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : error ? (
-          <div className="p-8 text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <p className="text-red-600">{error}</p>
-            <button
-              onClick={cargarAnimales}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Reintentar
-            </button>
-          </div>
-        ) : animales.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <p>No se encontraron animales con los filtros aplicados.</p>
-          </div>
-        ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Identificación
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nombre
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Sexo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Edad
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Raza
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {animales.map((animal) => (
-                <tr key={animal.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {animal.identificacion}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {animal.nombre || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+      {/* Grid de tarjetas de animales */}
+      {cargando ? (
+        <div className="flex justify-center items-center p-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      ) : error ? (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 text-lg mb-4">{error}</p>
+          <button
+            onClick={cargarAnimales}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : animales.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <p className="text-gray-500 text-lg mb-4">No se encontraron animales con los filtros aplicados.</p>
+          <button
+            onClick={onNuevo}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Registrar Primera Cabra
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {animales.map(animal => (
+            <div key={animal.id} className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow overflow-hidden">
+              {/* Foto del animal */}
+              <div className="h-48 bg-gradient-to-br from-green-100 to-green-50 relative overflow-hidden">
+                {animal.foto ? (
+                  <img 
+                    src={animal.foto} 
+                    alt={animal.nombre}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    <User className="w-16 h-16" />
+                  </div>
+                )}
+                <div className="absolute top-2 right-2">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${obtenerColorEstado(animal.estado)}`}>
+                    {animal.estado.charAt(0).toUpperCase() + animal.estado.slice(1)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Información del animal */}
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-800">{animal.nombre}</h3>
+                    <p className="text-sm text-gray-500 font-mono">{animal.codigo}</p>
+                  </div>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    animal.sexo === 'macho' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'
+                  }`}>
                     {animal.sexo === 'macho' ? 'Macho' : 'Hembra'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatearEdad(animal.fechaNacimiento)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {animal.raza?.nombre || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${obtenerColorEstado(animal.estado)}`}>
-                      {animal.estado}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => onEditar(animal)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Editar"
-                      >
-                        <Edit className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => confirmarEliminar(animal)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                  </span>
+                </div>
 
-      {/* Paginación */}
-      {!cargando && animales.length > 0 && (
-        <div className="px-4 py-3 border-t flex items-center justify-between">
-          <div className="text-sm text-gray-700">
-            Página {paginaActual} de {totalPaginas}
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
-              disabled={paginaActual === 1}
-              className="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Anterior
-            </button>
-            <button
-              onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
-              disabled={paginaActual === totalPaginas}
-              className="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
-              Siguiente
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Tag className="w-4 h-4 mr-2 text-gray-400" />
+                    <span className="font-medium">Raza:</span>
+                    <span className="ml-2">{animal.raza}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                    <span className="font-medium">Edad:</span>
+                    <span className="ml-2">{formatearEdad(animal.fechaNacimiento)}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Weight className="w-4 h-4 mr-2 text-gray-400" />
+                    <span className="font-medium">Peso:</span>
+                    <span className="ml-2">{animal.pesoActual} kg</span>
+                  </div>
+                  {animal.estadoReproductivo && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Heart className="w-4 h-4 mr-2 text-gray-400" />
+                      <span className="font-medium">Estado:</span>
+                      <span className="ml-2 capitalize">{animal.estadoReproductivo}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex gap-2 pt-4 border-t">
+                  <button
+                    onClick={() => onEditar(animal)}
+                    className="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center"
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => {/* Ver detalles */}}
+                    className="flex-1 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors flex items-center justify-center"
+                  >
+                    <Eye className="w-4 h-4 mr-1" />
+                    Ver
+                  </button>
+                  <button
+                    onClick={() => confirmarEliminar(animal)}
+                    className="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

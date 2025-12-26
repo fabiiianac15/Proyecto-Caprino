@@ -13,7 +13,7 @@ import { useAuth } from './contextos/AuthContext';
 import LoginRegistro from './componentes/LoginRegistro';
 import Dashboard from './componentes/Dashboard';
 import ListaAnimales from './componentes/ListaAnimales';
-import RegistroAnimal from './componentes/RegistroAnimal';
+import RegistroCabra from './componentes/RegistroCabra';
 import RegistroProduccion from './componentes/RegistroProduccion';
 import RegistroReproduccion from './componentes/RegistroReproduccion';
 import Notificaciones from './componentes/Notificaciones';
@@ -169,8 +169,8 @@ function App() {
                   onNuevo={manejarNuevoAnimal}
                 />
               ) : (
-                <RegistroAnimal
-                  animalEditar={animalEditar}
+                <RegistroCabra
+                  cabraEditar={animalEditar}
                   onGuardar={manejarGuardarAnimal}
                   onCancelar={manejarCancelar}
                 />

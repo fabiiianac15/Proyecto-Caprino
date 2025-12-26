@@ -28,7 +28,7 @@ const Dashboard = () => {
       ruta: '/animales',
       icono: Users,
       color: 'bg-green-500',
-      imagenPlaceholder: 'animales.png',
+      imagen: '/img/ModuloCabras.png',
       colorCard: 'from-green-50 to-emerald-50'
     },
     {
@@ -38,7 +38,7 @@ const Dashboard = () => {
       ruta: '/reproduccion',
       icono: Heart,
       color: 'bg-pink-500',
-      imagenPlaceholder: 'reproduccion.png',
+      imagen: '/img/Moduloreproduccion.png',
       colorCard: 'from-pink-50 to-rose-50'
     },
     {
@@ -48,7 +48,7 @@ const Dashboard = () => {
       ruta: '/salud',
       icono: Syringe,
       color: 'bg-blue-500',
-      imagenPlaceholder: 'salud.png',
+      imagen: '/img/ModuloVacunas.png',
       colorCard: 'from-blue-50 to-cyan-50'
     },
     {
@@ -58,7 +58,7 @@ const Dashboard = () => {
       ruta: '/produccion',
       icono: Milk,
       color: 'bg-amber-500',
-      imagenPlaceholder: 'produccion.png',
+      imagen: '/img/ModuloLeche.png',
       colorCard: 'from-amber-50 to-yellow-50'
     },
     {
@@ -68,7 +68,7 @@ const Dashboard = () => {
       ruta: '/peso',
       icono: Weight,
       color: 'bg-purple-500',
-      imagenPlaceholder: 'peso.png',
+      imagen: '/img/ModuloPeso.png',
       colorCard: 'from-purple-50 to-violet-50'
     },
     {
@@ -78,7 +78,7 @@ const Dashboard = () => {
       ruta: '/genealogia',
       icono: GitBranch,
       color: 'bg-teal-500',
-      imagenPlaceholder: 'genealogia.png',
+      imagen: '/img/ModuloGenealogia.png',
       colorCard: 'from-teal-50 to-cyan-50'
     },
     {
@@ -88,7 +88,7 @@ const Dashboard = () => {
       ruta: '/reportes',
       icono: FileText,
       color: 'bg-indigo-500',
-      imagenPlaceholder: 'reportes.png',
+      imagen: '/img/ModuloReportes.png',
       colorCard: 'from-indigo-50 to-blue-50'
     },
     {
@@ -98,7 +98,7 @@ const Dashboard = () => {
       ruta: '/notificaciones',
       icono: Bell,
       color: 'bg-orange-500',
-      imagenPlaceholder: 'notificaciones.png',
+      imagen: '/img/ModuloAlertas.png',
       colorCard: 'from-orange-50 to-amber-50'
     }
   ];
@@ -139,16 +139,11 @@ const Dashboard = () => {
 
           {/* Imagen ilustrativa */}
           <div className={`flex-1 bg-gradient-to-br ${modulo.colorCard} p-8 flex items-center justify-center min-h-[280px]`}>
-            <div className="w-full h-full rounded-2xl bg-white/50 backdrop-blur-sm flex items-center justify-center border-2 border-dashed border-gray-300">
-              <div className="text-center">
-                <div className={`inline-flex items-center justify-center w-20 h-20 ${modulo.color} rounded-full mb-3`}>
-                  <Icono className="w-10 h-10 text-white" />
-                </div>
-                <p className="text-sm text-gray-500 font-medium">
-                  {modulo.imagenPlaceholder}
-                </p>
-              </div>
-            </div>
+            <img 
+              src={modulo.imagen} 
+              alt={modulo.titulo}
+              className="w-full h-full object-contain rounded-2xl"
+            />
           </div>
         </div>
       </div>
