@@ -233,24 +233,36 @@ const LoginRegistro = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Lado izquierdo - Imagen */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-500 to-blue-700 items-center justify-center p-12">
-        <div className="text-center text-white">
+    <div className="min-h-screen flex relative">
+      {/* Fondo con imagen */}
+      <div 
+        className="absolute inset-0 bg-gradient-to-br from-green-100 via-blue-100 to-green-50"
+        style={{
+          backgroundImage: 'url(/img/FondoCabra.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          opacity: 0.15
+        }}
+      />
+      
+      {/* Lado izquierdo - Información */}
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12 relative z-10">
+        <div className="text-center">
           <img 
             src="/img/FondoCabra.png" 
             alt="Granja Caprina" 
             className="w-full max-w-lg mx-auto mb-8 drop-shadow-2xl"
           />
-          <h2 className="text-4xl font-bold mb-4">Sistema de Gestión Caprina</h2>
-          <p className="text-xl opacity-90">
+          <h2 className="text-4xl font-bold mb-4 text-green-800">Sistema de Gestión Caprina</h2>
+          <p className="text-xl text-green-700">
             Control integral de producción, reproducción y salud de tu rebaño
           </p>
         </div>
       </div>
 
       {/* Lado derecho - Formulario */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative z-10">
         <div className="w-full max-w-md">
           
           {/* Logo móvil */}
@@ -265,7 +277,7 @@ const LoginRegistro = () => {
               onClick={() => setVistaActual('login')}
               className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                 vistaActual === 'login'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-green-600 text-white'
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
@@ -275,7 +287,7 @@ const LoginRegistro = () => {
               onClick={() => setVistaActual('registro')}
               className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
                 vistaActual === 'registro'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-green-600 text-white'
                   : 'text-gray-600 hover:text-gray-800'
               }`}
             >
@@ -318,7 +330,7 @@ const LoginRegistro = () => {
                     className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.email 
                         ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500'
+                        : 'border-gray-300 focus:ring-green-500'
                     }`}
                   />
                 </div>
@@ -343,7 +355,7 @@ const LoginRegistro = () => {
                     className={`w-full pl-10 pr-12 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.password 
                         ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500'
+                        : 'border-gray-300 focus:ring-green-500'
                     }`}
                   />
                   <button
@@ -367,11 +379,11 @@ const LoginRegistro = () => {
                     name="recordar"
                     checked={loginForm.recordar}
                     onChange={manejarCambioLogin}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                   />
                   <span className="ml-2 text-sm text-gray-600">Recordarme</span>
                 </label>
-                <a href="#" className="text-sm text-blue-600 hover:text-blue-800">
+                <a href="#" className="text-sm text-green-600 hover:text-green-800">
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
@@ -380,16 +392,16 @@ const LoginRegistro = () => {
               <button
                 type="submit"
                 disabled={cargando}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
               >
                 {cargando ? 'Iniciando sesión...' : 'Iniciar Sesión'}
               </button>
 
               {/* Credenciales de prueba */}
-              <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm">
-                <p className="font-medium text-blue-900 mb-1">Credenciales de prueba:</p>
-                <p className="text-blue-700">Email: juan.perez@institucion.edu</p>
-                <p className="text-blue-700">Contraseña: Admin123!</p>
+              <div className="mt-4 p-3 bg-green-50 rounded-md text-sm border border-green-200">
+                <p className="font-medium text-green-900 mb-1">Credenciales de prueba:</p>
+                <p className="text-green-700">Email: juan.perez@institucion.edu</p>
+                <p className="text-green-700">Contraseña: Admin123!</p>
               </div>
             </form>
           )}
@@ -410,10 +422,10 @@ const LoginRegistro = () => {
                   value={registroForm.codigo}
                   onChange={manejarCambioRegistro}
                   placeholder="ADM001 o PAS001"
-                  className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                     errores.codigo 
                       ? 'border-red-300 focus:ring-red-500' 
-                      : 'border-gray-300 focus:ring-blue-500'
+                      : 'border-gray-300 focus:ring-green-500'
                   }`}
                 />
                 {errores.codigo && (
@@ -437,7 +449,7 @@ const LoginRegistro = () => {
                     className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.nombre 
                         ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500'
+                        : 'border-gray-300 focus:ring-green-500'
                     }`}
                   />
                 </div>
@@ -462,7 +474,7 @@ const LoginRegistro = () => {
                     className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.email 
                         ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500'
+                        : 'border-gray-300 focus:ring-green-500'
                     }`}
                   />
                 </div>
@@ -485,7 +497,7 @@ const LoginRegistro = () => {
                     className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.rol 
                         ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500'
+                        : 'border-gray-300 focus:ring-green-500'
                     }`}
                   >
                     <option value="">Seleccione un rol</option>
@@ -516,7 +528,7 @@ const LoginRegistro = () => {
                     className={`w-full pl-10 pr-12 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.password 
                         ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500'
+                        : 'border-gray-300 focus:ring-green-500'
                     }`}
                   />
                   <button
@@ -621,7 +633,7 @@ const LoginRegistro = () => {
                     className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
                       errores.confirmarPassword 
                         ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500'
+                        : 'border-gray-300 focus:ring-green-500'
                     }`}
                   />
                 </div>
@@ -634,7 +646,7 @@ const LoginRegistro = () => {
               <button
                 type="submit"
                 disabled={cargando}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
+                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
               >
                 {cargando ? 'Registrando...' : 'Crear Cuenta'}
               </button>
