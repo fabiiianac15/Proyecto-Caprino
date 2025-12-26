@@ -100,7 +100,7 @@ Puesta en producción con configuración profesional
 
 ## Licencia
 
-Proyecto académico - Universidad [Nombre]
+Proyecto académico - Universidad 
 Todos los derechos reservados
 
 ## Contacto
