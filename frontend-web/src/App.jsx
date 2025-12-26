@@ -16,6 +16,7 @@ import ListaAnimales from './componentes/ListaAnimales';
 import RegistroCabra from './componentes/RegistroCabra';
 import RegistroProduccion from './componentes/RegistroProduccion';
 import ModuloReproduccion from './componentes/ModuloReproduccion';
+import ModuloSalud from './componentes/ModuloSalud';
 import Notificaciones from './componentes/Notificaciones';
 
 function App() {
@@ -195,18 +196,7 @@ function App() {
           
           <Route
             path="/salud"
-            element={
-              <div className="bg-white rounded-lg shadow-md p-8 text-center">
-                <Activity className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  Módulo de Salud
-                </h2>
-                <p className="text-gray-600">
-                  En desarrollo. Próximamente podrás registrar vacunaciones,
-                  enfermedades y tratamientos.
-                </p>
-              </div>
-            }
+            element={<ModuloSalud />}
           />
           
           <Route path="/notificaciones" element={<Notificaciones />} />
