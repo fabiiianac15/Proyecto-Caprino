@@ -3,9 +3,12 @@ import { Routes, Route, useNavigate, Link } from 'react-router-dom';
 import { 
   LogOut,
   User,
-  Calendar,
-  Clock,
-  Activity
+  Activity,
+  Bell,
+  Droplet,
+  Heart,
+  Users,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from './contextos/AuthContext';
 
@@ -30,24 +33,33 @@ function App() {
   const [animalEditar, setAnimalEditar] = useState(null);
   const [vistaActual, setVistaActual] = useState('lista');
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
+  
+  // Indicadores del rebaño (se cargarán desde la API)
+  const [indicadores, setIndicadores] = useState({
+    totalAnimales: 0,
+    alertasPendientes: 0,
+    produccionHoy: 0,
+    gestantes: 0
+  });
 
-  // Actualizar fecha y hora cada segundo
+  // Cargar indicadores del rebaño
   useEffect(() => {
-    const intervalo = setInterval(() => {
-      setFechaHora(new Date());
-    }, 1000);
+    // TODO: Reemplazar con llamada real a la API
+    const cargarIndicadores = async () => {
+      // Simulación de datos - reemplazar con fetch real
+      setIndicadores({
+        totalAnimales: 0,
+        alertasPendientes: 0,
+        produccionHoy: 0,
+        gestantes: 0
+      });
+    };
     
+    cargarIndicadores();
+    // Actualizar cada 5 minutos
+    const intervalo = setInterval(cargarIndicadores, 300000);
     return () => clearInterval(intervalo);
   }, []);
-
-  const formatearFecha = (fecha) => {
-    return fecha.toLocaleDateString('es-ES', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
 
   const formatearHora = (fecha) => {
     return fecha.toLocaleTimeString('es-ES', { 
@@ -120,20 +132,64 @@ function App() {
               </div>
             </div>
 
-            {/* Información central - Fecha y hora */}
-            <div className="hidden lg:flex items-center space-x-6 text-white">
-              <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
-                <Calendar className="w-4 h-4" />
-                <span className="text-sm font-medium">
-                  {formatearFecha(fechaHora)}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
-                <Clock className="w-4 h-4" />
-                <span className="text-sm font-medium font-mono">
-                  {formatearHora(fechaHora)}
-                </span>
-              </div>
+            {/* Indicadores en tiempo real del rebaño */}
+            <div className="hidden lg:flex items-center space-x-3 text-white">
+              {/* Total de Animales */}
+              <button
+                onClick={() => navigate('/animales')}
+                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/20 transition-all cursor-pointer group"
+                title="Ver todos los animales"
+              >
+                <Users className="w-5 h-5 text-blue-300 group-hover:scale-110 transition-transform" />
+                <div className="text-left">
+                  <p className="text-xs text-green-200">Animales</p>
+                  <p className="text-lg font-bold leading-none">{indicadores.totalAnimales}</p>
+                </div>
+              </button>
+
+              {/* Alertas Pendientes */}
+              <button
+                onClick={() => navigate('/notificaciones')}
+                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/20 transition-all cursor-pointer group relative"
+                title="Ver notificaciones"
+              >
+                <Bell className="w-5 h-5 text-yellow-300 group-hover:scale-110 transition-transform" />
+                <div className="text-left">
+                  <p className="text-xs text-green-200">Alertas</p>
+                  <p className="text-lg font-bold leading-none">{indicadores.alertasPendientes}</p>
+                </div>
+                {indicadores.alertasPendientes > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+                    {indicadores.alertasPendientes > 9 ? '9+' : indicadores.alertasPendientes}
+                  </span>
+                )}
+              </button>
+
+              {/* Producción del Día */}
+              <button
+                onClick={() => navigate('/produccion')}
+                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/20 transition-all cursor-pointer group"
+                title="Ver producción de leche"
+              >
+                <Droplet className="w-5 h-5 text-cyan-300 group-hover:scale-110 transition-transform" />
+                <div className="text-left">
+                  <p className="text-xs text-green-200">Producción</p>
+                  <p className="text-lg font-bold leading-none">{indicadores.produccionHoy} L</p>
+                </div>
+              </button>
+
+              {/* Animales Gestantes */}
+              <button
+                onClick={() => navigate('/reproduccion')}
+                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/20 transition-all cursor-pointer group"
+                title="Ver reproducción"
+              >
+                <Heart className="w-5 h-5 text-pink-300 group-hover:scale-110 transition-transform" />
+                <div className="text-left">
+                  <p className="text-xs text-green-200">Gestantes</p>
+                  <p className="text-lg font-bold leading-none">{indicadores.gestantes}</p>
+                </div>
+              </button>
             </div>
 
             {/* Usuario y cerrar sesión */}
