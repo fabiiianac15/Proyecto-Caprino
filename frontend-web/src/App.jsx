@@ -19,6 +19,7 @@ import ModuloReproduccion from './componentes/ModuloReproduccion';
 import ModuloSalud from './componentes/ModuloSalud';
 import ModuloPeso from './componentes/ModuloPeso';
 import ModuloGenealogia from './componentes/ModuloGenealogia';
+import ModuloReportes from './componentes/ModuloReportes';
 import Notificaciones from './componentes/Notificaciones';
 
 function App() {
@@ -201,6 +202,8 @@ function App() {
           <Route path="/peso" element={<ModuloPeso />} />
           
           <Route path="/genealogia" element={<ModuloGenealogia />} />
+          
+          <Route path="/reportes" element={<ModuloReportes />} />
           
           <Route
             path="*"
