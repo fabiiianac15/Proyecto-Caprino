@@ -17,7 +17,7 @@ import {
   validarPeso, 
   validarFecha 
 } from '../utilidades/validaciones';
-import animalService from '../servicios/animalService';
+import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 
 const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
   // Estado inicial del formulario
@@ -57,23 +57,22 @@ const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
   const cargarDatosIniciales = async () => {
     try {
       // Cargar razas disponibles
-      const respuestaRazas = await fetch('/api/razas');
-      const datosRazas = await respuestaRazas.json();
+      const datosRazas = await razasAPI.getAll();
       setRazas(datosRazas);
 
       // Cargar machos reproductores
-      const respuestaMachos = await animalService.buscarAnimales({ 
-        sexo: 'macho', 
-        estado: 'activo' 
+      const respuestaMachos = await animalesAPI.search({ 
+        sexo: 'Macho', 
+        estadoGeneral: 'Sano' 
       });
-      setMachos(respuestaMachos.data);
+      setMachos(respuestaMachos['hydra:member'] || respuestaMachos);
 
       // Cargar hembras reproductoras
-      const respuestaHembras = await animalService.buscarAnimales({ 
-        sexo: 'hembra', 
-        estado: 'activo' 
+      const respuestaHembras = await animalesAPI.search({ 
+        sexo: 'Hembra', 
+        estadoGeneral: 'Sano' 
       });
-      setHembras(respuestaHembras.data);
+      setHembras(respuestaHembras['hydra:member'] || respuestaHembras);
     } catch (error) {
       console.error('Error al cargar datos iniciales:', error);
       mostrarMensaje('error', 'Error al cargar datos del formulario');
@@ -160,20 +159,20 @@ const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
       let respuesta;
       if (animalEditar) {
         // Actualizar animal existente
-        respuesta = await animalService.actualizarAnimal(
+        respuesta = await animalesAPI.update(
           animalEditar.id, 
           formulario
         );
         mostrarMensaje('success', 'Animal actualizado exitosamente');
       } else {
         // Crear nuevo animal
-        respuesta = await animalService.registrarAnimal(formulario);
+        respuesta = await animalesAPI.create(formulario);
         mostrarMensaje('success', 'Animal registrado exitosamente');
       }
 
       // Notificar al componente padre
       if (onGuardar) {
-        onGuardar(respuesta.data);
+        onGuardar(respuesta);
       }
 
       // Limpiar formulario si es registro nuevo
@@ -183,7 +182,7 @@ const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
       }
     } catch (error) {
       console.error('Error al guardar animal:', error);
-      const mensajeError = error.response?.data?.mensaje || 
+      const mensajeError = error.message || 
         'Error al guardar el animal. Intente nuevamente.';
       mostrarMensaje('error', mensajeError);
     } finally {

@@ -3,7 +3,7 @@
  * Gestión integral del seguimiento de peso del rebaño
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Weight, 
   Plus,
@@ -35,11 +35,13 @@ import {
   Zap
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
+import { pesajeAPI, animalesAPI } from '../servicios/caprino-api';
 
 const ModuloPeso = () => {
   const [vistaActual, setVistaActual] = useState('lista'); // 'lista', 'registro', 'detalle'
   const [registroEditar, setRegistroEditar] = useState(null);
   const [registroDetalle, setRegistroDetalle] = useState(null);
+  const [cargando, setCargando] = useState(false);
 
   const [registros, setRegistros] = useState([]);
   const [filtros, setFiltros] = useState({
@@ -48,6 +50,24 @@ const ModuloPeso = () => {
     fechaFin: '',
     tipoPesaje: ''
   });
+
+  // Cargar registros al montar
+  useEffect(() => {
+    cargarRegistros();
+  }, []);
+
+  const cargarRegistros = async () => {
+    setCargando(true);
+    try {
+      const datos = await pesajeAPI.getAll();
+      setRegistros(datos['hydra:member'] || datos);
+    } catch (error) {
+      console.error('Error al cargar pesajes:', error);
+      setRegistros([]);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   /**
    * Obtiene el color del badge según el tipo de pesaje

@@ -3,7 +3,7 @@
  * Gestión integral de la producción lechera del rebaño
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Droplet, 
   Plus,
@@ -32,11 +32,13 @@ import {
   TrendingDown
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
+import { produccionAPI, animalesAPI } from '../servicios/caprino-api';
 
 const ModuloProduccion = () => {
   const [vistaActual, setVistaActual] = useState('lista'); // 'lista', 'registro', 'detalle'
   const [registroEditar, setRegistroEditar] = useState(null);
   const [registroDetalle, setRegistroDetalle] = useState(null);
+  const [cargando, setCargando] = useState(false);
 
   const [registros, setRegistros] = useState([]);
   const [filtros, setFiltros] = useState({
@@ -45,6 +47,24 @@ const ModuloProduccion = () => {
     fechaFin: '',
     calidadLeche: ''
   });
+
+  // Cargar registros al montar el componente
+  useEffect(() => {
+    cargarRegistros();
+  }, []);
+
+  const cargarRegistros = async () => {
+    setCargando(true);
+    try {
+      const datos = await produccionAPI.getAll();
+      setRegistros(datos['hydra:member'] || datos);
+    } catch (error) {
+      console.error('Error al cargar producción:', error);
+      setRegistros([]);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   /**
    * Obtiene el color del badge según la calidad
@@ -518,11 +538,15 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
 
     setGuardando(true);
     
-    // Simular guardado
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    onGuardar(formData);
-    setGuardando(false);
+    try {
+      await produccionAPI.create(formData);
+      onGuardar(formData);
+    } catch (error) {
+      console.error('Error al guardar producción:', error);
+      alert('Error al guardar el registro');
+    } finally {
+      setGuardando(false);
+    }
   };
 
   return (

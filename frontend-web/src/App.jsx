@@ -14,6 +14,7 @@ import { useAuth } from './contextos/AuthContext';
 
 // Importar componentes
 import LoginRegistro from './componentes/LoginRegistro';
+import RutaProtegida from './componentes/RutaProtegida';
 import Dashboard from './componentes/Dashboard';
 import ListaAnimales from './componentes/ListaAnimales';
 import RegistroCabra from './componentes/RegistroCabra';
@@ -259,16 +260,16 @@ function App() {
           
           <Route
             path="/salud"
-            element={<ModuloSalud />}
+            element={<RutaProtegida><ModuloSalud /></RutaProtegida>}
           />
           
-          <Route path="/notificaciones" element={<Notificaciones />} />
+          <Route path="/notificaciones" element={<RutaProtegida><Notificaciones /></RutaProtegida>} />
           
-          <Route path="/peso" element={<ModuloPeso />} />
+          <Route path="/peso" element={<RutaProtegida><ModuloPeso /></RutaProtegida>} />
           
-          <Route path="/genealogia" element={<ModuloGenealogia />} />
+          <Route path="/genealogia" element={<RutaProtegida><ModuloGenealogia /></RutaProtegida>} />
           
-          <Route path="/reportes" element={<ModuloReportes />} />
+          <Route path="/reportes" element={<RutaProtegida><ModuloReportes /></RutaProtegida>} />
           
           <Route
             path="*"

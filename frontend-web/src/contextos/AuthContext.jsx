@@ -1,104 +1,203 @@
 /**
- * Contexto de autenticación para manejar sesión de usuario
+ * Contexto de autenticación para manejar sesión de usuario con JWT
  */
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
-// Usuario de prueba para testear
-const USUARIO_PRUEBA = {
-  codigo: 'ADM001',
-  nombre: 'Juan Pérez García',
-  email: 'juan.perez@institucion.edu',
-  rol: 'administrador',
-  password: 'Admin123!'
-};
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export const AuthProvider = ({ children }) => {
   const [usuario, setUsuario] = useState(null);
+  const [token, setToken] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(null);
 
   // Verificar si hay sesión guardada al cargar
   useEffect(() => {
-    const sesionGuardada = localStorage.getItem('usuario');
-    const recordarme = localStorage.getItem('recordarme') === 'true';
+    const tokenGuardado = localStorage.getItem('token');
+    const usuarioGuardado = localStorage.getItem('usuario');
     
-    if (sesionGuardada && recordarme) {
-      setUsuario(JSON.parse(sesionGuardada));
+    if (tokenGuardado && usuarioGuardado) {
+      setToken(tokenGuardado);
+      setUsuario(JSON.parse(usuarioGuardado));
+      // Verificar token con el servidor
+      verificarToken(tokenGuardado);
+    } else {
+      setCargando(false);
     }
-    setCargando(false);
   }, []);
+
+  /**
+   * Verifica si el token sigue siendo válido
+   */
+  const verificarToken = async (tokenVerificar) => {
+    try {
+      const response = await fetch(`${API_URL}/me`, {
+        headers: {
+          'Authorization': `Bearer ${tokenVerificar}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsuario(data);
+      } else {
+        // Token inválido, limpiar sesión
+        cerrarSesion();
+      }
+    } catch (error) {
+      console.error('Error verificando token:', error);
+      cerrarSesion();
+    } finally {
+      setCargando(false);
+    }
+  };
 
   /**
    * Inicia sesión con credenciales
    */
-  const iniciarSesion = (email, password, recordar = false) => {
-    // Validar contra usuario de prueba
-    if (email === USUARIO_PRUEBA.email && password === USUARIO_PRUEBA.password) {
-      const usuarioSesion = {
-        codigo: USUARIO_PRUEBA.codigo,
-        nombre: USUARIO_PRUEBA.nombre,
-        email: USUARIO_PRUEBA.email,
-        rol: USUARIO_PRUEBA.rol
-      };
-      
-      setUsuario(usuarioSesion);
-      
-      if (recordar) {
-        localStorage.setItem('usuario', JSON.stringify(usuarioSesion));
-        localStorage.setItem('recordarme', 'true');
-      } else {
-        sessionStorage.setItem('usuario', JSON.stringify(usuarioSesion));
+  const iniciarSesion = async (email, password, recordar = false) => {
+    setError(null);
+    setCargando(true);
+
+    try {
+      const response = await fetch(`${API_URL}/login_check`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username: email, password })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Credenciales inválidas');
       }
+
+      const data = await response.json();
       
-      return { exito: true, mensaje: 'Inicio de sesión exitoso' };
+      // Guardar token
+      setToken(data.token);
+      if (recordar) {
+        localStorage.setItem('token', data.token);
+      }
+
+      // Obtener datos del usuario
+      const userResponse = await fetch(`${API_URL}/me`, {
+        headers: {
+          'Authorization': `Bearer ${data.token}`
+        }
+      });
+
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        setUsuario(userData);
+        
+        if (recordar) {
+          localStorage.setItem('usuario', JSON.stringify(userData));
+        }
+
+        return { success: true };
+      } else {
+        throw new Error('Error al obtener datos del usuario');
+      }
+    } catch (error) {
+      console.error('Error al iniciar sesión:', error);
+      setError(error.message);
+      return { success: false, error: error.message };
+    } finally {
+      setCargando(false);
     }
-    
-    return { exito: false, mensaje: 'Credenciales incorrectas' };
   };
 
   /**
-   * Registra un nuevo usuario (simulado)
+   * Registra un nuevo usuario
    */
-  const registrarUsuario = (datos) => {
-    // Por ahora solo simula el registro
-    // Más adelante se conectará al backend
-    console.log('Registro de usuario:', datos);
-    
-    // Simular registro exitoso
-    return { 
-      exito: true, 
-      mensaje: 'Usuario registrado exitosamente. Ya puedes iniciar sesión.' 
-    };
+  const registrarse = async (datosUsuario) => {
+    setError(null);
+    setCargando(true);
+
+    try {
+      const response = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(datosUsuario)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al registrar usuario');
+      }
+
+      // Después de registrarse, iniciar sesión automáticamente
+      return await iniciarSesion(datosUsuario.email, datosUsuario.password, true);
+    } catch (error) {
+      console.error('Error al registrarse:', error);
+      setError(error.message);
+      return { success: false, error: error.message };
+    } finally {
+      setCargando(false);
+    }
   };
 
   /**
-   * Cierra la sesión actual
+   * Cierra la sesión del usuario
    */
   const cerrarSesion = () => {
     setUsuario(null);
+    setToken(null);
+    setError(null);
+    localStorage.removeItem('token');
     localStorage.removeItem('usuario');
-    localStorage.removeItem('recordarme');
-    sessionStorage.removeItem('usuario');
   };
 
-  const value = {
+  /**
+   * Verifica si el usuario está autenticado
+   */
+  const estaAutenticado = () => {
+    return usuario !== null && token !== null;
+  };
+
+  /**
+   * Verifica si el usuario tiene un rol específico
+   */
+  const tieneRol = (rol) => {
+    return usuario?.roles?.includes(rol) || false;
+  };
+
+  const valor = {
     usuario,
+    token,
     cargando,
+    error,
     iniciarSesion,
-    registrarUsuario,
+    registrarse,
     cerrarSesion,
-    estaAutenticado: !!usuario
+    estaAutenticado,
+    tieneRol
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={valor}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
+/**
+ * Hook para usar el contexto de autenticación
+ */
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth debe usarse dentro de AuthProvider');
+  const contexto = useContext(AuthContext);
+  if (!contexto) {
+    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
   }
-  return context;
+  return contexto;
 };
+
+export default AuthContext;

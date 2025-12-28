@@ -19,7 +19,7 @@ import {
   Weight,
   Heart
 } from 'lucide-react';
-import animalService from '../servicios/animalService';
+import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 
 const ListaAnimales = ({ onEditar, onNuevo }) => {
   const [animales, setAnimales] = useState([]);
@@ -57,11 +57,11 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
    */
   const cargarRazas = async () => {
     try {
-      const respuesta = await fetch('/api/razas');
-      const datos = await respuesta.json();
+      const datos = await razasAPI.getAll();
       setRazas(datos);
     } catch (error) {
       console.error('Error al cargar razas:', error);
+      setRazas([]);
     }
   };
 
@@ -73,17 +73,21 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
     setError(null);
     
     try {
-      // TODO: Reemplazar con llamada real a la API cuando esté lista
       const parametros = {
-        ...filtros,
-        pagina: paginaActual,
-        limite: animalesPorPagina
+        sexo: filtros.sexo,
+        idRaza: filtros.raza,
+        estadoGeneral: filtros.estado,
+        busqueda: filtros.busqueda
       };
 
-      const respuesta = await animalService.buscarAnimales(parametros);
+      const respuesta = await animalesAPI.search(parametros);
       
-      setAnimales(respuesta.data || []);
-      setTotalPaginas(Math.ceil((respuesta.total || 0) / animalesPorPagina));
+      // La respuesta puede venir en formato Hydra o como array simple
+      const listaAnimales = respuesta['hydra:member'] || respuesta;
+      const total = respuesta['hydra:totalItems'] || listaAnimales.length;
+      
+      setAnimales(listaAnimales);
+      setTotalPaginas(Math.ceil(total / animalesPorPagina));
     } catch (error) {
       console.error('Error al cargar animales:', error);
       setError('Error al cargar la lista de animales. Intente nuevamente.');
@@ -188,12 +192,12 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
    * Confirma y elimina un animal
    */
   const confirmarEliminar = async (animal) => {
-    if (!window.confirm(`¿Está seguro de eliminar el animal ${animal.identificacion}?`)) {
+    if (!window.confirm(`¿Está seguro de eliminar el animal ${animal.numeroIdentificacion || animal.identificacion}?`)) {
       return;
     }
 
     try {
-      await animalService.eliminarAnimal(animal.id);
+      await animalesAPI.delete(animal.id);
       cargarAnimales(); // Recargar lista
     } catch (error) {
       console.error('Error al eliminar animal:', error);

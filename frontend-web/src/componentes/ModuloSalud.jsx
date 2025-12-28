@@ -3,7 +3,7 @@
  * Gestión integral de la salud del rebaño: vacunaciones, enfermedades, tratamientos
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Activity, 
   Plus,
@@ -28,12 +28,14 @@ import {
   Smile
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
+import { saludAPI, animalesAPI } from '../servicios/caprino-api';
 
 const ModuloSalud = () => {
   const [vistaActual, setVistaActual] = useState('lista'); // 'lista', 'registro', 'detalle'
   const [tipoRegistro, setTipoRegistro] = useState('vacuna'); // 'vacuna', 'enfermedad', 'tratamiento'
   const [eventoEditar, setEventoEditar] = useState(null);
   const [eventoDetalle, setEventoDetalle] = useState(null);
+  const [cargando, setCargando] = useState(false);
 
   const [eventos, setEventos] = useState([]);
   const [filtros, setFiltros] = useState({
@@ -41,6 +43,24 @@ const ModuloSalud = () => {
     tipo: '',
     estado: ''
   });
+
+  // Cargar eventos al montar
+  useEffect(() => {
+    cargarEventos();
+  }, []);
+
+  const cargarEventos = async () => {
+    setCargando(true);
+    try {
+      const datos = await saludAPI.getAll();
+      setEventos(datos['hydra:member'] || datos);
+    } catch (error) {
+      console.error('Error al cargar salud:', error);
+      setEventos([]);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   /**
    * Obtiene el color del badge según el tipo de evento

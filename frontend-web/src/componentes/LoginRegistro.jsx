@@ -25,7 +25,7 @@ import SelectPersonalizado from './SelectPersonalizado';
 const LoginRegistro = () => {
   const [vistaActual, setVistaActual] = useState('login'); // 'login' o 'registro'
   const navigate = useNavigate();
-  const { iniciarSesion, registrarUsuario } = useAuth();
+  const { iniciarSesion, registrarse } = useAuth();
 
   // Estados para Login
   const [loginForm, setLoginForm] = useState({
@@ -36,10 +36,10 @@ const LoginRegistro = () => {
 
   // Estados para Registro
   const [registroForm, setRegistroForm] = useState({
-    codigo: '',
     nombre: '',
+    apellido: '',
     email: '',
-    rol: '',
+    telefono: '',
     password: '',
     confirmarPassword: ''
   });
@@ -136,21 +136,13 @@ const LoginRegistro = () => {
   const validarRegistro = () => {
     const nuevosErrores = {};
 
-    if (!registroForm.codigo.trim()) {
-      nuevosErrores.codigo = 'El código es requerido';
-    }
-
     if (!registroForm.nombre.trim()) {
-      nuevosErrores.nombre = 'El nombre completo es requerido';
+      nuevosErrores.nombre = 'El nombre es requerido';
     }
 
     const validacionEmail = validarEmail(registroForm.email);
     if (!validacionEmail.valido) {
       nuevosErrores.email = validacionEmail.mensaje;
-    }
-
-    if (!registroForm.rol) {
-      nuevosErrores.rol = 'Debe seleccionar un rol';
     }
 
     if (passwordEval.fuerza < 3) {
@@ -176,26 +168,24 @@ const LoginRegistro = () => {
     }
 
     setCargando(true);
+    setMensaje({ tipo: '', texto: '' });
     
-    // Simular delay de red
-    setTimeout(() => {
-      const resultado = iniciarSesion(
-        loginForm.email, 
-        loginForm.password, 
-        loginForm.recordar
-      );
-      
-      if (resultado.exito) {
-        setMensaje({ tipo: 'success', texto: resultado.mensaje });
-        setTimeout(() => {
-          navigate('/');
-        }, 1000);
-      } else {
-        setMensaje({ tipo: 'error', texto: resultado.mensaje });
-      }
-      
-      setCargando(false);
-    }, 800);
+    const resultado = await iniciarSesion(
+      loginForm.email, 
+      loginForm.password, 
+      loginForm.recordar
+    );
+    
+    setCargando(false);
+
+    if (resultado.success) {
+      setMensaje({ tipo: 'success', texto: 'Inicio de sesión exitoso' });
+      setTimeout(() => {
+        navigate('/');
+      }, 1000);
+    } else {
+      setMensaje({ tipo: 'error', texto: resultado.error });
+    }
   };
 
   /**
@@ -209,30 +199,28 @@ const LoginRegistro = () => {
     }
 
     setCargando(true);
+    setMensaje({ tipo: '', texto: '' });
     
-    // Simular delay de red
-    setTimeout(() => {
-      const resultado = registrarUsuario(registroForm);
-      
-      if (resultado.exito) {
-        setMensaje({ tipo: 'success', texto: resultado.mensaje });
-        setTimeout(() => {
-          setVistaActual('login');
-          setRegistroForm({
-            codigo: '',
-            nombre: '',
-            email: '',
-            rol: '',
-            password: '',
-            confirmarPassword: ''
-          });
-        }, 2000);
-      } else {
-        setMensaje({ tipo: 'error', texto: resultado.mensaje });
-      }
-      
-      setCargando(false);
-    }, 800);
+    const datosRegistro = {
+      nombre: registroForm.nombre,
+      apellido: registroForm.apellido,
+      email: registroForm.email,
+      telefono: registroForm.telefono,
+      password: registroForm.password
+    };
+
+    const resultado = await registrarse(datosRegistro);
+    
+    setCargando(false);
+
+    if (resultado.success) {
+      setMensaje({ tipo: 'success', texto: 'Registro exitoso. Redirigiendo...' });
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+    } else {
+      setMensaje({ tipo: 'error', texto: resultado.error });
+    }
   };
 
   return (

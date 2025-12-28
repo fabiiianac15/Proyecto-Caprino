@@ -3,7 +3,7 @@
  * Gestión integral del ciclo reproductivo: montas, diagnósticos, partos
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Heart, 
   Plus,
@@ -27,12 +27,14 @@ import {
   Scissors
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
+import { reproduccionAPI, animalesAPI } from '../servicios/caprino-api';
 
 const ModuloReproduccion = () => {
   const [vistaActual, setVistaActual] = useState('lista'); // 'lista', 'registro', 'detalle'
   const [tipoRegistro, setTipoRegistro] = useState('monta'); // 'monta', 'diagnostico', 'parto'
   const [eventoEditar, setEventoEditar] = useState(null);
   const [eventoDetalle, setEventoDetalle] = useState(null);
+  const [cargando, setCargando] = useState(false);
 
   const [eventos, setEventos] = useState([]);
   const [filtros, setFiltros] = useState({
@@ -40,6 +42,24 @@ const ModuloReproduccion = () => {
     tipo: '',
     estado: ''
   });
+
+  // Cargar eventos al montar
+  useEffect(() => {
+    cargarEventos();
+  }, []);
+
+  const cargarEventos = async () => {
+    setCargando(true);
+    try {
+      const datos = await reproduccionAPI.getAll();
+      setEventos(datos['hydra:member'] || datos);
+    } catch (error) {
+      console.error('Error al cargar reproducción:', error);
+      setEventos([]);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   /**
    * Obtiene el color del badge según el tipo de evento
