@@ -72,7 +72,7 @@ class Genealogia
      * 0 = Sin consanguinidad
      * >0.25 = Alta consanguinidad (evitar)
      */
-    #[ORM\Column(name: 'coeficiente_consanguinidad', type: Types::DECIMAL, precision: 5, scale: 4, nullable: true)]
+    #[ORM\Column(name: 'coeficiente_consanguinidad', type: Types::FLOAT, nullable: true)]
     #[Groups(['genealogia:read'])]
     private ?float $coeficienteConsanguinidad = null;
 

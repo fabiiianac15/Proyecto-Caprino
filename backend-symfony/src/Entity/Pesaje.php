@@ -59,7 +59,7 @@ class Pesaje
     /**
      * Peso en kilogramos
      */
-    #[ORM\Column(name: 'peso_kg', type: Types::DECIMAL, precision: 6, scale: 2)]
+    #[ORM\Column(name: 'peso_kg', type: Types::FLOAT)]
     #[Assert\NotBlank(message: 'El peso es obligatorio')]
     #[Assert\Positive(message: 'El peso debe ser positivo')]
     #[Assert\Range(
@@ -82,7 +82,7 @@ class Pesaje
      * Ganancia diaria promedio desde el último pesaje (kg/día)
      * Se calcula automáticamente mediante trigger en base de datos
      */
-    #[ORM\Column(name: 'ganancia_diaria_kg', type: Types::DECIMAL, precision: 5, scale: 3, nullable: true)]
+    #[ORM\Column(name: 'ganancia_diaria_kg', type: Types::FLOAT, nullable: true)]
     #[Groups(['pesaje:read'])]
     private ?float $gananciaDiariaKg = null;
 

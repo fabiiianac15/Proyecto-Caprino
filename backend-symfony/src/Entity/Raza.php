@@ -78,7 +78,7 @@ class Raza
     /**
      * Peso adulto promedio en kilogramos
      */
-    #[ORM\Column(name: 'peso_adulto_promedio_kg', type: Types::DECIMAL, precision: 5, scale: 2, nullable: true)]
+    #[ORM\Column(name: 'peso_adulto_promedio_kg', type: Types::FLOAT, nullable: true)]
     #[Assert\Positive(message: 'El peso debe ser positivo')]
     #[Assert\Range(min: 20, max: 150)]
     #[Groups(['raza:read', 'raza:write'])]
@@ -87,7 +87,7 @@ class Raza
     /**
      * Producción de leche promedio por día en litros
      */
-    #[ORM\Column(name: 'produccion_leche_dia_promedio', type: Types::DECIMAL, precision: 5, scale: 2, nullable: true)]
+    #[ORM\Column(name: 'produccion_leche_dia_promedio', type: Types::FLOAT, nullable: true)]
     #[Assert\PositiveOrZero]
     #[Assert\Range(min: 0, max: 10)]
     #[Groups(['raza:read', 'raza:write'])]

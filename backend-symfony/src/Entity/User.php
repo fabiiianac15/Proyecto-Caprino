@@ -30,8 +30,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
-    #[ORM\SequenceGenerator(sequenceName: 'USUARIOS_SEQ', allocationSize: 1)]
+    #[ORM\GeneratedValue(strategy: 'AUTO')]
     #[ORM\Column(name: 'ID', type: 'integer')]
     #[Groups(['user:read'])]
     private ?int $id = null;

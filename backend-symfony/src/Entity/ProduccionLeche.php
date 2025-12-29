@@ -71,7 +71,7 @@ class ProduccionLeche
     /**
      * Litros de leche producidos
      */
-    #[ORM\Column(name: 'litros_producidos', type: Types::DECIMAL, precision: 5, scale: 2)]
+    #[ORM\Column(name: 'litros_producidos', type: Types::FLOAT)]
     #[Assert\NotBlank(message: 'Los litros producidos son obligatorios')]
     #[Assert\Positive(message: 'La producción debe ser positiva')]
     #[Assert\Range(
@@ -101,7 +101,7 @@ class ProduccionLeche
     /**
      * Porcentaje de grasa en la leche
      */
-    #[ORM\Column(name: 'porcentaje_grasa', type: Types::DECIMAL, precision: 4, scale: 2, nullable: true)]
+    #[ORM\Column(name: 'porcentaje_grasa', type: Types::FLOAT, nullable: true)]
     #[Assert\Range(
         min: 2.0,
         max: 8.0,
@@ -113,7 +113,7 @@ class ProduccionLeche
     /**
      * Porcentaje de proteína en la leche
      */
-    #[ORM\Column(name: 'porcentaje_proteina', type: Types::DECIMAL, precision: 4, scale: 2, nullable: true)]
+    #[ORM\Column(name: 'porcentaje_proteina', type: Types::FLOAT, nullable: true)]
     #[Assert\Range(
         min: 2.0,
         max: 5.0,

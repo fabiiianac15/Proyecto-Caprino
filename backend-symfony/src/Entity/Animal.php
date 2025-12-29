@@ -112,7 +112,7 @@ class Animal
      * Peso al nacer en kilogramos
      * Rango normal: 2-6 kg
      */
-    #[ORM\Column(name: 'peso_nacimiento_kg', type: Types::DECIMAL, precision: 5, scale: 2, nullable: true)]
+    #[ORM\Column(name: 'peso_nacimiento_kg', type: Types::FLOAT, nullable: true)]
     #[Assert\Positive(message: 'El peso al nacer debe ser positivo')]
     #[Assert\Range(
         min: 1.0,

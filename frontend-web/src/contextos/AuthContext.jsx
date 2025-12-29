@@ -7,6 +7,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 const AuthContext = createContext(null);
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const USE_MOCK_AUTH = false; // Autenticación real con backend
 
 export const AuthProvider = ({ children }) => {
   const [usuario, setUsuario] = useState(null);
@@ -22,8 +23,13 @@ export const AuthProvider = ({ children }) => {
     if (tokenGuardado && usuarioGuardado) {
       setToken(tokenGuardado);
       setUsuario(JSON.parse(usuarioGuardado));
-      // Verificar token con el servidor
-      verificarToken(tokenGuardado);
+      
+      if (!USE_MOCK_AUTH) {
+        // Verificar token con el servidor solo si no es mock
+        verificarToken(tokenGuardado);
+      } else {
+        setCargando(false);
+      }
     } else {
       setCargando(false);
     }
@@ -44,12 +50,16 @@ export const AuthProvider = ({ children }) => {
         const data = await response.json();
         setUsuario(data);
       } else {
-        // Token inválido, limpiar sesión
-        cerrarSesion();
+        // Token inválido o backend no disponible, limpiar sesión
+        console.warn('Token inválido o backend no disponible');
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+        setToken(null);
+        setUsuario(null);
       }
     } catch (error) {
-      console.error('Error verificando token:', error);
-      cerrarSesion();
+      console.warn('Error verificando token (backend posiblemente no disponible):', error.message);
+      // No limpiar sesión en error de red, solo en respuesta 401
     } finally {
       setCargando(false);
     }
@@ -63,6 +73,35 @@ export const AuthProvider = ({ children }) => {
     setCargando(true);
 
     try {
+      // Modo MOCK para desarrollo sin backend
+      if (USE_MOCK_AUTH) {
+        // Simular delay de red
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Crear usuario mock
+        const mockUser = {
+          id: 1,
+          email: email,
+          nombre: email.split('@')[0],
+          apellido: 'Usuario',
+          roles: ['ROLE_USER']
+        };
+        
+        const mockToken = 'mock_token_' + Date.now();
+        
+        setToken(mockToken);
+        setUsuario(mockUser);
+        
+        if (recordar) {
+          localStorage.setItem('token', mockToken);
+          localStorage.setItem('usuario', JSON.stringify(mockUser));
+        }
+        
+        setCargando(false);
+        return { success: true };
+      }
+
+      // Código real para backend
       const response = await fetch(`${API_URL}/login_check`, {
         method: 'POST',
         headers: {
@@ -120,6 +159,17 @@ export const AuthProvider = ({ children }) => {
     setCargando(true);
 
     try {
+      // Modo MOCK para desarrollo sin backend
+      if (USE_MOCK_AUTH) {
+        // Simular delay de red
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Después de "registrarse", iniciar sesión automáticamente
+        setCargando(false);
+        return await iniciarSesion(datosUsuario.email, datosUsuario.password, true);
+      }
+
+      // Código real para backend
       const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: {

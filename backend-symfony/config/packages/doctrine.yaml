@@ -1,13 +1,15 @@
 doctrine:
     dbal:
-        # Configuración manual de Oracle (no usar url)
+        # Configuración para Oracle Database 21c XE
         driver: 'pdo_oci'
-        user: 'caprino_user'
-        password: 'CaprinoPass2025'
-        # dbname con formato EasyConnect
-        dbname: '//192.168.101.20:1521/XEPDB1'
+        host: '%env(DATABASE_HOST)%'
+        port: '%env(DATABASE_PORT)%'
+        dbname: '%env(DATABASE_NAME)%'
+        user: '%env(DATABASE_USER)%'
+        password: '%env(DATABASE_PASSWORD)%'
         charset: AL32UTF8
         profiling_collect_backtrace: "%kernel.debug%"
+        use_savepoints: true
         use_savepoints: true
     orm:
         auto_generate_proxy_classes: true

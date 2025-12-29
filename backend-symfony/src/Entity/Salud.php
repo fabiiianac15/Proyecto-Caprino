@@ -134,7 +134,7 @@ class Salud
     /**
      * Costo del tratamiento o servicio veterinario
      */
-    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    #[ORM\Column(type: Types::FLOAT, nullable: true)]
     #[Assert\PositiveOrZero(message: 'El costo no puede ser negativo')]
     #[Groups(['salud:read', 'salud:write'])]
     private ?float $costo = null;
@@ -158,7 +158,7 @@ class Salud
     /**
      * Temperatura corporal (°C)
      */
-    #[ORM\Column(name: 'temperatura_corporal', type: Types::DECIMAL, precision: 4, scale: 2, nullable: true)]
+    #[ORM\Column(name: 'temperatura_corporal', type: Types::FLOAT, nullable: true)]
     #[Assert\Range(
         min: 35.0,
         max: 42.0,

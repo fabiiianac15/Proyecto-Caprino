@@ -103,7 +103,7 @@ function App() {
   }
 
   // Si no está autenticado, mostrar login
-  if (!estaAutenticado) {
+  if (!estaAutenticado()) {
     return <LoginRegistro />;
   }
 
@@ -213,7 +213,10 @@ function App() {
               </button>
               
               <button
-                onClick={cerrarSesion}
+                onClick={() => {
+                  cerrarSesion();
+                  navigate('/login');
+                }}
                 className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg transition-colors text-white"
                 title="Cerrar sesión"
               >
