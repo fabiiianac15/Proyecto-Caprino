@@ -1,0 +1,5 @@
+# Symfony Public Directory
+
+This directory contains the front controller (`index.php`) for the Symfony application.
+
+All HTTP requests are routed through this file.

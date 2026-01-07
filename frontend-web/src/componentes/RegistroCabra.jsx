@@ -3,7 +3,7 @@
  * Formulario completo con todos los detalles y foto del animal
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Save, 
   X, 
@@ -37,21 +37,22 @@ import {
   CloudOff
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
+import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 
 const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const [formData, setFormData] = useState({
     // Información básica
-    codigo: cabraEditar?.codigo || '',
+    codigo: cabraEditar?.codigo || cabraEditar?.identificacion || '',
     nombre: cabraEditar?.nombre || '',
     sexo: cabraEditar?.sexo || '',
-    raza: cabraEditar?.raza || '',
+    raza: cabraEditar?.idRaza || cabraEditar?.raza || '',
     
     // Fechas importantes
     fechaNacimiento: cabraEditar?.fechaNacimiento || '',
     fechaIngreso: cabraEditar?.fechaIngreso || new Date().toISOString().split('T')[0],
     
     // Características físicas
-    color: cabraEditar?.color || '',
+    color: cabraEditar?.colorPelaje || cabraEditar?.color || '',
     pesoNacimiento: cabraEditar?.pesoNacimiento || '',
     pesoActual: cabraEditar?.pesoActual || '',
     
@@ -68,14 +69,35 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
     observaciones: cabraEditar?.observaciones || '',
     
     // Foto
-    foto: cabraEditar?.foto || null
+    foto: cabraEditar?.fotoUrl || cabraEditar?.foto || null
   });
 
-  const [imagenPreview, setImagenPreview] = useState(cabraEditar?.foto || null);
+  const [imagenPreview, setImagenPreview] = useState(
+    (cabraEditar?.fotoUrl && cabraEditar.fotoUrl !== '') 
+      ? cabraEditar.fotoUrl 
+      : (cabraEditar?.foto && cabraEditar.foto !== '') 
+        ? cabraEditar.foto 
+        : null
+  );
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
+  const [razasDisponibles, setRazasDisponibles] = useState([]);
   const inputFotoRef = useRef(null);
+
+  // Cargar razas desde la API
+  useEffect(() => {
+    const cargarRazas = async () => {
+      try {
+        const respuesta = await razasAPI.getAll();
+        const razas = respuesta.data || respuesta;
+        setRazasDisponibles(razas);
+      } catch (error) {
+        console.error('Error al cargar razas:', error);
+      }
+    };
+    cargarRazas();
+  }, []);
 
   // Opciones para los selectores con iconos
   const opcionesSexo = [
@@ -341,6 +363,8 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
    */
   const manejarCambioImagen = (e) => {
     const archivo = e.target.files[0];
+    console.log('=== CAMBIO IMAGEN - Archivo:', archivo);
+    
     if (archivo) {
       // Validar tipo de archivo
       if (!archivo.type.startsWith('image/')) {
@@ -357,6 +381,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
       // Crear preview
       const reader = new FileReader();
       reader.onloadend = () => {
+        console.log('=== CAMBIO IMAGEN - Preview listo, tamaño:', reader.result?.length);
         setImagenPreview(reader.result);
         setFormData(prev => ({ ...prev, foto: archivo }));
       };
@@ -423,6 +448,9 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const manejarEnvio = async (e) => {
     e.preventDefault();
     
+    console.log('=== REGISTRO CABRA - manejarEnvio llamado');
+    console.log('=== REGISTRO CABRA - Datos del formulario:', formData);
+    
     if (!validarFormulario()) {
       setMensaje({ tipo: 'error', texto: 'Por favor completa todos los campos obligatorios' });
       return;
@@ -432,17 +460,63 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
     setMensaje({ tipo: '', texto: '' });
 
     try {
-      // Simular guardado (aquí iría la llamada a la API)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Convertir foto a base64 si es un archivo
+      let fotoBase64 = null;
+      if (formData.foto && formData.foto instanceof File) {
+        console.log('=== FOTO - Convirtiendo File a base64...');
+        fotoBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            console.log('=== FOTO - Base64 generado, tamaño:', reader.result?.length);
+            resolve(reader.result);
+          };
+          reader.readAsDataURL(formData.foto);
+        });
+      } else if (typeof formData.foto === 'string' && formData.foto !== '') {
+        console.log('=== FOTO - Ya es string, tamaño:', formData.foto.length);
+        fotoBase64 = formData.foto;
+      } else {
+        console.log('=== FOTO - No hay foto o es null');
+        fotoBase64 = null;
+      }
+
+      // Preparar datos para enviar a la API
+      const datosAnimal = {
+        identificacion: formData.codigo,
+        nombre: formData.nombre,
+        sexo: formData.sexo,
+        fechaNacimiento: formData.fechaNacimiento,
+        razaId: formData.raza,
+        colorPelaje: formData.color,
+        pesoNacimiento: formData.pesoNacimiento ? parseFloat(formData.pesoNacimiento) : null,
+        observaciones: formData.observaciones,
+        fotoUrl: fotoBase64
+      };
       
-      setMensaje({ tipo: 'success', texto: 'Cabra registrada exitosamente' });
+      console.log('=== REGISTRO CABRA - Enviando datos (sin foto para no saturar):', {
+        ...datosAnimal,
+        fotoUrl: fotoBase64 ? `[base64 de ${fotoBase64.length} chars]` : null
+      });
+      
+      let respuesta;
+      if (cabraEditar) {
+        // Actualizar cabra existente
+        respuesta = await animalesAPI.update(cabraEditar.id, datosAnimal);
+        setMensaje({ tipo: 'success', texto: 'Cabra actualizada exitosamente' });
+      } else {
+        // Crear nueva cabra
+        respuesta = await animalesAPI.create(datosAnimal);
+        setMensaje({ tipo: 'success', texto: 'Cabra registrada exitosamente' });
+      }
+      
+      console.log('=== REGISTRO CABRA - Respuesta de la API:', respuesta);
       
       setTimeout(() => {
-        onGuardar(formData);
+        onGuardar(respuesta);
       }, 1500);
     } catch (error) {
-      console.error('Error al guardar:', error);
-      setMensaje({ tipo: 'error', texto: 'Error al guardar. Intenta nuevamente.' });
+      console.error('=== REGISTRO CABRA - Error al guardar:', error);
+      setMensaje({ tipo: 'error', texto: 'Error al guardar: ' + (error.message || 'Intenta nuevamente.') });
     } finally {
       setGuardando(false);
     }
@@ -482,11 +556,15 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
               <div className="space-y-4">
                 {/* Preview de imagen */}
                 <div className="relative aspect-square w-full bg-gray-100 rounded-lg overflow-hidden border-2 border-dashed border-gray-300">
-                  {imagenPreview ? (
+                  {imagenPreview && imagenPreview !== '' ? (
                     <img 
                       src={imagenPreview} 
                       alt="Preview" 
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error('Error cargando imagen:', imagenPreview);
+                        setImagenPreview(null);
+                      }}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
@@ -520,6 +598,9 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                     onClick={() => {
                       setImagenPreview(null);
                       setFormData(prev => ({ ...prev, foto: null }));
+                      if (inputFotoRef.current) {
+                        inputFotoRef.current.value = '';
+                      }
                     }}
                     className="w-full px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors"
                   >
@@ -643,7 +724,13 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                   <SelectPersonalizado
                     valor={formData.raza}
                     onChange={(valor) => manejarCambio({ target: { name: 'raza', value: valor } })}
-                    opciones={opcionesRaza}
+                    opciones={razasDisponibles.map(raza => ({
+                      value: raza.id_raza || raza.id,
+                      label: raza.nombre_raza || raza.nombre,
+                      icono: <Sparkles />,
+                      colorFondo: 'bg-purple-100',
+                      colorIcono: 'text-purple-600'
+                    }))}
                     placeholder="Seleccionar raza..."
                     error={!!errores.raza}
                     requerido

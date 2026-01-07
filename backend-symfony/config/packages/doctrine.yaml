@@ -1,7 +1,7 @@
 doctrine:
     dbal:
-        # Configuración para Oracle Database 21c XE
-        driver: 'pdo_oci'
+        # Configuración para Oracle Database 21c XE con OCI8 nativo
+        driver: 'oci8'
         host: '%env(DATABASE_HOST)%'
         port: '%env(DATABASE_PORT)%'
         dbname: '%env(DATABASE_NAME)%'
@@ -10,10 +10,14 @@ doctrine:
         charset: AL32UTF8
         profiling_collect_backtrace: "%kernel.debug%"
         use_savepoints: true
-        use_savepoints: true
+        server_version: '21c'
+        options:
+            # Opciones específicas de Oracle OCI8
+            1000: false  # OCI_NO_AUTO_COMMIT - desactiva autocommit
+            104: 60      # OCI_ATTR_ACTION - timeout de sesión
     orm:
-        auto_generate_proxy_classes: true
-        enable_lazy_ghost_objects: true
+        auto_generate_proxy_classes: false
+        enable_lazy_ghost_objects: false
         report_fields_where_declared: true
         validate_xml_mapping: true
         naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware

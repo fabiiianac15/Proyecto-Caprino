@@ -33,6 +33,7 @@ function App() {
   const [fechaHora, setFechaHora] = useState(new Date());
   const [animalEditar, setAnimalEditar] = useState(null);
   const [vistaActual, setVistaActual] = useState('lista');
+  const [reloadKey, setReloadKey] = useState(0);
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
   
   // Indicadores del rebaño (se cargarán desde la API)
@@ -83,6 +84,8 @@ function App() {
   const manejarGuardarAnimal = () => {
     setVistaActual('lista');
     setAnimalEditar(null);
+    // Forzar recarga actualizando el key del componente
+    setReloadKey(prev => prev + 1);
   };
 
   const manejarCancelar = () => {
@@ -204,10 +207,10 @@ function App() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-white">
-                    {usuario?.nombre}
+                    {usuario?.nombre_completo}
                   </p>
                   <p className="text-xs text-green-100 capitalize">
-                    {usuario?.rol}
+                    {usuario?.rol === 'administrador_granja' ? 'Administrador de Granja' : 'Pasante'}
                   </p>
                 </div>
               </button>
@@ -238,6 +241,7 @@ function App() {
             element={
               vistaActual === 'lista' ? (
                 <ListaAnimales
+                  key={reloadKey}
                   onEditar={manejarEditarAnimal}
                   onNuevo={manejarNuevoAnimal}
                 />

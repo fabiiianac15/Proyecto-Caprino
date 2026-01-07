@@ -36,10 +36,10 @@ const LoginRegistro = () => {
 
   // Estados para Registro
   const [registroForm, setRegistroForm] = useState({
+    codigo: '',
     nombre: '',
-    apellido: '',
     email: '',
-    telefono: '',
+    rol: '',
     password: '',
     confirmarPassword: ''
   });
@@ -101,6 +101,10 @@ const LoginRegistro = () => {
    */
   const manejarCambioRegistro = (e) => {
     const { name, value } = e.target;
+    
+    // DEBUG: Ver qué valores se están estableciendo
+    console.log('DEBUG manejarCambioRegistro:', { name, value });
+    
     setRegistroForm(prev => ({
       ...prev,
       [name]: value
@@ -138,6 +142,10 @@ const LoginRegistro = () => {
 
     if (!registroForm.nombre.trim()) {
       nuevosErrores.nombre = 'El nombre es requerido';
+    }
+
+    if (!registroForm.rol) {
+      nuevosErrores.rol = 'Debe seleccionar un rol';
     }
 
     const validacionEmail = validarEmail(registroForm.email);
@@ -202,23 +210,37 @@ const LoginRegistro = () => {
     setMensaje({ tipo: '', texto: '' });
     
     const datosRegistro = {
-      nombre: registroForm.nombre,
-      apellido: registroForm.apellido,
+      nombre_completo: registroForm.nombre.trim(),
       email: registroForm.email,
-      telefono: registroForm.telefono,
-      password: registroForm.password
+      password: registroForm.password,
+      rol: registroForm.rol
     };
 
+    // DEBUG: Ver qué se está enviando
+    console.log('DEBUG manejarRegistro - Estado del form:', registroForm);
+    console.log('DEBUG manejarRegistro - Datos a enviar:', datosRegistro);
+
     const resultado = await registrarse(datosRegistro);
-    
-    setCargando(false);
 
     if (resultado.success) {
-      setMensaje({ tipo: 'success', texto: 'Registro exitoso. Redirigiendo...' });
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
+      setMensaje({ tipo: 'success', texto: 'Registro exitoso. Iniciando sesión...' });
+      
+      // Esperar 1 segundo para mostrar el mensaje de éxito
+      setTimeout(async () => {
+        // Iniciar sesión automáticamente con las credenciales recién registradas
+        const loginResult = await iniciarSesion(registroForm.email, registroForm.password, true);
+        
+        setCargando(false);
+        
+        if (loginResult.success) {
+          // Redirigir al dashboard
+          navigate('/');
+        } else {
+          setMensaje({ tipo: 'error', texto: 'Registro exitoso pero hubo un error al iniciar sesión. Por favor, inicie sesión manualmente.' });
+        }
+      }, 1000);
     } else {
+      setCargando(false);
       setMensaje({ tipo: 'error', texto: resultado.error });
     }
   };
@@ -509,7 +531,7 @@ const LoginRegistro = () => {
                   onChange={(valor) => manejarCambioRegistro({ target: { name: 'rol', value: valor } })}
                   opciones={[
                     { 
-                      value: 'administrador', 
+                      value: 'administrador_granja', 
                       label: 'Administrador de Granja', 
                       icono: <Shield />,
                       colorFondo: 'bg-purple-100',

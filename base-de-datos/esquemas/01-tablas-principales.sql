@@ -49,7 +49,6 @@ CREATE TABLE ANIMAL (
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     usuario_registro NUMBER NOT NULL,
     CONSTRAINT fk_animal_raza FOREIGN KEY (id_raza) REFERENCES RAZA(id_raza),
-    CONSTRAINT check_fecha_nacimiento CHECK (fecha_nacimiento <= CURRENT_DATE),
     CONSTRAINT check_peso_nacimiento CHECK (peso_nacimiento_kg > 0 AND peso_nacimiento_kg < 10)
 );
 
@@ -58,7 +57,7 @@ COMMENT ON COLUMN ANIMAL.codigo_identificacion IS 'Identificador único del anim
 COMMENT ON COLUMN ANIMAL.estado IS 'Estado actual del animal en la explotación';
 COMMENT ON COLUMN ANIMAL.peso_nacimiento_kg IS 'Peso al nacer, normalmente entre 2-4 kg';
 
-CREATE INDEX idx_animal_codigo ON ANIMAL(codigo_identificacion);
+-- Indice en codigo_identificacion eliminado: UNIQUE constraint ya crea indice automatico
 CREATE INDEX idx_animal_estado ON ANIMAL(estado);
 CREATE INDEX idx_animal_raza ON ANIMAL(id_raza);
 
@@ -89,7 +88,7 @@ COMMENT ON TABLE GENEALOGIA IS 'Registro genealógico con padre y madre de cada 
 COMMENT ON COLUMN GENEALOGIA.coeficiente_consanguinidad IS 'Medida de consanguinidad, entre 0 y 1';
 COMMENT ON COLUMN GENEALOGIA.generacion IS 'Número de generación en el programa de cría';
 
-CREATE INDEX idx_gen_animal ON GENEALOGIA(id_animal);
+-- Indice en id_animal eliminado: UNIQUE constraint ya crea indice automatico
 CREATE INDEX idx_gen_padre ON GENEALOGIA(id_padre);
 CREATE INDEX idx_gen_madre ON GENEALOGIA(id_madre);
 
@@ -112,8 +111,7 @@ CREATE TABLE PESAJE (
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_pesaje_animal FOREIGN KEY (id_animal) REFERENCES ANIMAL(id_animal),
     CONSTRAINT check_peso_pesaje_positivo CHECK (peso_kg > 0),
-    CONSTRAINT check_peso_pesaje_maximo CHECK (peso_kg < 200),
-    CONSTRAINT check_fecha_pesaje CHECK (fecha_pesaje <= CURRENT_DATE)
+    CONSTRAINT check_peso_pesaje_maximo CHECK (peso_kg < 200)
 );
 
 COMMENT ON TABLE PESAJE IS 'Historial de pesajes para seguimiento de crecimiento';
@@ -148,8 +146,7 @@ CREATE TABLE PRODUCCION_LECHE (
     CONSTRAINT check_litros_positivo CHECK (litros >= 0),
     CONSTRAINT check_litros_maximo CHECK (litros < 20),
     CONSTRAINT check_grasa CHECK (grasa_porcentaje BETWEEN 0 AND 10),
-    CONSTRAINT check_proteina CHECK (proteina_porcentaje BETWEEN 0 AND 8),
-    CONSTRAINT check_fecha_produccion CHECK (fecha_produccion <= CURRENT_DATE)
+    CONSTRAINT check_proteina CHECK (proteina_porcentaje BETWEEN 0 AND 8)
 );
 
 COMMENT ON TABLE PRODUCCION_LECHE IS 'Registro de producción lechera con parámetros de calidad';
@@ -184,7 +181,6 @@ CREATE TABLE REPRODUCCION (
     CONSTRAINT fk_repro_hembra FOREIGN KEY (id_hembra) REFERENCES ANIMAL(id_animal),
     CONSTRAINT fk_repro_macho FOREIGN KEY (id_macho) REFERENCES ANIMAL(id_animal),
     CONSTRAINT check_hembra_distinto_macho CHECK (id_hembra != id_macho),
-    CONSTRAINT check_fecha_servicio CHECK (fecha_servicio <= CURRENT_DATE),
     CONSTRAINT check_fecha_parto_estimada CHECK (fecha_parto_estimada > fecha_servicio),
     CONSTRAINT check_fecha_parto_real CHECK (fecha_parto_real IS NULL OR fecha_parto_real >= fecha_servicio),
     CONSTRAINT check_numero_crias CHECK (numero_crias BETWEEN 1 AND 5)
@@ -222,7 +218,6 @@ CREATE TABLE SALUD (
     usuario_registro NUMBER NOT NULL,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_salud_animal FOREIGN KEY (id_animal) REFERENCES ANIMAL(id_animal),
-    CONSTRAINT check_fecha_aplicacion CHECK (fecha_aplicacion <= CURRENT_DATE),
     CONSTRAINT check_fecha_proxima CHECK (fecha_proxima_aplicacion IS NULL OR fecha_proxima_aplicacion > fecha_aplicacion)
 );
 
@@ -258,7 +253,7 @@ COMMENT ON TABLE USUARIO IS 'Usuarios del sistema con control de acceso por role
 COMMENT ON COLUMN USUARIO.password_hash IS 'Hash bcrypt del password, nunca almacenar en texto plano';
 COMMENT ON COLUMN USUARIO.rol IS 'Rol que determina permisos: administrador tiene acceso total';
 
-CREATE INDEX idx_usuario_email ON USUARIO(email);
+-- Indice eliminado: UNIQUE constraint en email ya crea indice automatico
 
 -- ==================================================================
 -- TABLA: AUDITORIA
@@ -293,29 +288,10 @@ CREATE INDEX idx_audit_fecha ON AUDITORIA(fecha_operacion);
 -- ==================================================================
 -- CONSTRAINTS ADICIONALES
 -- ==================================================================
-
--- Validar que el padre en genealogía sea macho
-ALTER TABLE GENEALOGIA ADD CONSTRAINT check_padre_sexo_macho 
-    CHECK (id_padre IS NULL OR 
-           (SELECT sexo FROM ANIMAL WHERE id_animal = id_padre) = 'macho');
-
--- Validar que la madre en genealogía sea hembra
-ALTER TABLE GENEALOGIA ADD CONSTRAINT check_madre_sexo_hembra 
-    CHECK (id_madre IS NULL OR 
-           (SELECT sexo FROM ANIMAL WHERE id_animal = id_madre) = 'hembra');
-
--- Validar que la hembra en reproducción sea hembra
-ALTER TABLE REPRODUCCION ADD CONSTRAINT check_reproduccion_hembra 
-    CHECK ((SELECT sexo FROM ANIMAL WHERE id_animal = id_hembra) = 'hembra');
-
--- Validar que el macho en reproducción sea macho
-ALTER TABLE REPRODUCCION ADD CONSTRAINT check_reproduccion_macho 
-    CHECK (id_macho IS NULL OR 
-           (SELECT sexo FROM ANIMAL WHERE id_animal = id_macho) = 'macho');
-
--- Validar que solo hembras tengan producción de leche
-ALTER TABLE PRODUCCION_LECHE ADD CONSTRAINT check_produccion_sexo 
-    CHECK ((SELECT sexo FROM ANIMAL WHERE id_animal = id_animal) = 'hembra');
+-- NOTA: Oracle no permite subconsultas en CHECK constraints.
+-- Estas validaciones de sexo (padre=macho, madre=hembra, etc.)
+-- se implementarán mediante TRIGGERS en el archivo:
+-- base-de-datos/procedimientos/01-triggers-y-funciones.sql
 
 -- ==================================================================
 -- FIN DEL SCRIPT DE CREACIÓN DE ESQUEMA

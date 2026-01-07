@@ -102,12 +102,12 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Código real para backend
-      const response = await fetch(`${API_URL}/login_check`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ username: email, password })
+        body: JSON.stringify({ email, password })
       });
 
       if (!response.ok) {
@@ -117,31 +117,16 @@ export const AuthProvider = ({ children }) => {
 
       const data = await response.json();
       
-      // Guardar token
+      // El backend ya devuelve los datos del usuario junto con el token
       setToken(data.token);
+      setUsuario(data.user);
+      
       if (recordar) {
         localStorage.setItem('token', data.token);
+        localStorage.setItem('usuario', JSON.stringify(data.user));
       }
 
-      // Obtener datos del usuario
-      const userResponse = await fetch(`${API_URL}/me`, {
-        headers: {
-          'Authorization': `Bearer ${data.token}`
-        }
-      });
-
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        setUsuario(userData);
-        
-        if (recordar) {
-          localStorage.setItem('usuario', JSON.stringify(userData));
-        }
-
-        return { success: true };
-      } else {
-        throw new Error('Error al obtener datos del usuario');
-      }
+      return { success: true };
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
       setError(error.message);
@@ -170,7 +155,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Código real para backend
-      const response = await fetch(`${API_URL}/register`, {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -184,8 +169,13 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.error || 'Error al registrar usuario');
       }
 
-      // Después de registrarse, iniciar sesión automáticamente
-      return await iniciarSesion(datosUsuario.email, datosUsuario.password, true);
+      // Retornar éxito con datos del usuario
+      // NO iniciar sesión automáticamente para permitir mostrar notificaciones
+      return { 
+        success: true, 
+        message: data.message || 'Usuario registrado exitosamente',
+        user: data.user
+      };
     } catch (error) {
       console.error('Error al registrarse:', error);
       setError(error.message);

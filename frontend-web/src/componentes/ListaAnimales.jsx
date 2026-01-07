@@ -17,7 +17,10 @@ import {
   Tag,
   Calendar,
   Weight,
-  Heart
+  Heart,
+  AlertTriangle,
+  X,
+  Edit2
 } from 'lucide-react';
 import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 
@@ -28,6 +31,10 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
   const [paginaActual, setPaginaActual] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const animalesPorPagina = 10;
+
+  // Estados para modales
+  const [modalEliminar, setModalEliminar] = useState({ mostrar: false, animal: null });
+  const [modalDetalles, setModalDetalles] = useState({ mostrar: false, animal: null });
 
   // Estados de filtros
   const [filtros, setFiltros] = useState({
@@ -82,11 +89,11 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
 
       const respuesta = await animalesAPI.search(parametros);
       
-      // La respuesta puede venir en formato Hydra o como array simple
-      const listaAnimales = respuesta['hydra:member'] || respuesta;
-      const total = respuesta['hydra:totalItems'] || listaAnimales.length;
+      // La respuesta puede venir en formato: {data: [...], total: ...}, Hydra, o array simple
+      const listaAnimales = respuesta.data || respuesta['hydra:member'] || respuesta;
+      const total = respuesta.total || respuesta['hydra:totalItems'] || (Array.isArray(listaAnimales) ? listaAnimales.length : 0);
       
-      setAnimales(listaAnimales);
+      setAnimales(Array.isArray(listaAnimales) ? listaAnimales : []);
       setTotalPaginas(Math.ceil(total / animalesPorPagina));
     } catch (error) {
       console.error('Error al cargar animales:', error);
@@ -189,20 +196,32 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
   };
 
   /**
-   * Confirma y elimina un animal
+   * Mostrar modal de confirmación para eliminar
    */
-  const confirmarEliminar = async (animal) => {
-    if (!window.confirm(`¿Está seguro de eliminar el animal ${animal.numeroIdentificacion || animal.identificacion}?`)) {
-      return;
-    }
+  const confirmarEliminar = (animal) => {
+    setModalEliminar({ mostrar: true, animal });
+  };
 
+  /**
+   * Eliminar animal después de confirmación
+   */
+  const eliminarAnimal = async () => {
     try {
-      await animalesAPI.delete(animal.id);
+      await animalesAPI.delete(modalEliminar.animal.id);
+      setModalEliminar({ mostrar: false, animal: null });
       cargarAnimales(); // Recargar lista
     } catch (error) {
       console.error('Error al eliminar animal:', error);
       alert('Error al eliminar el animal. Puede tener registros asociados.');
+      setModalEliminar({ mostrar: false, animal: null });
     }
+  };
+
+  /**
+   * Mostrar detalles del animal
+   */
+  const verDetalles = (animal) => {
+    setModalDetalles({ mostrar: true, animal });
   };
 
   return (
@@ -348,11 +367,15 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
             <div key={animal.id} className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow overflow-hidden">
               {/* Foto del animal */}
               <div className="h-48 bg-gradient-to-br from-green-100 to-green-50 relative overflow-hidden">
-                {animal.foto ? (
+                {(animal.fotoUrl || animal.foto) ? (
                   <img 
-                    src={animal.foto} 
+                    src={`http://localhost:8000${animal.fotoUrl || animal.foto}`}
                     alt={animal.nombre}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>';
+                    }}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full text-gray-400">
@@ -394,7 +417,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
                   <div className="flex items-center text-sm text-gray-600">
                     <Weight className="w-4 h-4 mr-2 text-gray-400" />
                     <span className="font-medium">Peso:</span>
-                    <span className="ml-2">{animal.pesoActual} kg</span>
+                    <span className="ml-2">{animal.pesoNacimiento ? `${animal.pesoNacimiento} kg` : 'No registrado'}</span>
                   </div>
                   {animal.estadoReproductivo && (
                     <div className="flex items-center text-sm text-gray-600">
@@ -415,7 +438,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
                     Editar
                   </button>
                   <button
-                    onClick={() => {/* Ver detalles */}}
+                    onClick={() => verDetalles(animal)}
                     className="flex-1 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors flex items-center justify-center"
                   >
                     <Eye className="w-4 h-4 mr-1" />
@@ -431,6 +454,182 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal de confirmación de eliminación */}
+      {modalEliminar.mostrar && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              ¿Eliminar animal?
+            </h3>
+            <p className="text-gray-600 text-center mb-6">
+              ¿Estás seguro de que deseas eliminar a <span className="font-semibold">{modalEliminar.animal?.nombre}</span>?
+              <br />
+              <span className="text-sm text-red-600">Esta acción no se puede deshacer.</span>
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setModalEliminar({ mostrar: false, animal: null })}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={eliminarAnimal}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de detalles del animal */}
+      {modalDetalles.mostrar && modalDetalles.animal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8">
+            {/* Header del modal */}
+            <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">
+                    {modalDetalles.animal.nombre}
+                  </h3>
+                  <p className="text-green-100 font-mono">{modalDetalles.animal.codigo}</p>
+                </div>
+                <button
+                  onClick={() => setModalDetalles({ mostrar: false, animal: null })}
+                  className="text-white hover:bg-green-800 rounded-full p-2 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body del modal */}
+            <div className="p-6">
+              {/* Foto */}
+              <div className="mb-6">
+                <div className="h-64 bg-gradient-to-br from-green-100 to-green-50 rounded-lg overflow-hidden">
+                  {(modalDetalles.animal.fotoUrl || modalDetalles.animal.foto) ? (
+                    <img 
+                      src={`http://localhost:8000${modalDetalles.animal.fotoUrl || modalDetalles.animal.foto}`}
+                      alt={modalDetalles.animal.nombre}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><svg class="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg></div>';
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-400">
+                      <User className="w-20 h-20" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Información en grid */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Sexo</p>
+                  <p className="font-semibold text-gray-900 capitalize">
+                    {modalDetalles.animal.sexo === 'macho' ? '♂ Macho' : '♀ Hembra'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Raza</p>
+                  <p className="font-semibold text-gray-900">{modalDetalles.animal.raza || modalDetalles.animal.nombreRaza}</p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Fecha de Nacimiento</p>
+                  <p className="font-semibold text-gray-900">
+                    {modalDetalles.animal.fechaNacimiento ? new Date(modalDetalles.animal.fechaNacimiento).toLocaleDateString('es-ES') : 'No especificada'}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Estado</p>
+                  <p className="font-semibold text-gray-900 capitalize">{modalDetalles.animal.estado}</p>
+                </div>
+                {modalDetalles.animal.colorPelaje && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Color de Pelaje</p>
+                    <p className="font-semibold text-gray-900">{modalDetalles.animal.colorPelaje}</p>
+                  </div>
+                )}
+                {modalDetalles.animal.pesoNacimiento && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Peso al Nacer</p>
+                    <p className="font-semibold text-gray-900">{modalDetalles.animal.pesoNacimiento} kg</p>
+                  </div>
+                )}
+                {modalDetalles.animal.edad && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Edad</p>
+                    <p className="font-semibold text-gray-900">{formatearEdad(modalDetalles.animal.fechaNacimiento)}</p>
+                  </div>
+                )}
+                {modalDetalles.animal.codigoPadre && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Código Padre</p>
+                    <p className="font-semibold text-gray-900">{modalDetalles.animal.codigoPadre}</p>
+                  </div>
+                )}
+                {modalDetalles.animal.codigoMadre && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Código Madre</p>
+                    <p className="font-semibold text-gray-900">{modalDetalles.animal.codigoMadre}</p>
+                  </div>
+                )}
+                {modalDetalles.animal.estadoReproductivo && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Estado Reproductivo</p>
+                    <p className="font-semibold text-gray-900 capitalize">{modalDetalles.animal.estadoReproductivo}</p>
+                  </div>
+                )}
+                {modalDetalles.animal.proposito && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Propósito</p>
+                    <p className="font-semibold text-gray-900 capitalize">{modalDetalles.animal.proposito}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Observaciones */}
+              {modalDetalles.animal.observaciones && (
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                  <p className="text-sm text-blue-900 font-semibold mb-1">Observaciones:</p>
+                  <p className="text-blue-800">{modalDetalles.animal.observaciones}</p>
+                </div>
+              )}
+
+              {/* Botones de acción */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setModalDetalles({ mostrar: false, animal: null });
+                    onEditar(modalDetalles.animal);
+                  }}
+                  className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center"
+                >
+                  <Edit2 className="w-4 h-4 mr-2" />
+                  Editar
+                </button>
+                <button
+                  onClick={() => setModalDetalles({ mostrar: false, animal: null })}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

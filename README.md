@@ -1,370 +1,232 @@
-# 🐐 Sistema de Gestión Zootécnica Caprina
+# 🐐 Sistema de Gestión Caprino
 
-Sistema web completo para la gestión integral de explotaciones caprinas, desarrollado con tecnologías modernas.
+Sistema web completo para la gestión integral de hatos caprinos, incluyendo registro de animales, genealogía, producción de leche, reproducción, salud y reportes.
 
-## ✅ Estado Actual del Proyecto
+## 🚀 Stack Tecnológico
 
-### Backend (Symfony + Oracle) - ✅ FUNCIONAL
-- [x] Symfony 6.4.30 LTS configurado
-- [x] Oracle Database 21c Express integrado
-- [x] API Platform 3.4.17 funcionando
-- [x] 7 entidades y tablas creadas
-- [x] PDO_OCI con PHP 8.2.30
-- [x] Nginx + PHP-FPM en Docker
+- **Frontend**: React 18 + Vite + Tailwind CSS
+- **Backend**: PHP 8.2+ con REST API
+- **Base de datos**: Oracle 21c XE
+- **Servidor**: PHP Built-in Server (desarrollo)
 
-### Frontend Web (React) - ✅ FUNCIONAL
-- [x] React 18 con Vite
-- [x] Tailwind CSS 3
-- [x] 10 componentes principales
-- [x] SelectPersonalizado implementado
-- [x] Diseño responsivo completo
+## 📋 Requisitos Previos
 
-### Aplicación Móvil (Capacitor) - 🔄 PENDIENTE
-- [ ] Configuración de Capacitor
-- [ ] Build para Android/iOS
-- [ ] Pruebas en dispositivos
+1. **PHP 8.2+** instalado en `C:\tools\php82`
+2. **Node.js 18+** y npm
+3. **Oracle 21c XE** corriendo en `192.168.101.20:1521/XEPDB1`
+4. **Oracle Instant Client** para PHP (extensión oci8)
+5. Usuario de BD: `caprino_user` / `CaprinoPass2025`
 
-### Base de Datos - ✅ FUNCIONAL
-- [x] Oracle 21c Express Edition
-- [x] 7 tablas principales
-- [x] Secuencias y constraints
-- [x] Usuario caprino_user configurado
+## 🔧 Instalación
 
-## 🏗️ Arquitectura del Sistema
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    CLIENTE                              │
-│  ┌──────────────┐         ┌────────────────┐           │
-│  │ React Web App│         │Capacitor Mobile│           │
-│  │  (Vite)      │         │   (Pendiente)  │           │
-│  └──────┬───────┘         └────────┬───────┘           │
-└─────────┼──────────────────────────┼───────────────────┘
-          │                          │
-          │     HTTP/JSON            │
-          │                          │
-┌─────────┼──────────────────────────┼───────────────────┐
-│         ▼                          ▼                   │
-│  ┌────────────────────────────────────┐                │
-│  │    Nginx (Port 8000)               │                │
-│  │    + PHP-FPM 8.2.30                │                │
-│  └────────────┬───────────────────────┘                │
-│               │                                         │
-│  ┌────────────▼───────────────────┐                    │
-│  │    Symfony 6.4.30 LTS          │                    │
-│  │    + API Platform 3.4.17       │                    │
-│  │    + Doctrine ORM 2.20         │                    │
-│  │    + JWT Authentication        │                    │
-│  └────────────┬───────────────────┘                    │
-│               │ PDO_OCI                                 │
-│  ┌────────────▼───────────────────┐                    │
-│  │  Oracle Database 21c Express   │                    │
-│  │  Service: XEPDB1 (Port 1521)   │                    │
-│  │  User: caprino_user            │                    │
-│  └────────────────────────────────┘                    │
-│                                                         │
-│           DOCKER CONTAINERS                             │
-└─────────────────────────────────────────────────────────┘
+### 1. Clonar el repositorio
+```bash
+git clone <url-repo>
+cd Proyecto-Caprino
 ```
 
-## 📦 Estructura del Proyecto
+### 2. Configurar Base de Datos
 
-```
-Proyecto-Caprino/
-├── aplicacion-movil/          # App móvil con Capacitor (pendiente)
-├── backend-symfony/           # API REST con Symfony + Oracle ✅
-│   ├── src/
-│   │   ├── Controller/        # Controladores API
-│   │   ├── Entity/            # 7 entidades Doctrine
-│   │   ├── Repository/        # Repositorios personalizados
-│   │   ├── Service/           # Lógica de negocio
-│   │   └── Validator/         # Validaciones zootécnicas
-│   ├── config/                # Configuración Symfony
-│   ├── Dockerfile            # Imagen Docker con PHP-FPM
-│   ├── nginx.conf            # Configuración Nginx
-│   └── README-USO.md         # 📖 Documentación completa
-├── frontend-web/              # Aplicación React ✅
-│   ├── src/
-│   │   ├── componentes/       # 10 componentes React
-│   │   ├── servicios/         # APIs y utilidades
-│   │   ├── contextos/         # Context API
-│   │   └── utilidades/        # Helpers
-│   └── README.md
-├── base-de-datos/             # Scripts SQL Oracle
-│   ├── esquemas/              # Definición de tablas
-│   ├── procedimientos/        # Triggers y funciones
-│   └── vistas/                # Vistas de reportes
-├── documentacion/             # Docs técnicas
-│   ├── 01-arquitectura-del-sistema.md
-│   ├── 02-reglas-de-negocio-zootecnicas.md
-│   ├── 03-plan-de-implementacion.md
-│   └── 04-guia-inicio-rapido.md
-├── scripts/                   # Scripts de utilidad
-│   └── start.sh              # 🚀 Script de inicio automático
-└── docker-compose.dev.yml    # Configuración Docker Compose
+Conectarse a Oracle como `sys_local` y ejecutar:
+
+```sql
+-- Crear usuario
+CREATE USER caprino_user IDENTIFIED BY CaprinoPass2025;
+GRANT CONNECT, RESOURCE TO caprino_user;
+GRANT CREATE VIEW TO caprino_user;
+ALTER USER caprino_user QUOTA UNLIMITED ON USERS;
 ```
 
-## 🚀 Inicio Rápido
-
-### Opción 1: Script Automático (Recomendado)
+Conectarse como `caprino_user` y ejecutar scripts en orden:
 
 ```bash
-cd "/home/theglamcity/Downloads/Proyecto Caprino"
-./scripts/start.sh
+@base-de-datos/00-init-database.sql
+@base-de-datos/esquemas/01-tablas-principales.sql
+@base-de-datos/esquemas/02-datos-iniciales-razas.sql
+@base-de-datos/esquemas/03-datos-iniciales-usuarios.sql
+@base-de-datos/esquemas/04-tabla-usuarios.sql
+@base-de-datos/procedimientos/01-triggers-y-funciones.sql
+@base-de-datos/vistas/01-vistas-reportes.sql
 ```
 
-Este script:
-- ✅ Inicia Oracle Database
-- ✅ Configura el listener
-- ✅ Inicia Symfony Backend
-- ✅ Verifica que todo funcione
-- ✅ Muestra el estado del sistema
+**IMPORTANTE:** Convertir columna `foto_url` a VARCHAR2:
 
-### Opción 2: Manual
+```sql
+ALTER TABLE ANIMAL ADD foto_url_new VARCHAR2(500);
+UPDATE ANIMAL SET foto_url_new = SUBSTR(foto_url, 1, 500);
+ALTER TABLE ANIMAL DROP COLUMN foto_url;
+ALTER TABLE ANIMAL RENAME COLUMN foto_url_new TO foto_url;
+COMMIT;
+```
+
+### 3. Configurar Backend
 
 ```bash
-# 1. Iniciar Oracle
-docker start caprino_oracle_dev
-sleep 30
-
-# 2. Recargar listener
-docker exec caprino_oracle_dev lsnrctl reload
-
-# 3. Iniciar Symfony
-docker start caprino_symfony_dev
-sleep 10
-
-# 4. Verificar
-curl http://localhost:8000/api
+cd backend-symfony
 ```
 
-## 📡 Probar el Sistema
-
-### Verificar Backend
-
-```bash
-# API Platform entrypoint
-curl http://localhost:8000/api
-
-# Listar animales
-curl http://localhost:8000/api/animals
-
-# Listar razas
-curl http://localhost:8000/api/razas
+Crear archivo `.env` (copiar de `.env.example`):
+```
+DATABASE_URL=oci8://caprino_user:CaprinoPass2025@192.168.101.20:1521/XEPDB1
 ```
 
-### Iniciar Frontend
+### 4. Configurar Frontend
 
 ```bash
 cd frontend-web
-npm install  # Solo la primera vez
+npm install
+```
+
+## ▶️ Iniciar el Proyecto
+
+### Opción 1: Script PowerShell (Recomendado)
+```powershell
+.\iniciar-proyecto.ps1
+```
+
+Este script inicia automáticamente:
+- Backend PHP en puerto 8000
+- Frontend React en puerto 5173
+
+### Opción 2: Manual
+
+**Terminal 1 - Backend:**
+```powershell
+.\INICIAR-BACKEND-PHP82.bat
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend-web
 npm run dev
 ```
 
-Abre http://localhost:5173 en tu navegador.
+## 🌐 Acceso
 
-## 📚 Documentación Detallada
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:8000/api
+- **Health Check**: http://localhost:8000/api/health
 
-- **Backend:** Ver [backend-symfony/README-USO.md](backend-symfony/README-USO.md) para:
-  - Comandos Docker completos
-  - Endpoints de API disponibles
-  - Comandos Doctrine
-  - Solución de problemas
-  - Configuración de Oracle
+### Credenciales de Prueba
+- **Email**: admin@caprino.local
+- **Password**: Admin123!
 
-- **Arquitectura:** Ver [documentacion/01-arquitectura-del-sistema.md](documentacion/01-arquitectura-del-sistema.md)
+## 📁 Estructura del Proyecto
 
-- **Reglas de Negocio:** Ver [documentacion/02-reglas-de-negocio-zootecnicas.md](documentacion/02-reglas-de-negocio-zootecnicas.md)
-
-- **Plan de Implementación:** Ver [documentacion/03-plan-de-implementacion.md](documentacion/03-plan-de-implementacion.md)
-
-## 🔧 Tecnologías Utilizadas
-
-### Backend
-- **Symfony 6.4.30 LTS** - Framework PHP
-- **API Platform 3.4.17** - API REST automática
-- **Doctrine ORM 2.20** - ORM para PHP
-- **Oracle Database 21c XE** - Base de datos empresarial
-- **PDO_OCI** - Driver PHP para Oracle
-- **Nginx + PHP-FPM** - Servidor web
-- **Docker** - Contenedores
-
-### Frontend Web
-- **React 18** - Biblioteca UI
-- **Vite 5** - Build tool
-- **Tailwind CSS 3** - Framework CSS
-- **Lucide React** - Iconos
-- **React Router** - Navegación
-
-### Móvil (Pendiente)
-- **Capacitor** - Framework híbrido
-- **Android/iOS** - Plataformas objetivo
-
-## 🎯 Funcionalidades Principales
-
-### Gestión de Animales
-- ✅ Registro completo de cabras
-- ✅ Seguimiento genealógico
-- ✅ Control de peso y desarrollo
-- ✅ Historial reproductivo
-- ✅ Registro de producción de leche
-- ✅ Historial veterinario
-
-### Análisis y Reportes
-- ⏳ Reportes de producción
-- ⏳ Análisis genealógico
-- ⏳ Indicadores zootécnicos
-- ⏳ Gráficas y estadísticas
-
-### Sistema
-- ✅ API REST completa
-- ⏳ Autenticación JWT
-- ⏳ Roles y permisos
-- ⏳ Backup automático
-- ⏳ Notificaciones
-
-## 🐛 Solución de Problemas Comunes
-
-### Oracle no inicia
-```bash
-docker logs caprino_oracle_dev
-docker restart caprino_oracle_dev
+```
+Proyecto-Caprino/
+├── backend-symfony/
+│   ├── public/
+│   │   ├── api.php              # REST API
+│   │   └── uploads/animales/    # Fotos de animales
+│   ├── src/                     # Código Symfony (futuro)
+│   └── .env                     # Configuración BD
+│
+├── frontend-web/
+│   ├── src/
+│   │   ├── componentes/         # Componentes React
+│   │   ├── servicios/           # Clientes API
+│   │   └── contextos/           # Context API
+│   └── package.json
+│
+├── base-de-datos/
+│   ├── esquemas/                # DDL de tablas
+│   ├── procedimientos/          # Triggers y funciones
+│   └── vistas/                  # Vistas de reportes
+│
+└── documentacion/
+    ├── 01-arquitectura-del-sistema.md
+    └── 02-reglas-de-negocio-zootecnicas.md
 ```
 
-### Symfony da error 500
-```bash
-docker logs caprino_symfony_dev | tail -30
-docker restart caprino_symfony_dev
-```
+## 🔑 Endpoints API
 
-### No conecta a la base de datos
-```bash
-# Verificar listener
-docker exec caprino_oracle_dev lsnrctl services | grep XEPDB1
+### Autenticación
+- `POST /api/auth/register` - Registro de usuarios
+- `POST /api/auth/login` - Iniciar sesión
+- `GET /api/me` - Datos del usuario autenticado
 
-# Recargar si no aparece
-docker exec caprino_oracle_dev lsnrctl reload
-```
+### Animales (CRUD Completo)
+- `GET /api/animales` - Listar animales (con filtros opcionales)
+- `POST /api/animales` - Crear animal con foto
+- `PUT /api/animales/{id}` - Actualizar animal
+- `DELETE /api/animales/{id}` - Eliminar animal
 
-### Ver todos los logs
-```bash
-docker logs -f caprino_symfony_dev
-docker logs -f caprino_oracle_dev
-```
+### Catálogos
+- `GET /api/razas` - Listar razas de caprinos
+- `GET /api/usuarios` - Listar usuarios del sistema
 
-## 📊 Estado de las Tablas
+## 📸 Gestión de Fotos
 
-Verificar tablas creadas:
-```bash
-docker exec caprino_oracle_dev bash -c \
-  "echo 'SELECT table_name FROM user_tables ORDER BY table_name;' | \
-   sqlplus -s caprino_user/CaprinoPass2025@XEPDB1"
-```
+Las fotos de animales se guardan como **archivos en el servidor**:
 
-Debería mostrar:
-- ANIMAL
-- GENEALOGIA
-- PESAJE
-- PRODUCCION_LECHE
-- RAZA
-- REPRODUCCION
-- SALUD
+- **Ubicación**: `backend-symfony/public/uploads/animales/`
+- **Formato**: Las imágenes base64 se convierten a archivos JPG/PNG
+- **Base de datos**: Guarda solo la ruta relativa (`/uploads/animales/animal_xxx.jpg`)
+- **Ventajas**: Mejor rendimiento, fácil respaldo, sin límites de tamaño CLOB
 
-## 🔐 Seguridad
+## 🐛 Troubleshooting
 
-⚠️ **IMPORTANTE:** Este es un entorno de desarrollo. Las contraseñas están en texto plano.
+### Error: "No se puede conectar a la base de datos"
+- Verificar que Oracle esté corriendo
+- Comprobar credenciales en archivo `.env`
+- Probar conectividad: `tnsping XEPDB1`
 
-Para producción:
-1. Usar variables de entorno
-2. Usar Docker secrets
-3. Configurar HTTPS
-4. Implementar rate limiting
-5. Configurar firewall
+### Error: "Call to undefined function oci_connect"
+- Instalar Oracle Instant Client
+- Habilitar extensión `oci8` en `php.ini`:
+  ```ini
+  extension=oci8_12c
+  ```
+- Reiniciar servidor PHP
 
-## 🚧 Próximos Pasos
+### Las fotos no se muestran
+- Verificar que exista: `backend-symfony/public/uploads/animales/`
+- Verificar permisos de escritura en la carpeta
+- Verificar que la columna `foto_url` sea VARCHAR2(500), no CLOB
 
-1. ✅ ~~Backend funcional con Oracle~~
-2. ✅ ~~Frontend React completado~~
-3. ⏳ Conectar frontend con backend
-4. ⏳ Implementar autenticación JWT
-5. ⏳ Crear datos de prueba
-6. ⏳ Desarrollar app móvil
-7. ⏳ Tests unitarios e integración
-8. ⏳ Configuración de producción
-9. ⏳ CI/CD
-10. ⏳ Documentación de API (OpenAPI)
+### Error CORS en el navegador
+- Verificar que el backend esté corriendo en puerto 8000
+- Verificar headers CORS en `api.php`
 
-## 👨‍💻 Desarrollo
+## 📦 Características Implementadas
 
-### Detener servicios
-```bash
-docker stop caprino_symfony_dev caprino_oracle_dev
-```
+- ✅ **Autenticación**: Login y registro de usuarios
+- ✅ **Gestión de Animales**: CRUD completo con fotos
+- ✅ **Filtros**: Búsqueda por código, nombre, sexo, raza, estado
+- ✅ **Catálogos**: Razas predefinidas
+- ✅ **Validaciones**: Campos requeridos y formato de datos
+- ✅ **UI/UX**: Diseño responsivo con Tailwind CSS
+- ✅ **Fotos**: Subida y visualización de imágenes
 
-### Reconstruir backend (después de cambios)
-```bash
-cd backend-symfony
-docker build --network host -t caprino-symfony:dev .
-docker rm -f caprino_symfony_dev
-docker run -d --name caprino_symfony_dev --network host caprino-symfony:dev
-```
+## 🚧 Características Pendientes
 
-### Limpiar cache
-```bash
-docker exec caprino_symfony_dev rm -rf /app/var/cache/*
-docker restart caprino_symfony_dev
-```
+- [ ] Módulo de Pesaje (registro de peso periódico)
+- [ ] Módulo de Salud (vacunas, tratamientos, diagnósticos)
+- [ ] Módulo de Reproducción (ciclos, partos, servicios)
+- [ ] Módulo de Producción de Leche
+- [ ] Módulo de Genealogía (árbol genealógico)
+- [ ] Reportes y gráficas estadísticas
+- [ ] Notificaciones automáticas
+- [ ] Exportación a PDF/Excel
+- [ ] Aplicación móvil con Capacitor
 
-## Fases de Implementación
+## 📝 Notas de Desarrollo
 
-### ✅ Fase 0: Análisis Zootécnico
-Definición de procesos reales y requisitos del sector caprino - **COMPLETADO**
-
-### ✅ Fase 1: Modelado de Datos
-Diseño profesional de base de datos Oracle con integridad referencial - **COMPLETADO**
-- 7 tablas creadas y validadas
-- Secuencias automáticas configuradas
-
-### ✅ Fase 2: Backend Symfony
-Desarrollo de API REST con validaciones de negocio estrictas - **COMPLETADO**
-- API Platform configurado
-- Repositorios personalizados creados
-- Validadores zootécnicos implementados
-
-### ✅ Fase 3: Frontend Web
-Panel administrativo con dashboards y reportes analíticos - **COMPLETADO**
-- 10 componentes React funcionales
-- Diseño responsivo con Tailwind CSS
-- SelectPersonalizado implementado
-
-### 🔄 Fase 4: Integración Frontend-Backend
-Conexión de React con API Symfony - **EN PROGRESO**
-- Servicios API por implementar
-- Autenticación JWT pendiente
-
-### ⏳ Fase 5: Aplicación Móvil
-App de campo con funcionamiento offline para registro en corrales - **PENDIENTE**
-
-### ⏳ Fase 6: Pruebas y Validación
-Validación técnica y zootécnica con casos reales - **PENDIENTE**
-
-### ⏳ Fase 7: Despliegue
-Puesta en producción con configuración profesional - **PENDIENTE**
+- El archivo `api.php` es una API REST temporal
+- Las fotos se guardan como archivos (mejor práctica web)
+- CORS configurado para desarrollo local
+- Diseño mobile-first con Tailwind
 
 ## 📄 Licencia
 
-Este proyecto es para uso educativo y de desarrollo.
+Este proyecto es de uso privado para gestión de hatos caprinos.
 
-## 🆘 Soporte
+## 👨‍💻 Autor
 
-Si encuentras problemas:
-1. Revisa la documentación en [backend-symfony/README-USO.md](backend-symfony/README-USO.md)
-2. Verifica los logs con `docker logs`
-3. Ejecuta `./scripts/start.sh` para reiniciar todo
-4. Consulta la sección de solución de problemas
+Sistema desarrollado para la gestión profesional de explotaciones caprinas.
 
 ---
 
-**Sistema desarrollado con ❤️ para la gestión zootécnica caprina**
-
-*Última actualización: 28 de diciembre de 2024*
+**Versión**: 1.0.0  
+**Última actualización**: Enero 2026

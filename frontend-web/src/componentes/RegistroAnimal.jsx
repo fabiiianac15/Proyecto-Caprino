@@ -27,12 +27,14 @@ const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
     sexo: 'hembra',
     fechaNacimiento: '',
     razaId: '',
+    colorPelaje: '',
     padreId: null,
     madreId: null,
     pesoNacimiento: '',
     numeroPartos: 0,
     estado: 'activo',
-    observaciones: ''
+    observaciones: '',
+    fotoUrl: ''
   };
 
   const [formulario, setFormulario] = useState(formularioInicial);
@@ -149,16 +151,23 @@ const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
   const manejarEnvio = async (evento) => {
     evento.preventDefault();
     
+    console.log('=== REGISTRO ANIMAL - manejarEnvio llamado');
+    console.log('=== REGISTRO ANIMAL - Formulario:', formulario);
+    
     if (!validarFormulario()) {
+      console.log('=== REGISTRO ANIMAL - Validación falló');
       mostrarMensaje('error', 'Por favor corrija los errores en el formulario');
       return;
     }
 
+    console.log('=== REGISTRO ANIMAL - Validación pasó, guardando...');
+    
     setCargando(true);
     try {
       let respuesta;
       if (animalEditar) {
         // Actualizar animal existente
+        console.log('=== REGISTRO ANIMAL - Actualizando animal:', animalEditar.id);
         respuesta = await animalesAPI.update(
           animalEditar.id, 
           formulario
@@ -166,13 +175,18 @@ const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
         mostrarMensaje('success', 'Animal actualizado exitosamente');
       } else {
         // Crear nuevo animal
+        console.log('=== REGISTRO ANIMAL - Creando nuevo animal');
         respuesta = await animalesAPI.create(formulario);
+        console.log('=== REGISTRO ANIMAL - Respuesta recibida:', respuesta);
         mostrarMensaje('success', 'Animal registrado exitosamente');
       }
 
       // Notificar al componente padre
       if (onGuardar) {
+        console.log('=== REGISTRO ANIMAL - Llamando onGuardar callback');
         onGuardar(respuesta);
+      } else {
+        console.log('=== REGISTRO ANIMAL - No hay callback onGuardar');
       }
 
       // Limpiar formulario si es registro nuevo
@@ -181,7 +195,7 @@ const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
         setErrores({});
       }
     } catch (error) {
-      console.error('Error al guardar animal:', error);
+      console.error('=== REGISTRO ANIMAL - Error al guardar:', error);
       const mensajeError = error.message || 
         'Error al guardar el animal. Intente nuevamente.';
       mostrarMensaje('error', mensajeError);
@@ -349,6 +363,16 @@ const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
               </p>
             )}
           </div>
+
+          {/* Color de pelaje */}
+          {renderCampo(
+            'colorPelaje', 
+            'Color de Pelaje', 
+            'text', 
+            { 
+              placeholder: 'Ej: Blanco, Café, Negro con blanco'
+            }
+          )}
 
           {/* Peso al nacimiento */}
           {renderCampo(

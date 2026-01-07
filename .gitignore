@@ -24,6 +24,8 @@
 /backend-symfony/config/jwt/*.pem
 /backend-symfony/public/bundles/
 /backend-symfony/symfony.lock
+/backend-symfony/public/uploads/
+/backend-symfony/*.log
 
 # Frontend Web
 /frontend-web/node_modules/
@@ -47,6 +49,27 @@
 *.sql.backup
 *.dmp
 *.log
+
+# Archivos de prueba y temporales
+*-test.php
+*-test.ps1
+test-*.php
+test-*.ps1
+test-*.json
+*-prueba.php
+verificar-*.php
+actualizar-*.php
+limpiar-*.php
+cargar-*.ps1
+cargar-*.sql
+
+# Documentación obsoleta
+PROBLEMA-*.md
+CHECKLIST-*.md
+CONFIGURACION-*.md
+INICIO-RAPIDO-*.md
+INDICE-*.md
+SOLUCION-*.md
 
 # Docker
 .docker/
