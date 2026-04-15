@@ -63,31 +63,12 @@ try {
     $path = parse_url($requestUri, PHP_URL_PATH);
     $method = $_SERVER['REQUEST_METHOD'];
     
-    // DEBUG: Log DETALLADO de cada request
-    $logMsg = "=== API REQUEST ===\n";
-    $logMsg .= "TIME: " . date('Y-m-d H:i:s') . "\n";
-    $logMsg .= "METHOD: $method\n";
-    $logMsg .= "PATH: $path\n";
-    $logMsg .= "URI: $requestUri\n";
-    $logMsg .= "CONTENT_TYPE: " . ($_SERVER['CONTENT_TYPE'] ?? 'NOT_SET') . "\n";
-    $logMsg .= "HTTP_ORIGIN: " . ($_SERVER['HTTP_ORIGIN'] ?? 'NOT_SET') . "\n";
-    $logMsg .= "HTTP_REFERER: " . ($_SERVER['HTTP_REFERER'] ?? 'NOT_SET') . "\n";
-    $logMsg .= "REMOTE_ADDR: " . ($_SERVER['REMOTE_ADDR'] ?? 'NOT_SET') . "\n";
-    
-    // Leer body raw
-    $body_raw = file_get_contents('php://input');
-    $logMsg .= "BODY_LENGTH: " . strlen($body_raw) . " bytes\n";
-    $logMsg .= "BODY_PREVIEW: " . substr($body_raw, 0, 200) . "\n";
-    $logMsg .= "=====================\n";
-    error_log($logMsg);
-    
     // Leer datos JSON del body
     $data = [];
     if (in_array($method, ['POST', 'PUT'])) {
         $body = file_get_contents('php://input');
         if ($body) {
             $data = json_decode($body, true) ?? [];
-            error_log(">>> Body received: " . json_encode($data));
         }
     }
     
@@ -105,86 +86,6 @@ try {
             'timestamp' => date('Y-m-d H:i:s')
         ]);
         exit;
-    }
-    
-    // DEBUG: GET /api/debug/method - Muestra el método HTTP recibido
-    if ($path === '/api/debug/method' || $path === '/api/debug/method/') {
-        http_response_code(200);
-        echo json_encode([
-            'method' => $method,
-            'path' => $path,
-            'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'none',
-            'data_received' => $data,
-            'request_method_raw' => $_SERVER['REQUEST_METHOD'],
-            'headers' => [
-                'content_type' => $_SERVER['CONTENT_TYPE'] ?? null,
-                'content_length' => $_SERVER['CONTENT_LENGTH'] ?? null
-            ]
-        ]);
-        exit;
-    }
-    
-    // DIAGNOSTICO COMPLETO: GET /api/diag/solicitud
-    if ($path === '/api/diag/solicitud' || $path === '/api/diag/solicitud/') {
-        $bodyRaw = file_get_contents('php://input');
-        $allHeaders = [];
-        foreach ($_SERVER as $name => $value) {
-            if (substr($name, 0, 5) == 'HTTP_' || in_array($name, ['CONTENT_TYPE', 'CONTENT_LENGTH', 'REQUEST_METHOD'])) {
-                $allHeaders[$name] = $value;
-            }
-        }
-        
-        http_response_code(200);
-        echo json_encode([
-            'diagnostico' => 'INFORMACIÓN COMPLETA DE SOLICITUD',
-            'timestamp' => date('Y-m-d H:i:s.u'),
-            'method_recibido' => $_SERVER['REQUEST_METHOD'],
-            'path' => $path,
-            'uri' => $requestUri,
-            'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'NOT_SET',
-            'content_length' => $_SERVER['CONTENT_LENGTH'] ?? '0',
-            'body_raw_length' => strlen($bodyRaw),
-            'body_preview' => substr($bodyRaw, 0, 300),
-            'headers_http' => $allHeaders,
-            'php_version' => phpversion(),
-            'servidor' => [
-                'addr' => $_SERVER['SERVER_ADDR'] ?? 'NOT_SET',
-                'puerto' => $_SERVER['SERVER_PORT'] ?? 'NOT_SET',
-                'nombre' => $_SERVER['SERVER_NAME'] ?? 'NOT_SET'
-            ],
-            'cliente' => [
-                'ip' => $_SERVER['REMOTE_ADDR'] ?? 'NOT_SET',
-                'puerto' => $_SERVER['REMOTE_PORT'] ?? 'NOT_SET',
-                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'NOT_SET'
-            ]
-        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-        exit;
-    }
-    
-    // DEBUG: Captura TODAS las solicitudes a /api/auth/register sin importar el método
-    if (preg_match('#^/api/auth/register/?$#', $path)) {
-        error_log("=== CAPTURED /api/auth/register ===");
-        error_log("REQUEST_METHOD: " . $_SERVER['REQUEST_METHOD']);
-        error_log("METHOD Variable: " . $method);
-        error_log("Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'NONE'));
-        error_log("Data: " . json_encode($data));
-        error_log("== END ==");
-        
-        if ($method === 'OPTIONS') {
-            http_response_code(200);
-            exit;
-        }
-        
-        if ($method !== 'POST') {
-            http_response_code(405);
-            echo json_encode([
-                'error' => 'Método no permitido. Se requiere POST',
-                'received_method' => $method,
-                'request_method' => $_SERVER['REQUEST_METHOD'],
-                'path' => $path
-            ]);
-            exit;
-        }
     }
     
     // GET /api/razas - Obtener todas las razas

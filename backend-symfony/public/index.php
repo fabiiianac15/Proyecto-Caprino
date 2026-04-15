@@ -50,9 +50,27 @@ if (strpos($_SERVER['REQUEST_URI'], '/api') === 0) {
     <h2>Base de Datos:</h2>
     <p>
         <?php
+        // Establecer variables de entorno Oracle explícitamente
+        putenv('NLS_LANG=AMERICAN_AMERICA.AL32UTF8');
+        if (!getenv('ORACLE_HOME')) {
+            putenv('ORACLE_HOME=C:\\app\\jesus\\product\\21c\\dbhomexe');
+        }
+        if (!getenv('TNS_ADMIN')) {
+            putenv('TNS_ADMIN=C:\\app\\jesus\\product\\21c\\dbhomexe\\network\\admin');
+        }
+        
         try {
-            $pdo = new PDO('oci:dbname=//192.168.101.20:1521/XEPDB1', 'caprino_user', 'CaprinoPass2025');
-            echo '✅ <strong>Conectado a Oracle</strong>';
+            $conn = @oci_connect('C##caprino', 'CaprinoPass2025', '127.0.0.1:1521/XEPDB1');
+            if ($conn) {
+                $stid = oci_parse($conn, "SELECT COUNT(*) as cnt FROM tab");
+                oci_execute($stid);
+                $row = oci_fetch_assoc($stid);
+                oci_close($conn);
+                echo '✅ <strong>Conectado a Oracle</strong> (' . $row['CNT'] . ' tablas)';
+            } else {
+                $e = oci_error();
+                echo '❌ <strong>Error: ' . htmlspecialchars($e['message'] ?? 'Unknown error') . '</strong>';
+            }
         } catch (Exception $e) {
             echo '❌ <strong>Error: ' . htmlspecialchars($e->getMessage()) . '</strong>';
         }

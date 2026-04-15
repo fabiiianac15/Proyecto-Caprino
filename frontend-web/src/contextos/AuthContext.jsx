@@ -169,11 +169,19 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.error || 'Error al registrar usuario');
       }
 
+      // Si hay token (registro exitoso con auto-login), guardar sesión
+      if (data.token && data.user) {
+        setToken(data.token);
+        setUsuario(data.user);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('usuario', JSON.stringify(data.user));
+      }
+
       // Retornar éxito con datos del usuario
-      // NO iniciar sesión automáticamente para permitir mostrar notificaciones
       return { 
         success: true, 
         message: data.message || 'Usuario registrado exitosamente',
+        token: data.token,
         user: data.user
       };
     } catch (error) {

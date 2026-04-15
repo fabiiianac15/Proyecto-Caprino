@@ -5,69 +5,172 @@ Sistema web completo para la gestión integral de hatos caprinos, incluyendo reg
 ## 🚀 Stack Tecnológico
 
 - **Frontend**: React 18 + Vite + Tailwind CSS
-- **Backend**: PHP 8.2+ con REST API
-- **Base de datos**: Oracle 21c XE
-- **Servidor**: PHP Built-in Server (desarrollo)
+- **Backend**: PHP 8.2 + API Simple (sin Symfony)
+- **Base de datos**: Oracle Database 21c Express Edition
+- **Servidor**: PHP Built-in Server (puerto 8000)
+
+---
+
+## 📚 DOCUMENTACIÓN Y SCRIPTS
+
+**TODO está organizado en 2 carpetas principales:**
+
+### 1. 📁 `00-SCRIPTS-INSTALACION/`
+Scripts ejecutables en **orden numérico**:
+```
+01-VERIFICAR-REQUISITOS.bat    ← Comienza aquí
+02-CONFIGURAR-ORACLE-ENV.bat
+03-INSTALAR-OCI8.ps1
+04-INSTALAR-DEPENDENCIAS-BACKEND.bat
+05-INSTALAR-DEPENDENCIAS-FRONTEND.bat
+06-INICIAR-ORACLE.ps1
+07-INICIAR-BACKEND.bat         ← Para trabajar diariamente
+08-INICIAR-FRONTEND.bat        ← Para trabajar diariamente
+```
+
+### 2. 📁 `00-DOCS-CONFIGURACION/`
+Documentación técnica:
+- **GUIA-RAPIDA.md** ← **Lee esto primero** ⭐
+- CONFIGURACION-COMPLETA.md (detalles técnicos)
+- PROBLEMA-GET-VS-POST.md (investigación del bug)
+- SOLUCION-RAPIDA-GET-VS-POST.md (soluciones)
+
+---
+
+## ⚡ INICIO RÁPIDO
+
+### 📖 Lee primero:
+```
+📂 00-DOCS-CONFIGURACION/ → GUIA-RAPIDA.md
+```
+
+### 🚀 Flujo de instalación (PRIMERA VEZ):
+```powershell
+# Abre Explorer
+C:\Users\USUARIO\Downloads\Proyecto-Caprino\00-SCRIPTS-INSTALACION\
+
+# Ejecuta en orden:
+1. 01-VERIFICAR-REQUISITOS.bat
+2. 02-CONFIGURAR-ORACLE-ENV.bat (Como Administrador)
+3. 03-INSTALAR-OCI8.ps1
+4. 04-INSTALAR-DEPENDENCIAS-BACKEND.bat
+5. 05-INSTALAR-DEPENDENCIAS-FRONTEND.bat
+6. 06-INICIAR-ORACLE.ps1 (Como Administrador)
+```
+
+### 💻 Desarrollo DIARIO:
+```powershell
+# Terminal 1: Backend
+07-INICIAR-BACKEND.bat
+
+# Terminal 2: Frontend (en NUEVA terminal)
+08-INICIAR-FRONTEND.bat
+
+# Navegador:
+http://localhost:5173/
+```
+
+---
 
 ## 📋 Requisitos Previos
 
-1. **PHP 8.2+** instalado en `C:\tools\php82`
-2. **Node.js 18+** y npm
-3. **Oracle 21c XE** corriendo en `192.168.101.20:1521/XEPDB1`
-4. **Oracle Instant Client** para PHP (extensión oci8)
-5. Usuario de BD: `caprino_user` / `CaprinoPass2025`
+- **PHP 8.2+** (con extensión OCI8 para Oracle)
+- **Composer** (gestor de dependencias PHP)
+- **Node.js 18+** y npm
+- **Oracle 21c XE** (Express Edition)
 
-## 🔧 Instalación
+---
+---
 
-### 1. Clonar el repositorio
-```bash
-git clone <url-repo>
-cd Proyecto-Caprino
+## 🆘 Problemas Comunes
+
+### "El registro no funciona (GET vs POST)"
+Lee: `00-DOCS-CONFIGURACION/SOLUCION-RAPIDA-GET-VS-POST.md`
+
+### "No puedo conectar a Oracle"
+Ejecuta: `00-SCRIPTS-INSTALACION/06-INICIAR-ORACLE.ps1`
+
+### Otros problemas
+Ve a: `00-DOCS-CONFIGURACION/CONFIGURACION-COMPLETA.md`
+
+---
+
+## 📊 Contenido del Proyecto
+
+```
+Proyecto-Caprino/
+├── 00-SCRIPTS-INSTALACION/      ← Scripts ejecutables
+│   ├── 01-08 *.bat/*.ps1        ← En orden numérico
+│   └── README.md
+│
+├── 00-DOCS-CONFIGURACION/       ← Documentación
+│   ├── GUIA-RAPIDA.md           ← ⭐ Lee primero
+│   ├── CONFIGURACION-COMPLETA.md
+│   └── ...más documentación
+│
+├── backend-symfony/              ← Backend PHP
+│   └── public/api.php           ← API principal
+│
+├── frontend-web/                ← Frontend React
+│   └── src/                     ← Código del navegador
+│
+├── base-de-datos/               ← Scripts SQL
+│
+└── README.md                    ← Este archivo
 ```
 
-### 2. Configurar Base de Datos
+---
 
-Conectarse a Oracle como `sys_local` y ejecutar:
+## 🔗 Enlaces Importantes
 
-```sql
--- Crear usuario
-CREATE USER caprino_user IDENTIFIED BY CaprinoPass2025;
-GRANT CONNECT, RESOURCE TO caprino_user;
-GRANT CREATE VIEW TO caprino_user;
-ALTER USER caprino_user QUOTA UNLIMITED ON USERS;
-```
+- **Inicio**: `00-DOCS-CONFIGURACION/GUIA-RAPIDA.md`
+- **Scripts**: `00-SCRIPTS-INSTALACION/README.md`
+- **Técnico**: `00-DOCS-CONFIGURACION/CONFIGURACION-COMPLETA.md`
+- **API**: `backend-symfony/public/api.php`
 
-Conectarse como `caprino_user` y ejecutar scripts en orden:
+---
 
-```bash
-@base-de-datos/00-init-database.sql
-@base-de-datos/esquemas/01-tablas-principales.sql
-@base-de-datos/esquemas/02-datos-iniciales-razas.sql
-@base-de-datos/esquemas/03-datos-iniciales-usuarios.sql
-@base-de-datos/esquemas/04-tabla-usuarios.sql
-@base-de-datos/procedimientos/01-triggers-y-funciones.sql
-@base-de-datos/vistas/01-vistas-reportes.sql
-```
+## ✅ Verificar Que Funciona
 
-**IMPORTANTE:** Convertir columna `foto_url` a VARCHAR2:
+1. **Backend**: http://localhost:8000/api/health
+2. **Frontend**: http://localhost:5173/
+3. **Base de datos**: Conecta correctamente
 
-```sql
-ALTER TABLE ANIMAL ADD foto_url_new VARCHAR2(500);
-UPDATE ANIMAL SET foto_url_new = SUBSTR(foto_url, 1, 500);
-ALTER TABLE ANIMAL DROP COLUMN foto_url;
-ALTER TABLE ANIMAL RENAME COLUMN foto_url_new TO foto_url;
-COMMIT;
-```
+---
 
-### 3. Configurar Backend
+**¿Listo?** Abre: `00-DOCS-CONFIGURACION/GUIA-RAPIDA.md` 🚀
 
-```bash
+El script `Setup-Oracle.ps1` hace esto automáticamente, pero si lo haces manualmente:
+
+```powershell
 cd backend-symfony
+composer install
 ```
 
-Crear archivo `.env` (copiar de `.env.example`):
+### 2. Configurar Base de Datos Oracle
+
+El script `Setup-Oracle.ps1` crea automáticamente lo siguiente:
+
+```sql
+-- Usuario Oracle (crear una sola vez como admin)
+CREATE USER caprino_user IDENTIFIED BY CaprinoPass2025;
+GRANT CREATE SESSION TO caprino_user;
+GRANT RESOURCE TO caprino_user;
+GRANT UNLIMITED TABLESPACE TO caprino_user;
+GRANT CREATE TABLE TO caprino_user;
+GRANT CREATE SEQUENCE TO caprino_user;
+GRANT CREATE TRIGGER TO caprino_user;
 ```
-DATABASE_URL=oci8://caprino_user:CaprinoPass2025@192.168.101.20:1521/XEPDB1
+
+### 3. Crear Tablas con Migraciones
+
+El script `Setup-Oracle.ps1` genera y ejecuta las migraciones automáticamente:
+
+```powershell
+# Manual (si lo prefieres):
+cd backend-symfony
+php bin/console make:migration
+php bin/console doctrine:migrations:migrate
 ```
 
 ### 4. Configurar Frontend
@@ -79,23 +182,15 @@ npm install
 
 ## ▶️ Iniciar el Proyecto
 
-### Opción 1: Script PowerShell (Recomendado)
+### Después de ejecutar Setup-Oracle.ps1:
+
+**Terminal 1 - Backend Symfony:**
 ```powershell
-.\iniciar-proyecto.ps1
+cd backend-symfony
+php -S localhost:8000 -t public/
 ```
 
-Este script inicia automáticamente:
-- Backend PHP en puerto 8000
-- Frontend React en puerto 5173
-
-### Opción 2: Manual
-
-**Terminal 1 - Backend:**
-```powershell
-.\INICIAR-BACKEND-PHP82.bat
-```
-
-**Terminal 2 - Frontend:**
+**Terminal 2 - Frontend React:**
 ```bash
 cd frontend-web
 npm run dev
@@ -103,11 +198,11 @@ npm run dev
 
 ## 🌐 Acceso
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000/api
-- **Health Check**: http://localhost:8000/api/health
+- **Frontend**: http://localhost:3000 (ver puerto en terminal npm)
+- **Backend API**: http://localhost:8000
+- **API Platform Docs**: http://localhost:8000/api (si está configurado)
 
-### Credenciales de Prueba
+### Credenciales por Defecto
 - **Email**: admin@caprino.local
 - **Password**: Admin123!
 

@@ -1,20 +1,11 @@
 doctrine:
     dbal:
-        # Configuración para Oracle Database 21c XE con OCI8 nativo
         driver: 'oci8'
-        host: '%env(DATABASE_HOST)%'
-        port: '%env(DATABASE_PORT)%'
-        dbname: '%env(DATABASE_NAME)%'
+        dbname: '127.0.0.1:1521/XEPDB1'
         user: '%env(DATABASE_USER)%'
         password: '%env(DATABASE_PASSWORD)%'
         charset: AL32UTF8
-        profiling_collect_backtrace: "%kernel.debug%"
-        use_savepoints: true
         server_version: '21c'
-        options:
-            # Opciones específicas de Oracle OCI8
-            1000: false  # OCI_NO_AUTO_COMMIT - desactiva autocommit
-            104: 60      # OCI_ATTR_ACTION - timeout de sesión
     orm:
         auto_generate_proxy_classes: false
         enable_lazy_ghost_objects: false

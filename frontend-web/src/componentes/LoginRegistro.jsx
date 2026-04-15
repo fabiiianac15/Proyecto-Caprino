@@ -226,19 +226,11 @@ const LoginRegistro = () => {
       setMensaje({ tipo: 'success', texto: 'Registro exitoso. Iniciando sesión...' });
       
       // Esperar 1 segundo para mostrar el mensaje de éxito
-      setTimeout(async () => {
-        // Iniciar sesión automáticamente con las credenciales recién registradas
-        const loginResult = await iniciarSesion(registroForm.email, registroForm.password, true);
-        
+      setTimeout(() => {
+        // Si registrarse ya guardó el token, redirigir directamente
         setCargando(false);
-        
-        if (loginResult.success) {
-          // Redirigir al dashboard
-          navigate('/');
-        } else {
-          setMensaje({ tipo: 'error', texto: 'Registro exitoso pero hubo un error al iniciar sesión. Por favor, inicie sesión manualmente.' });
-        }
-      }, 1000);
+        navigate('/');
+      }, 1500);
     } else {
       setCargando(false);
       setMensaje({ tipo: 'error', texto: resultado.error });
