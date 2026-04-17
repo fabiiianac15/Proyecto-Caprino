@@ -1,82 +1,75 @@
-# ============================================================================
-# 04-INSTALAR-DEPENDENCIAS-BACKEND.ps1
-# ============================================================================
-# PASO 4: Instalar dependencias del backend (Composer)
-# Ejecuta como Administrador: powershell -ExecutionPolicy Bypass -File "04-INSTALAR-DEPENDENCIAS-BACKEND.ps1"
-# ============================================================================
+﻿# 04-INSTALAR-DEPENDENCIAS-BACKEND.ps1
 
-Write-Host "╔════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║  INSTALAR DEPENDENCIAS BACKEND - Composer                         ║" -ForegroundColor Cyan
-Write-Host "╚════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "==== INSTALAR DEPENDENCIAS BACKEND ==== " -ForegroundColor Cyan
 Write-Host ""
 
-# Ruta del proyecto
-$projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$projectRoot = Split-Path -Parent $PSScriptRoot
 $backendDir = "$projectRoot\backend-symfony"
 
-Write-Host "📍 Directorio del backend: $backendDir" -ForegroundColor Cyan
+Write-Host "Backend dir: $backendDir" -ForegroundColor Cyan
 Write-Host ""
 
-# Verificar que existe el directorio
 if (-not (Test-Path $backendDir)) {
-    Write-Host "❌ Directorio del backend no encontrado: $backendDir" -ForegroundColor Red
-    Read-Host "Presiona ENTER para salir"
-    exit
+    Write-Host "[ERROR] Directorio backend no encontrado" -ForegroundColor Red
+    exit 1
 }
 
-# Cambiar al directorio del backend
 Push-Location $backendDir
+Write-Host "Directorio actual: $(Get-Location)" -ForegroundColor Yellow
 
-Write-Host "🔍 Verificando Composer..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Verificando Composer..." -ForegroundColor Yellow
+
 try {
     $composerVersion = composer --version 2>$null
-    Write-Host "✅ Composer encontrado: $composerVersion" -ForegroundColor Green
+    Write-Host "[OK] Composer encontrado: $composerVersion" -ForegroundColor Green
 } catch {
-    Write-Host "❌ Composer no está instalado" -ForegroundColor Red
+    Write-Host "[ERROR] Composer no instalado" -ForegroundColor Red
     Write-Host "Descarga desde: https://getcomposer.org/download/" -ForegroundColor Yellow
     Pop-Location
-    Read-Host "Presiona ENTER para salir"
-    exit
+    exit 1
 }
 
 Write-Host ""
-Write-Host "🗑️  Limpiando archivos anteriores..." -ForegroundColor Yellow
+Write-Host "Limpiando archivos anteriores..." -ForegroundColor Yellow
+
 if (Test-Path "composer.lock") {
     Remove-Item "composer.lock" -Force -ErrorAction SilentlyContinue
-    Write-Host "✅ composer.lock eliminado" -ForegroundColor Green
+    Write-Host "[OK] composer.lock eliminado" -ForegroundColor Green
 }
 
 if (Test-Path "vendor") {
-    Write-Host "⚠️  Carpeta vendor será reemplazada" -ForegroundColor Yellow
+    Write-Host "[INFO] vendor sera reemplazada" -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "📥 Instalando dependencias con Composer..." -ForegroundColor Yellow
-Write-Host "   (Esta operación puede tardar varios minutos...)" -ForegroundColor Gray
+Write-Host "Instalando dependencias con Composer..." -ForegroundColor Yellow
+Write-Host "(puede tardar varios minutos)" -ForegroundColor Gray
 Write-Host ""
 
 composer install --ignore-platform-req=php --ignore-platform-req=ext-sodium
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host ""
-    Write-Host "✅ Dependencias instaladas correctamente" -ForegroundColor Green
+    Write-Host "[OK] Dependencias instaladas" -ForegroundColor Green
 } else {
     Write-Host ""
-    Write-Host "❌ Hubo un error instalando dependencias" -ForegroundColor Red
-    Write-Host "Revisa los mensajes de error arriba" -ForegroundColor Red
+    Write-Host "[ERROR] Error en instalacion" -ForegroundColor Red
     Pop-Location
-    Read-Host "Presiona ENTER para salir"
-    exit
+    exit 1
 }
 
 Write-Host ""
-Write-Host "✅ vendor/autoload.php existe: $(Test-Path 'vendor/autoload.php')" -ForegroundColor Green
+Write-Host "Verificando autoload..." -ForegroundColor Yellow
+if (Test-Path "vendor/autoload.php") {
+    Write-Host "[OK] vendor/autoload.php existe" -ForegroundColor Green
+} else {
+    Write-Host "[AVISO] vendor/autoload.php no encontrado" -ForegroundColor Yellow
+}
 
 Pop-Location
 
 Write-Host ""
-Write-Host "╔════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║  ✅ Dependencias del backend instaladas                           ║" -ForegroundColor Green
-Write-Host "╚════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
-
-Read-Host "Presiona ENTER para continuar"
+Write-Host "==== COMPLETADO ====" -ForegroundColor Green
+Write-Host ""

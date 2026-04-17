@@ -12,6 +12,22 @@ Este directorio contiene **scripts en orden** para instalar y configurar el proy
 
 ### **PRIMERA VEZ: Instalación Completa**
 
+#### Paso 0️⃣ - Instalar Visual C++ Runtime (EJECUTAR PRIMERO)
+```
+00b-INSTALAR-VCRUNTIME.ps1
+```
+- Descarga e instala Visual C++ 2015-2022 Runtime (prerequisito para PHP 8.2)
+- Sin esto, PHP mostrará warnings de incompatibilidad
+- Ejecuta una sola vez
+
+#### Paso 0️⃣ (b) - Instalar PHP compatible automáticamente
+```
+00-INSTALAR-PHP-COMPATIBLE.bat
+```
+- Descarga e instala PHP 8.2 Thread Safe x64 compatible con este proyecto
+- Configura `PHP_HOME`, `PATH` y `php.ini` de forma automática
+- Si ya tienes PHP en otro lugar, puedes usar el `.ps1` con parámetros para cambiar versión/ruta
+
 #### Paso 1️⃣ - Verificar Requisitos
 ```
 01-VERIFICAR-REQUISITOS.bat
@@ -95,6 +111,9 @@ Clic derecho en 06-INICIAR-ORACLE.ps1 → Run with PowerShell
 
 ```
 00-SCRIPTS-INSTALACION/
+├── 00b-INSTALAR-VCRUNTIME.ps1       # Instala Visual C++ Runtime
+├── 00-INSTALAR-PHP-COMPATIBLE.ps1    # Instala y configura PHP 8.2
+├── 00-INSTALAR-PHP-COMPATIBLE.bat    # Ejecutable Windows
 ├── 01-VERIFICAR-REQUISITOS.ps1      # Verificar dependencias
 ├── 01-VERIFICAR-REQUISITOS.bat      # Ejecutable Windows
 ├── 02-CONFIGURAR-ORACLE-ENV.ps1     # Configurar variables
