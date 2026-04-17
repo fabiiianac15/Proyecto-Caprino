@@ -6,6 +6,9 @@ Write-Host ""
 Write-Host "==== VERIFICACION DE REQUISITOS - Proyecto Caprino ====" -ForegroundColor Cyan
 Write-Host ""
 
+# Actualizar PATH con variables de entorno del sistema
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
 $requisitos_ok = $true
 
 # 1. Verificar PHP
@@ -56,10 +59,17 @@ Write-Host ""
 
 # 4. Verificar Oracle Client
 Write-Host "[4] Verificando Oracle Client..." -ForegroundColor Yellow
-if (Test-Path "C:\Oracle") {
-    Write-Host "[OK] Directorio Oracle encontrado" -ForegroundColor Green
-} else {
-    Write-Host "[AVISO] Oracle no instalado en C:\Oracle" -ForegroundColor Yellow
+try {
+    $sqlplusPath = (Get-Command sqlplus -ErrorAction SilentlyContinue).Source
+    if ($sqlplusPath) {
+        Write-Host "[OK] Oracle Client encontrado" -ForegroundColor Green
+        $oracleHome = Split-Path -Parent (Split-Path -Parent $sqlplusPath)
+        Write-Host "     Ubicación: $oracleHome" -ForegroundColor Gray
+    } else {
+        Write-Host "[AVISO] Oracle Client no encontrado" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "[AVISO] No se pudo verificar Oracle Client" -ForegroundColor Yellow
 }
 
 Write-Host ""

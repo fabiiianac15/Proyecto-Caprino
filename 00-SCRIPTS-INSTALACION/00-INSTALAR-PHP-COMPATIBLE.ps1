@@ -239,10 +239,20 @@ Write-Host "============================================================" -Foreg
 Write-Host " INSTALACION FINALIZADA CON EXITO" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
+
+# ============================================================================
+# PASO 7: ACTUALIZAR PATH EN LA SESION ACTUAL
+# ============================================================================
+
+Write-Host "Actualizando variables de entorno en la sesión actual..." -ForegroundColor Yellow
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+Write-Host "OK: PATH actualizado" -ForegroundColor Green
+
+Write-Host ""
 Write-Host "Siguientes pasos:" -ForegroundColor Cyan
-Write-Host "1) Cierra y reabre PowerShell para aplicar cambios de PATH" -ForegroundColor White
-Write-Host "2) Ejecuta 02-CONFIGURAR-ORACLE-ENV.ps1" -ForegroundColor White
-Write-Host "3) Ejecuta 03-INSTALAR-OCI8.ps1" -ForegroundColor White
+Write-Host "1) Ejecuta 02-CONFIGURAR-ORACLE-ENV.ps1" -ForegroundColor White
+Write-Host "2) Ejecuta 03-INSTALAR-OCI8.ps1" -ForegroundColor White
+Write-Host "3) Ejecuta 03b-INSTALAR-COMPOSER.ps1" -ForegroundColor White
 Write-Host ""
 
 Read-Host "Presiona ENTER para continuar"

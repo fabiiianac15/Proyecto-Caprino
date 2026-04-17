@@ -4,7 +4,10 @@ Write-Host ""
 Write-Host "==== INSTALAR DEPENDENCIAS FRONTEND ==== " -ForegroundColor Cyan
 Write-Host ""
 
-$projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+# Actualizar PATH con variables de entorno del sistema
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+$projectRoot = Split-Path -Parent $PSScriptRoot
 $frontendDir = "$projectRoot\frontend-web"
 
 Write-Host "Frontend dir: $frontendDir" -ForegroundColor Cyan

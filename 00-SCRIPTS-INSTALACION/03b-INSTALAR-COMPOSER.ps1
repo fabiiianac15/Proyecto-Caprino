@@ -33,12 +33,17 @@ Write-Host "Limpiando..." -ForegroundColor Yellow
 Remove-Item $composerInstaller -Force -ErrorAction SilentlyContinue
 
 Write-Host ""
+Write-Host "Actualizando variables de entorno en la sesión actual..." -ForegroundColor Yellow
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+Write-Host "[OK] PATH actualizado" -ForegroundColor Green
+
+Write-Host ""
 Write-Host "Verificando Composer..." -ForegroundColor Yellow
 try {
     $version = composer --version 2>$null
     Write-Host "[OK] $version" -ForegroundColor Green
 } catch {
-    Write-Host "[AVISO] Abre nueva PowerShell para aplicar cambios" -ForegroundColor Yellow
+    Write-Host "[ERROR] Composer no se pudo verificar" -ForegroundColor Red
 }
 
 Write-Host ""

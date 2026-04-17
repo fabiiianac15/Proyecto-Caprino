@@ -42,7 +42,7 @@ if (file_exists($envFile)) {
 $dbHost = $env['DATABASE_HOST'] ?? '127.0.0.1';
 $dbPort = $env['DATABASE_PORT'] ?? '1521';
 $dbName = $env['DATABASE_NAME'] ?? 'XEPDB1';
-$dbUser = $env['DATABASE_USER'] ?? 'C##caprino';
+$dbUser = $env['DATABASE_USER'] ?? 'caprino';
 $dbPass = $env['DATABASE_PASSWORD'] ?? 'CaprinoPass2025';
 
 // Variables globales
@@ -52,11 +52,21 @@ $mensaje_error = null;
 try {
     // Conexión a Oracle
     $tns = "{$dbHost}:{$dbPort}/{$dbName}";
+    
+    // Check if OCI8 is loaded
+    if (!extension_loaded('oci8')) {
+        throw new Exception('OCI8 extension no está cargado');
+    }
+    
+    error_log("Intentando conectar a: $tns con usuario: $dbUser");
     $conn = @oci_connect($dbUser, $dbPass, $tns);
     
     if (!$conn) {
-        throw new Exception('No se puede conectar a la BD: ' . oci_error()['message']);
+        $error = oci_error();
+        throw new Exception('No se puede conectar a la BD: ' . ($error['message'] ?? 'Error desconocido'));
     }
+    
+    error_log("Conexión a Oracle exitosa");
     
     // Parsear ruta y método
     $requestUri = $_SERVER['REQUEST_URI'];
@@ -81,12 +91,19 @@ try {
     $logMsg .= "=====================\n";
     error_log($logMsg);
     
-    // Leer datos JSON del body
+    // Leer datos JSON del body (solo una vez!)
     $data = [];
     if (in_array($method, ['POST', 'PUT'])) {
-        $body = file_get_contents('php://input');
-        if ($body) {
-            $data = json_decode($body, true) ?? [];
+        if ($body_raw) {
+            // Intentar decodificar JSON
+            $data = json_decode($body_raw, true);
+            
+            // Si falla, intentar con UTF-8
+            if ($data === null) {
+                $body_raw = iconv("UTF-8", "UTF-8//IGNORE", $body_raw);
+                $data = json_decode($body_raw, true) ?? [];
+            }
+            
             error_log(">>> Body received: " . json_encode($data));
         }
     }
@@ -299,9 +316,9 @@ try {
         // Hash de contraseña
         $passwordHash = password_hash($password, PASSWORD_BCRYPT);
         
-        // Insertar usuario
-        $sql = "INSERT INTO USUARIO (nombre_completo, email, password_hash, rol, estado, fecha_creacion)
-                VALUES (:nombre, :email, :password, :rol, 'activo', SYSDATE)";
+        // Insertar usuario con ID generado desde la secuencia
+        $sql = "INSERT INTO USUARIO (id_usuario, nombre_completo, email, password_hash, rol, estado, fecha_creacion)
+                VALUES (SEQ_USUARIO.NEXTVAL, :nombre, :email, :password, :rol, 'activo', SYSDATE)";
         
         $stmt = oci_parse($conn, $sql);
         oci_bind_by_name($stmt, ':nombre', $nombre);

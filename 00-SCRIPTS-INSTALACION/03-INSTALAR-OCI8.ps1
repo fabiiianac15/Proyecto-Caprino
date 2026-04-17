@@ -4,6 +4,9 @@ Write-Host ""
 Write-Host "INSTALAR OCI8" -ForegroundColor Cyan
 Write-Host ""
 
+# Actualizar PATH con variables de entorno del sistema
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
 $phpPath = (Get-Command php -ErrorAction SilentlyContinue).Source
 
 if (-not $phpPath) {
@@ -58,5 +61,7 @@ if ($iniContent -match "extension\s*=\s*oci8") {
 
 Write-Host ""
 Write-Host "COMPLETADO" -ForegroundColor Green
+Write-Host ""
+Write-Host "Nota: PHP necesita reiniciarse para cargar la extensión OCI8" -ForegroundColor Yellow
 Write-Host "Abre nueva PowerShell y ejecuta: php -m | findstr oci8" -ForegroundColor Yellow
 Write-Host ""

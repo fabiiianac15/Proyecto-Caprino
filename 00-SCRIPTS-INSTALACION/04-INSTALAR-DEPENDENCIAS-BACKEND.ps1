@@ -4,6 +4,9 @@ Write-Host ""
 Write-Host "==== INSTALAR DEPENDENCIAS BACKEND ==== " -ForegroundColor Cyan
 Write-Host ""
 
+# Actualizar PATH con variables de entorno del sistema
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $backendDir = "$projectRoot\backend-symfony"
 
@@ -48,7 +51,7 @@ Write-Host "Instalando dependencias con Composer..." -ForegroundColor Yellow
 Write-Host "(puede tardar varios minutos)" -ForegroundColor Gray
 Write-Host ""
 
-composer install --ignore-platform-req=php --ignore-platform-req=ext-sodium
+composer install --ignore-platform-req=php --ignore-platform-req=ext-oci8 --ignore-platform-req=ext-sodium
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host ""

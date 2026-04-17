@@ -11,8 +11,11 @@ Write-Host "║  INICIAR BACKEND - Servidor PHP                                 
 Write-Host "╚════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
+# Actualizar PATH con variables de entorno del sistema
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
 # Ruta del proyecto
-$projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$projectRoot = Split-Path -Parent $PSScriptRoot
 $backendDir = "$projectRoot\backend-symfony"
 $publicDir = "$backendDir\public"
 
