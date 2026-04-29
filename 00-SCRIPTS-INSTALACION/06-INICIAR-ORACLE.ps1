@@ -1,83 +1,86 @@
 # ============================================================================
 # 06-INICIAR-ORACLE.ps1
+# Verifica e inicia el servicio Oracle XE
+# Ejecutar como Administrador: powershell -ExecutionPolicy Bypass -File "06-INICIAR-ORACLE.ps1"
 # ============================================================================
-# PASO 6: Verificar e iniciar Oracle Database Service
-# Ejecuta como Administrador: powershell -ExecutionPolicy Bypass -File "06-INICIAR-ORACLE.ps1"
+# FIXES aplicados:
+#   - Eliminados Read-Host bloqueantes (permite llamada desde script maestro)
+#   - Espera hasta 30s a que el servicio este Running antes de reportar exito
 # ============================================================================
 
 Write-Host ""
-Write-Host "==== INICIAR ORACLE - Oracle 21c XE Database Service ====" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   INICIAR ORACLE XE" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Actualizar PATH con variables de entorno del sistema
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+# Refrescar PATH
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path","User")
 
 $oracleService = "OracleServiceXE"
 
-Write-Host "[1] Buscando servicio de Oracle: $oracleService" -ForegroundColor Yellow
+Write-Host "Buscando servicio: $oracleService..." -ForegroundColor Yellow
 $service = Get-Service -Name $oracleService -ErrorAction SilentlyContinue
 
 if (-not $service) {
-    Write-Host "[ERROR] Servicio Oracle no encontrado" -ForegroundColor Red
-    Write-Host "Verifica que Oracle 21c XE está instalado" -ForegroundColor Yellow
-    Read-Host "Presiona ENTER para salir"
+    Write-Host "[ERROR] Servicio '$oracleService' no encontrado." -ForegroundColor Red
+    Write-Host "Verifica que Oracle XE 21c este instalado correctamente." -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "[OK] Servicio encontrado: $oracleService" -ForegroundColor Green
-Write-Host "     Estado actual: $($service.Status)" -ForegroundColor Gray
+Write-Host "[OK] Servicio encontrado (estado: $($service.Status))" -ForegroundColor Green
 Write-Host ""
 
 if ($service.Status -eq "Running") {
-    Write-Host "[OK] Oracle ya está corriendo" -ForegroundColor Green
+    Write-Host "[OK] Oracle ya esta corriendo" -ForegroundColor Green
 } else {
-    Write-Host "[INFO] Oracle no está corriendo - Iniciando servicio..." -ForegroundColor Yellow
+    Write-Host "Iniciando $oracleService..." -ForegroundColor Yellow
     try {
-        Start-Service -Name $oracleService
-        Start-Sleep -Seconds 3
-        $service = Get-Service -Name $oracleService
-        
+        Start-Service -Name $oracleService -ErrorAction Stop
+
+        # Esperar hasta 30 segundos a que el servicio arranque
+        $intentos = 0
+        do {
+            Start-Sleep -Seconds 3
+            $intentos++
+            $service = Get-Service -Name $oracleService
+            Write-Host "  Esperando... ($($service.Status))" -ForegroundColor Gray
+        } while ($service.Status -ne "Running" -and $intentos -lt 10)
+
         if ($service.Status -eq "Running") {
             Write-Host "[OK] Oracle iniciado exitosamente" -ForegroundColor Green
         } else {
-            Write-Host "[AVISO] No se pudo iniciar Oracle automáticamente" -ForegroundColor Yellow
+            Write-Host "[AVISO] Oracle no alcanzo el estado Running en 30 segundos." -ForegroundColor Yellow
             Write-Host "Intenta iniciarlo manualmente:" -ForegroundColor Yellow
-            Write-Host "   services.msc -> Busca 'OracleServiceXE' -> Click derecho -> Iniciar" -ForegroundColor Gray
+            Write-Host "  services.msc -> OracleServiceXE -> Click derecho -> Iniciar" -ForegroundColor Gray
         }
     } catch {
-        Write-Host "[ERROR] Error iniciando Oracle: $_" -ForegroundColor Red
+        Write-Host "[ERROR] No se pudo iniciar Oracle: $_" -ForegroundColor Red
+        Write-Host "Asegurate de ejecutar este script como Administrador." -ForegroundColor Yellow
+        exit 1
     }
 }
 
 Write-Host ""
-Write-Host "[2] Verificando conexión a Oracle..." -ForegroundColor Yellow
 
-try {
-    # Esperar un poco para que el servicio esté listo
-    Start-Sleep -Seconds 2
-    
-    # Intentar conectar (requiere sqlplus)
-    $sqlplusExists = Get-Command sqlplus -ErrorAction SilentlyContinue
-    if ($sqlplusExists) {
-        Write-Host "[OK] sqlplus disponible" -ForegroundColor Green
-    } else {
-        Write-Host "[AVISO] sqlplus no encontrado en PATH (pero Oracle debería estar corriendo)" -ForegroundColor Yellow
-    }
-} catch {
-    Write-Host "[AVISO] No se pudo verificar conexión" -ForegroundColor Yellow
+# ── Verificar sqlplus en PATH ─────────────────────────────────────────────────
+Write-Host "Verificando sqlplus..." -ForegroundColor Yellow
+$sqlp = Get-Command sqlplus -ErrorAction SilentlyContinue
+if ($sqlp) {
+    Write-Host "[OK] sqlplus disponible: $($sqlp.Source)" -ForegroundColor Green
+} else {
+    Write-Host "[AVISO] sqlplus no esta en PATH — ejecuta 02-CONFIGURAR-ORACLE-ENV.ps1 primero" -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "==== ORACLE LISTO ====" -ForegroundColor Green
-Write-Host "Detalles de conexión:" -ForegroundColor Cyan
-Write-Host "  Hostname: localhost" -ForegroundColor Gray
-Write-Host "  Puerto: 1521" -ForegroundColor Gray
-Write-Host "  SID: XE" -ForegroundColor Gray
-Write-Host "  PDB: XEPDB1" -ForegroundColor Gray
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   ORACLE LISTO" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Usuarios disponibles:" -ForegroundColor Cyan
-Write-Host "  SYS (Password: se configuró durante la instalación)" -ForegroundColor Gray
-Write-Host "  SYSTEM (Password: se configuró durante la instalación)" -ForegroundColor Gray
+Write-Host "Datos de conexion:" -ForegroundColor Cyan
+Write-Host "  Host    : localhost" -ForegroundColor Gray
+Write-Host "  Puerto  : 1521" -ForegroundColor Gray
+Write-Host "  PDB     : XEPDB1" -ForegroundColor Gray
+Write-Host "  Usuario : caprino_user / CaprinoPass2025" -ForegroundColor Gray
 Write-Host ""
-
-Read-Host "Presiona ENTER para continuar"

@@ -1,65 +1,78 @@
+# ============================================================================
 # 00c-INSTALAR-NODE.ps1
-# Instala Node.js v24+ si no está disponible
+# Instala Node.js LTS si no esta disponible
+# Ejecutar: powershell -ExecutionPolicy Bypass -File "00c-INSTALAR-NODE.ps1"
+# ============================================================================
 
 Write-Host ""
-Write-Host "VERIFICAR/INSTALAR NODE.JS" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   VERIFICAR / INSTALAR NODE.JS" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Actualizar PATH
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+# Refrescar PATH
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path","User")
 
-$nodeExe = Get-Command node -ErrorAction SilentlyContinue
+$nodeCmd = Get-Command node -ErrorAction SilentlyContinue
 
-if ($nodeExe) {
-    $nodeVersion = & node --version
-    Write-Host "✓ Node.js ya está instalado: $nodeVersion" -ForegroundColor Green
+if ($nodeCmd) {
+    $nodeVersion = & node --version 2>$null
+    $npmVersion  = & npm  --version 2>$null
+    Write-Host "[OK] Node.js $nodeVersion ya instalado (npm $npmVersion)" -ForegroundColor Green
+    Write-Host ""
     exit 0
 }
 
 Write-Host "Node.js no encontrado. Descargando e instalando..." -ForegroundColor Yellow
 Write-Host ""
 
-# Descargar Node.js
-$nodeUrl = "https://nodejs.org/dist/v24.11.1/node-v24.11.1-x64.msi"
-$outputPath = "$env:TEMP\node-v24.11.1-x64.msi"
+$nodeVersion = "24.11.1"
+$nodeUrl     = "https://nodejs.org/dist/v$nodeVersion/node-v$nodeVersion-x64.msi"
+$tempMsi     = Join-Path $env:TEMP "node-v$nodeVersion-x64.msi"
 
 try {
-    Write-Host "Descargando Node.js v24.11.1..." -ForegroundColor Yellow
-    (New-Object Net.WebClient).DownloadFile($nodeUrl, $outputPath)
-    Write-Host "✓ Descarga completada" -ForegroundColor Green
+    Write-Host "Descargando Node.js v$nodeVersion..." -ForegroundColor Yellow
+    Invoke-WebRequest -Uri $nodeUrl -OutFile $tempMsi -UseBasicParsing -ErrorAction Stop
+    Write-Host "[OK] Descarga completada" -ForegroundColor Green
 } catch {
-    Write-Host "✗ Error descargando Node.js: $_" -ForegroundColor Red
+    Write-Host "[ERROR] No se pudo descargar Node.js: $_" -ForegroundColor Red
     exit 1
 }
 
-# Instalar Node.js
 try {
-    Write-Host "Instalando Node.js..." -ForegroundColor Yellow
-    Start-Process -FilePath msiexec.exe -ArgumentList "/i `"$outputPath`" /quiet /norestart" -Wait
-    Write-Host "✓ Node.js instalado" -ForegroundColor Green
+    Write-Host "Instalando Node.js (instalacion silenciosa)..." -ForegroundColor Yellow
+    $proc = Start-Process msiexec.exe -ArgumentList "/i `"$tempMsi`" /quiet /norestart" -Wait -PassThru
+    if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 3010) {
+        Write-Host "[AVISO] Instalador termino con codigo $($proc.ExitCode)" -ForegroundColor Yellow
+    } else {
+        Write-Host "[OK] Node.js instalado" -ForegroundColor Green
+    }
 } catch {
-    Write-Host "✗ Error instalando Node.js: $_" -ForegroundColor Red
+    Write-Host "[ERROR] Error instalando Node.js: $_" -ForegroundColor Red
     exit 1
 }
 
-# Actualizar PATH en la sesión actual
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+Remove-Item $tempMsi -Force -ErrorAction SilentlyContinue
 
-# Verificar instalación
-$nodeExe = Get-Command node -ErrorAction SilentlyContinue
-if ($nodeExe) {
-    $nodeVersion = & node --version
-    $npmVersion = & npm --version
-    Write-Host ""
-    Write-Host "✓ Node.js instalado correctamente:" -ForegroundColor Green
-    Write-Host "  - Node: $nodeVersion"
-    Write-Host "  - npm: $npmVersion"
+# Refrescar PATH para ver la instalacion recien hecha
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path","User")
+
+Write-Host ""
+Write-Host "Verificando instalacion..." -ForegroundColor Yellow
+$nodeCmd2 = Get-Command node -ErrorAction SilentlyContinue
+if ($nodeCmd2) {
+    $nv = & node --version 2>$null
+    $npv = & npm  --version 2>$null
+    Write-Host "[OK] Node.js $nv / npm $npv" -ForegroundColor Green
 } else {
-    Write-Host "✗ No se pudo verificar Node.js" -ForegroundColor Red
-    exit 1
+    Write-Host "[AVISO] Node.js instalado pero aun no visible en PATH." -ForegroundColor Yellow
+    Write-Host "        Abre una nueva terminal y ejecuta: node --version" -ForegroundColor Yellow
 }
 
-# Limpiar
-Remove-Item $outputPath -Force -ErrorAction SilentlyContinue
-
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   NODE.JS INSTALADO" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""

@@ -1,114 +1,117 @@
+# ============================================================================
 # 00-INSTALACION-COMPLETA.ps1
-# Script maestro que ejecuta la instalación completa en orden
+# Script maestro — ejecuta todos los pasos de instalacion en orden
+# Ejecutar: powershell -ExecutionPolicy Bypass -File "00-INSTALACION-COMPLETA.ps1"
+# ============================================================================
 
 Write-Host ""
-Write-Host "╔════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║        INSTALACIÓN COMPLETA - PROYECTO CAPRINO         ║" -ForegroundColor Cyan
-Write-Host "╚════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   INSTALACION COMPLETA - PROYECTO CAPRINO" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Este script ejecutará todos los pasos de instalación en orden" -ForegroundColor Yellow
+Write-Host "Este script instalara y configurara todo lo necesario." -ForegroundColor Yellow
+Write-Host "Duracion estimada: 10-20 minutos segun la velocidad de internet." -ForegroundColor Yellow
 Write-Host ""
 
-$scriptDir = Split-Path -Resolve $PSScriptRoot
+# FIX: $PSScriptRoot ya es el directorio del script — no aplicar Split-Path sobre el
+$scriptDir   = $PSScriptRoot
 $projectRoot = Split-Path -Parent $scriptDir
 
-# Lista de scripts a ejecutar en orden
-$scripts = @(
-    @{ num = "00b"; name = "Instalar Visual C++ Runtime"; file = "00b-INSTALAR-VCRUNTIME.ps1"; admin = $false },
-    @{ num = "00"; name = "Instalar PHP compatible"; file = "00-INSTALAR-PHP-COMPATIBLE.ps1"; admin = $false },
-    @{ num = "00c"; name = "Instalar Node.js"; file = "00c-INSTALAR-NODE.ps1"; admin = $false },
-    @{ num = "01"; name = "Verificar requisitos"; file = "01-VERIFICAR-REQUISITOS.ps1"; admin = $false },
-    @{ num = "02"; name = "Configurar Oracle ENV"; file = "02-CONFIGURAR-ORACLE-ENV.ps1"; admin = $true },
-    @{ num = "02b"; name = "Crear usuario Oracle"; file = "02b-CREAR-USUARIO-ORACLE.ps1"; admin = $false },
-    @{ num = "03"; name = "Instalar OCI8"; file = "03-INSTALAR-OCI8.ps1"; admin = $true },
-    @{ num = "03b"; name = "Instalar Composer"; file = "03b-INSTALAR-COMPOSER.ps1"; admin = $false },
-    @{ num = "04"; name = "Instalar dependencias backend"; file = "04-INSTALAR-DEPENDENCIAS-BACKEND.ps1"; admin = $false },
-    @{ num = "05"; name = "Instalar dependencias frontend"; file = "05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1"; admin = $false },
-    @{ num = "09"; name = "Configurar .env"; file = "09-CONFIGURAR-ENV.ps1"; admin = $false }
+Write-Host "Directorio scripts : $scriptDir" -ForegroundColor Gray
+Write-Host "Directorio proyecto: $projectRoot" -ForegroundColor Gray
+Write-Host ""
+
+# Lista de pasos en orden
+$pasos = @(
+    @{ num = "00b"; nombre = "Visual C++ Runtime (prerequisito PHP)";     archivo = "00b-INSTALAR-VCRUNTIME.ps1";            admin = $false },
+    @{ num = "00" ; nombre = "Instalar PHP 8.2";                          archivo = "00-INSTALAR-PHP-COMPATIBLE.ps1";         admin = $false },
+    @{ num = "00c"; nombre = "Instalar Node.js";                          archivo = "00c-INSTALAR-NODE.ps1";                  admin = $false },
+    @{ num = "01" ; nombre = "Verificar requisitos";                      archivo = "01-VERIFICAR-REQUISITOS.ps1";            admin = $false },
+    @{ num = "02" ; nombre = "Configurar variables Oracle (ORACLE_HOME)"; archivo = "02-CONFIGURAR-ORACLE-ENV.ps1";           admin = $true  },
+    @{ num = "02b"; nombre = "Crear usuario caprino_user en Oracle";      archivo = "02b-CREAR-USUARIO-ORACLE.ps1";           admin = $false },
+    @{ num = "03" ; nombre = "Instalar extension OCI8 para PHP";          archivo = "03-INSTALAR-OCI8.ps1";                   admin = $false },
+    @{ num = "03b"; nombre = "Instalar Composer";                         archivo = "03b-INSTALAR-COMPOSER.ps1";              admin = $false },
+    @{ num = "04" ; nombre = "Instalar dependencias backend";             archivo = "04-INSTALAR-DEPENDENCIAS-BACKEND.ps1";   admin = $false },
+    @{ num = "05" ; nombre = "Instalar dependencias frontend";            archivo = "05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1";  admin = $false },
+    @{ num = "09" ; nombre = "Configurar archivos .env";                  archivo = "09-CONFIGURAR-ENV.ps1";                  admin = $false }
 )
 
-# Mostrar resumen
-Write-Host "Se ejecutarán los siguientes pasos:" -ForegroundColor Cyan
-Write-Host ""
-$scripts | ForEach-Object {
-    $adminIcon = if ($_.admin) { " [ADMIN]" } else { "" }
-    Write-Host "  $($_.num) - $($_.name)$adminIcon"
+Write-Host "Pasos a ejecutar:" -ForegroundColor Cyan
+foreach ($p in $pasos) {
+    $adminTag = if ($p.admin) { " [requiere Admin]" } else { "" }
+    Write-Host ("  [{0}] {1}{2}" -f $p.num, $p.nombre, $adminTag)
 }
 Write-Host ""
 
-$response = Read-Host "¿Deseas continuar? (s/n)"
-if ($response -ne "s" -and $response -ne "S") {
-    Write-Host "Instalación cancelada" -ForegroundColor Yellow
+$resp = Read-Host "Continuar? (s/n)"
+if ($resp -notmatch "^[sS]$") {
+    Write-Host "Instalacion cancelada." -ForegroundColor Yellow
     exit 0
 }
 
 Write-Host ""
-Write-Host "Iniciando instalación..." -ForegroundColor Green
-Write-Host ""
 
-# Ejecutar scripts
-$contador = 0
-$totalScripts = $scripts.Count
+$ok     = 0
+$fallos = 0
 
-foreach ($script in $scripts) {
-    $contador++
-    
-    Write-Host "════════════════════════════════════════════════════════" -ForegroundColor Cyan
-    Write-Host "[$contador/$totalScripts] $($script.name)" -ForegroundColor Green
-    Write-Host "════════════════════════════════════════════════════════" -ForegroundColor Cyan
-    Write-Host ""
-    
-    $scriptPath = Join-Path $scriptDir $script.file
-    
-    if (-not (Test-Path $scriptPath)) {
-        Write-Host "✗ Script no encontrado: $scriptPath" -ForegroundColor Red
-        Write-Host ""
+foreach ($paso in $pasos) {
+    $ruta = Join-Path $scriptDir $paso.archivo
+
+    Write-Host "------------------------------------------------------------" -ForegroundColor Cyan
+    Write-Host "Paso [$($paso.num)] $($paso.nombre)" -ForegroundColor Green
+    Write-Host "------------------------------------------------------------" -ForegroundColor Cyan
+
+    if (-not (Test-Path $ruta)) {
+        Write-Host "[AVISO] Script no encontrado: $($paso.archivo) — saltando" -ForegroundColor Yellow
         continue
     }
-    
+
     try {
-        if ($script.admin) {
-            Write-Host "Este paso requiere permisos de administrador" -ForegroundColor Yellow
-            Write-Host "Se abrirá una nueva ventana de PowerShell con permisos elevados" -ForegroundColor Yellow
+        if ($paso.admin) {
+            Write-Host "Este paso requiere permisos de Administrador." -ForegroundColor Yellow
+            Write-Host "Se abrira una ventana elevada. Espera a que termine antes de continuar." -ForegroundColor Yellow
             Write-Host ""
-            
-            # Ejecutar como administrador
-            $psCredential = New-Object System.Management.Automation.PSCredential (
-                [System.Security.Principal.WindowsIdentity]::GetCurrent().User,
-                (ConvertTo-SecureString -String "dummy" -AsPlainText -Force)
-            )
-            
-            Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -Wait
+            # FIX: usar -Verb RunAs para elevacion real, sin credenciales falsas
+            $proc = Start-Process powershell.exe `
+                -ArgumentList "-ExecutionPolicy Bypass -File `"$ruta`"" `
+                -Verb RunAs `
+                -PassThru `
+                -Wait
+            if ($proc.ExitCode -ne 0) {
+                throw "El script termino con codigo $($proc.ExitCode)"
+            }
         } else {
-            # Ejecutar normally
-            & $scriptPath
+            & $ruta
+            if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+                throw "El script termino con codigo $LASTEXITCODE"
+            }
         }
-        
-        Write-Host ""
-        Write-Host "✓ Paso completado" -ForegroundColor Green
+        Write-Host "[OK] Paso completado" -ForegroundColor Green
+        $ok++
     } catch {
-        Write-Host "✗ Error en el script: $_" -ForegroundColor Red
-        Write-Host ""
-        $continuar = Read-Host "¿Continuar con el siguiente paso? (s/n)"
-        if ($continuar -ne "s" -and $continuar -ne "S") {
-            Write-Host "Instalación cancelada" -ForegroundColor Red
+        Write-Host "[ERROR] $_" -ForegroundColor Red
+        $fallos++
+        $continuar = Read-Host "Continuar con el siguiente paso? (s/n)"
+        if ($continuar -notmatch "^[sS]$") {
+            Write-Host "Instalacion cancelada por el usuario." -ForegroundColor Red
             exit 1
         }
     }
-    
+
     Write-Host ""
 }
 
-# Resumen final
-Write-Host "════════════════════════════════════════════════════════" -ForegroundColor Green
-Write-Host "✓ INSTALACIÓN COMPLETADA" -ForegroundColor Green
-Write-Host "════════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   INSTALACION FINALIZADA" -ForegroundColor Cyan
+Write-Host "   Pasos exitosos: $ok   Fallos: $fallos" -ForegroundColor $(if ($fallos -eq 0) { "Green" } else { "Yellow" })
+Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Próximos pasos:" -ForegroundColor Cyan
-Write-Host "  1. Ejecuta: 06-INICIAR-ORACLE.ps1 (para iniciar Oracle)"
-Write-Host "  2. Abre 2 terminales separadas:"
-Write-Host "     - Terminal 1: 07-INICIAR-BACKEND.bat"
-Write-Host "     - Terminal 2: 08-INICIAR-FRONTEND.bat"
+Write-Host "Proximos pasos para iniciar el sistema:" -ForegroundColor Cyan
+Write-Host "  1. Ejecutar: 06-INICIAR-ORACLE.ps1  (como Administrador, una sola vez por sesion)" -ForegroundColor White
+Write-Host "  2. Abrir terminal 1 -> doble clic en: 07-INICIAR-BACKEND.bat" -ForegroundColor White
+Write-Host "  3. Abrir terminal 2 -> doble clic en: 08-INICIAR-FRONTEND.bat" -ForegroundColor White
 Write-Host ""
-Write-Host "La aplicación estará disponible en: http://localhost:5173" -ForegroundColor Green
+Write-Host "La aplicacion estara disponible en: http://localhost:5173" -ForegroundColor Green
+Write-Host "(con el backend corriendo en:        http://localhost:8000)" -ForegroundColor Gray
 Write-Host ""
+Read-Host "Presiona ENTER para cerrar"

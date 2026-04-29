@@ -1,69 +1,84 @@
 # ============================================================================
 # 08-INICIAR-FRONTEND.ps1
+# Inicia el servidor Vite del frontend en puerto 5173
+# Ejecutar: powershell -ExecutionPolicy Bypass -File "08-INICIAR-FRONTEND.ps1"
+# Dejar corriendo en una NUEVA terminal (diferente de la del backend). Ctrl+C para detener.
 # ============================================================================
-# PASO 8: Iniciar servidor Vite del frontend
-# Ejecuta como Usuario Normal: powershell -ExecutionPolicy Bypass -File "08-INICIAR-FRONTEND.ps1"
-# Dejar corriendo en una NUEVA terminal (diferente de la del backend)
+# FIXES aplicados:
+#   - Reemplazado Tee-Object (bufferiza la salida) por Start-Transcript (tiempo real)
+#   - Eliminados emojis que fallan en terminales sin UTF-8
+#   - Verifica que node_modules este instalado
 # ============================================================================
 
-Write-Host "╔════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║  INICIAR FRONTEND - Servidor Vite (React)                         ║" -ForegroundColor Cyan
-Write-Host "╚════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   INICIAR FRONTEND - Servidor Vite (React)" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Actualizar PATH con variables de entorno del sistema
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+# Refrescar PATH
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path","User")
 
-# Ruta del proyecto
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$frontendDir = "$projectRoot\frontend-web"
+$frontendDir = Join-Path $projectRoot "frontend-web"
 
-Write-Host "📍 Directorio del frontend: $frontendDir" -ForegroundColor Cyan
+Write-Host "Frontend: $frontendDir" -ForegroundColor Gray
 Write-Host ""
 
-# Verificar que existe el directorio
+# ── Verificaciones ────────────────────────────────────────────────────────────
 if (-not (Test-Path $frontendDir)) {
-    Write-Host "❌ Directorio del frontend no encontrado: $frontendDir" -ForegroundColor Red
-    Read-Host "Presiona ENTER para salir"
-    exit
+    Write-Host "[ERROR] Directorio frontend no encontrado: $frontendDir" -ForegroundColor Red
+    exit 1
 }
 
-# Cambiar al directorio
 Push-Location $frontendDir
 
-# Verificar que package.json existe
 if (-not (Test-Path "package.json")) {
-    Write-Host "❌ package.json no encontrado" -ForegroundColor Red
+    Write-Host "[ERROR] package.json no encontrado en $frontendDir" -ForegroundColor Red
     Pop-Location
-    Read-Host "Presiona ENTER para salir"
-    exit
+    exit 1
 }
 
-# Verificar que node_modules existe
 if (-not (Test-Path "node_modules")) {
-    Write-Host "❌ node_modules no instalado - Ejecuta el script 05 primero" -ForegroundColor Red
+    Write-Host "[ERROR] node_modules no instalado." -ForegroundColor Red
+    Write-Host "Ejecuta primero: 05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1" -ForegroundColor Yellow
     Pop-Location
-    Read-Host "Presiona ENTER para salir"
-    exit
+    exit 1
 }
 
-Write-Host "✅ Dependencias instaladas" -ForegroundColor Green
-Write-Host ""
-Write-Host "🚀 Iniciando servidor Vite..." -ForegroundColor Yellow
-Write-Host "   Puerto: 5173" -ForegroundColor Gray
-Write-Host "   URL: http://localhost:5173" -ForegroundColor Gray
-Write-Host ""
-Write-Host "⏹️  Para detener el servidor: presiona CTRL+C" -ForegroundColor Yellow
+$nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+if (-not $nodeCmd) {
+    Write-Host "[ERROR] Node.js no encontrado en PATH." -ForegroundColor Red
+    Write-Host "Ejecuta primero: 00c-INSTALAR-NODE.ps1" -ForegroundColor Yellow
+    Pop-Location
+    exit 1
+}
+
+Write-Host "[OK] Dependencias verificadas" -ForegroundColor Green
 Write-Host ""
 
-# Registrar hora de inicio
-$logFile = "$projectRoot\00-SCRIPTS-INSTALACION\logs\frontend-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').log"
-New-Item -Path (Split-Path -Parent $logFile) -ItemType Directory -Force | Out-Null
+# ── Preparar log ──────────────────────────────────────────────────────────────
+$logsDir = Join-Path $projectRoot "00-SCRIPTS-INSTALACION\logs"
+New-Item -Path $logsDir -ItemType Directory -Force | Out-Null
+$logFile = Join-Path $logsDir "frontend-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').log"
 
-Write-Host "📝 Log: $logFile" -ForegroundColor Gray
+Write-Host "Log: $logFile" -ForegroundColor Gray
 Write-Host ""
-Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Gray
+Write-Host "------------------------------------------------------------" -ForegroundColor Gray
+Write-Host " Puerto : 5173" -ForegroundColor White
+Write-Host " URL    : http://localhost:5173" -ForegroundColor White
+Write-Host " Backend: http://localhost:8000/api" -ForegroundColor White
+Write-Host "------------------------------------------------------------" -ForegroundColor Gray
+Write-Host ""
+Write-Host "Presiona Ctrl+C para detener el servidor." -ForegroundColor Yellow
+Write-Host ""
 
-npm run dev 2>&1 | Tee-Object -FilePath $logFile
+# FIX: Start-Transcript muestra la salida en tiempo real Y la guarda en el archivo.
+Start-Transcript -Path $logFile -Append | Out-Null
+
+npm run dev
 
 Pop-Location
+
+Stop-Transcript | Out-Null

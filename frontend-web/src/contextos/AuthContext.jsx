@@ -6,7 +6,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost/api';
 const USE_MOCK_AUTH = false; // Autenticación real con backend
 
 export const AuthProvider = ({ children }) => {

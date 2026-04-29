@@ -50,5 +50,3 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host "Ahora PHP 8.2 funcionara correctamente sin warnings" -ForegroundColor Green
 Write-Host ""
-
-Read-Host "Presiona ENTER para continuar"

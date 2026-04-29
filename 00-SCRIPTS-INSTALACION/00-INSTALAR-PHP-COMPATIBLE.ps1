@@ -1,8 +1,12 @@
 # ============================================================================
 # 00-INSTALAR-PHP-COMPATIBLE.ps1
-# ============================================================================
-# PASO 0: Instalar y configurar PHP compatible para Proyecto Caprino
+# Descarga, instala y configura PHP 8.2 para Proyecto Caprino
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "00-INSTALAR-PHP-COMPATIBLE.ps1"
+# ============================================================================
+# FIXES aplicados:
+#   - Timezone corregida a America/Bogota (Colombia)
+#   - Eliminado Read-Host bloqueante al final (permite llamada desde script maestro)
+#   - NTS detectado y documentado (la version TS es valida para CLI y es la default)
 # ============================================================================
 
 param(
@@ -11,16 +15,13 @@ param(
     [switch]$Force
 )
 
+Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host " INSTALAR PHP COMPATIBLE - Proyecto Caprino" -ForegroundColor Cyan
+Write-Host "   INSTALAR PHP COMPATIBLE - Proyecto Caprino" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# ============================================================================
-# PASO 1: DETECTAR REQUISITOS
-# ============================================================================
-
-$projectRoot = Split-Path -Parent $PSScriptRoot
+$projectRoot  = Split-Path -Parent $PSScriptRoot
 $composerPath = Join-Path $projectRoot "backend-symfony\composer.json"
 
 if (Test-Path $composerPath) {
@@ -35,224 +36,187 @@ if (Test-Path $composerPath) {
 }
 
 Write-Host "Requisito de PHP detectado: $phpRequirement" -ForegroundColor Cyan
-Write-Host "Version a instalar: $PhpVersion" -ForegroundColor Cyan
-Write-Host "Directorio destino: $InstallDir" -ForegroundColor Cyan
+Write-Host "Version a instalar        : $PhpVersion (Thread Safe, VC16, x64)" -ForegroundColor Cyan
+Write-Host "Directorio destino        : $InstallDir" -ForegroundColor Cyan
 Write-Host ""
 
-# ============================================================================
-# PASO 2: VERIFICAR SI PHP YA EXISTE
-# ============================================================================
-
-$phpExe = Join-Path $InstallDir "php.exe"
+# ── Verificar si PHP ya existe ────────────────────────────────────────────────
+$phpExe          = Join-Path $InstallDir "php.exe"
 $alreadyInstalled = $false
 
 if (Test-Path $phpExe) {
     try {
-        $currentVersion = & $phpExe -r "echo PHP_VERSION;"
-        Write-Host "PHP ya instalado: $currentVersion" -ForegroundColor Yellow
+        $currentVersion = & $phpExe -r "echo PHP_VERSION;" 2>$null
+        Write-Host "[OK] PHP $currentVersion ya instalado en $InstallDir" -ForegroundColor Green
         $alreadyInstalled = $true
     } catch {
-        Write-Host "PHP encontrado pero no responde" -ForegroundColor Yellow
-        $alreadyInstalled = $false
+        Write-Host "[AVISO] PHP encontrado pero no responde — se reinstalara" -ForegroundColor Yellow
     }
 }
 
-# ============================================================================
-# PASO 3: DESCARGAR E INSTALAR PHP (si es necesario)
-# ============================================================================
-
+# ── Descargar e instalar PHP ──────────────────────────────────────────────────
 if (-not $alreadyInstalled -or $Force) {
-    Write-Host "Iniciando descarga de PHP $PhpVersion..." -ForegroundColor Yellow
-    
-    $zipName = "php-$PhpVersion-Win32-vs16-x64.zip"
-    $tempZip = Join-Path $env:TEMP $zipName
-    $primaryUrl = "https://windows.php.net/downloads/releases/$zipName"
-    $archiveUrl = "https://windows.php.net/downloads/releases/archives/$zipName"
-    
-    $downloadSuccess = $false
-    
+    Write-Host "Descargando PHP $PhpVersion..." -ForegroundColor Yellow
+
+    # Thread Safe (TS) funciona para CLI y para IIS; NTS seria para Apache mod_php
+    $zipName    = "php-$PhpVersion-Win32-vs16-x64.zip"
+    $tempZip    = Join-Path $env:TEMP $zipName
+    $urlCurrent = "https://windows.php.net/downloads/releases/$zipName"
+    $urlArchive = "https://windows.php.net/downloads/releases/archives/$zipName"
+
+    $downloadOk = $false
+
     try {
-        Write-Host "Intentando descargar desde releases..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $primaryUrl -OutFile $tempZip -UseBasicParsing -ErrorAction Stop
-        $downloadSuccess = $true
-        Write-Host "OK: Descargado desde releases" -ForegroundColor Green
+        Write-Host "  Intentando desde releases..." -ForegroundColor Gray
+        Invoke-WebRequest -Uri $urlCurrent -OutFile $tempZip -UseBasicParsing -ErrorAction Stop
+        $downloadOk = $true
+        Write-Host "  [OK] Descargado desde releases" -ForegroundColor Green
     } catch {
-        Write-Host "No disponible en releases, intentando archives..." -ForegroundColor Yellow
+        Write-Host "  No en releases, intentando archives..." -ForegroundColor Gray
     }
-    
-    if (-not $downloadSuccess) {
+
+    if (-not $downloadOk) {
         try {
-            Invoke-WebRequest -Uri $archiveUrl -OutFile $tempZip -UseBasicParsing -ErrorAction Stop
-            $downloadSuccess = $true
-            Write-Host "OK: Descargado desde archives" -ForegroundColor Green
+            Invoke-WebRequest -Uri $urlArchive -OutFile $tempZip -UseBasicParsing -ErrorAction Stop
+            $downloadOk = $true
+            Write-Host "  [OK] Descargado desde archives" -ForegroundColor Green
         } catch {
-            Write-Host "ERROR: No se pudo descargar PHP $PhpVersion" -ForegroundColor Red
+            Write-Host "[ERROR] No se pudo descargar PHP $PhpVersion desde windows.php.net" -ForegroundColor Red
             exit 1
         }
     }
-    
-    if (-not (Test-Path $tempZip)) {
-        Write-Host "ERROR: Descarga incompleta" -ForegroundColor Red
+
+    if (-not (Test-Path $tempZip) -or (Get-Item $tempZip).Length -lt 1MB) {
+        Write-Host "[ERROR] Descarga incompleta o corrupta" -ForegroundColor Red
         exit 1
     }
-    
-    # Crear directorio de destino si no existe
+
+    # Crear directorio y extraer
     if (-not (Test-Path $InstallDir)) {
         New-Item -Path $InstallDir -ItemType Directory -Force | Out-Null
     }
-    
-    # Limpiar destino si existe
+
+    # Limpiar directorio si ya tiene contenido
     if ((Get-ChildItem $InstallDir -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0) {
-        Write-Host "Limpiando directorio de destino..." -ForegroundColor Yellow
+        Write-Host "Limpiando instalacion anterior..." -ForegroundColor Yellow
         Get-ChildItem $InstallDir -Force | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     }
-    
+
     Write-Host "Extrayendo PHP a $InstallDir..." -ForegroundColor Yellow
     Expand-Archive -Path $tempZip -DestinationPath $InstallDir -Force
-    
     Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-    Write-Host "OK: PHP instalado exitosamente" -ForegroundColor Green
-    
+
+    Write-Host "[OK] PHP extraido" -ForegroundColor Green
 } else {
-    Write-Host "PHP ya existe, saltando descarga/instalacion (usa -Force para reinstalar)" -ForegroundColor Yellow
+    Write-Host "PHP ya existe — saltando descarga (usa -Force para reinstalar)" -ForegroundColor Yellow
 }
 
 Write-Host ""
 
-# ============================================================================
-# PASO 4: CONFIGURAR php.ini
-# ============================================================================
-
-$iniPath = Join-Path $InstallDir "php.ini"
+# ── Configurar php.ini ────────────────────────────────────────────────────────
 Write-Host "Configurando php.ini..." -ForegroundColor Yellow
 
+$iniPath = Join-Path $InstallDir "php.ini"
+
 if (-not (Test-Path $iniPath)) {
-    $iniDev = Join-Path $InstallDir "php.ini-development"
+    $iniDev  = Join-Path $InstallDir "php.ini-development"
     $iniProd = Join-Path $InstallDir "php.ini-production"
-    
+
     if (Test-Path $iniDev) {
         Copy-Item $iniDev $iniPath -Force
-        Write-Host "OK: Creado desde php.ini-development" -ForegroundColor Green
+        Write-Host "  Creado desde php.ini-development" -ForegroundColor Gray
     } elseif (Test-Path $iniProd) {
         Copy-Item $iniProd $iniPath -Force
-        Write-Host "OK: Creado desde php.ini-production" -ForegroundColor Green
+        Write-Host "  Creado desde php.ini-production" -ForegroundColor Gray
     } else {
         New-Item -Path $iniPath -ItemType File -Force | Out-Null
-        Write-Host "OK: Creado archivo php.ini vacio" -ForegroundColor Green
+        Write-Host "  Creado php.ini en blanco" -ForegroundColor Gray
     }
-} else {
-    Write-Host "OK: php.ini ya existe" -ForegroundColor Green
 }
 
-# Leer y modificar php.ini
 $iniContent = Get-Content $iniPath -Raw
 
-# Configurar extension_dir
-if ($iniContent -match ';\s*extension_dir\s*=') {
-    $iniContent = $iniContent -replace ';\s*extension_dir\s*=\s*"ext"', 'extension_dir="ext"'
-} elseif ($iniContent -notmatch 'extension_dir') {
-    $iniContent += [Environment]::NewLine + 'extension_dir="ext"'
+# Habilitar extension_dir
+if ($iniContent -match '(?m)^\s*;\s*extension_dir\s*=\s*"ext"') {
+    $iniContent = $iniContent -replace '(?m)^\s*;\s*extension_dir\s*=\s*"ext"', 'extension_dir="ext"'
+} elseif ($iniContent -notmatch '(?m)^extension_dir') {
+    $iniContent += "`r`nextension_dir=`"ext`"`r`n"
 }
 
-# Configurar timezone
-if ($iniContent -match ';\s*date\.timezone\s*=') {
-    $iniContent = $iniContent -replace ';\s*date\.timezone\s*=.*', 'date.timezone="America/Lima"'
-} elseif ($iniContent -notmatch 'date\.timezone') {
-    $iniContent += [Environment]::NewLine + 'date.timezone="America/Lima"'
+# FIX: timezone Colombia (no Peru)
+if ($iniContent -match '(?m)^\s*;?\s*date\.timezone\s*=') {
+    $iniContent = $iniContent -replace '(?m)^\s*;?\s*date\.timezone\s*=.*', 'date.timezone="America/Bogota"'
+} elseif ($iniContent -notmatch '(?m)^date\.timezone') {
+    $iniContent += "`r`ndate.timezone=`"America/Bogota`"`r`n"
 }
 
-# Guardar php.ini
-Set-Content -Path $iniPath -Value $iniContent -Encoding UTF8 -NoNewline
-Write-Host "OK: php.ini configurado (extension_dir y timezone)" -ForegroundColor Green
+Set-Content -Path $iniPath -Value $iniContent -Encoding UTF8
+Write-Host "[OK] php.ini configurado (extension_dir, timezone=America/Bogota)" -ForegroundColor Green
 
 Write-Host ""
 
-# ============================================================================
-# PASO 5: CONFIGURAR VARIABLES DE ENTORNO
-# ============================================================================
-
+# ── Configurar variables de entorno ───────────────────────────────────────────
 Write-Host "Configurando variables de entorno..." -ForegroundColor Yellow
 
 [Environment]::SetEnvironmentVariable("PHP_HOME", $InstallDir, [EnvironmentVariableTarget]::User)
 $env:PHP_HOME = $InstallDir
-Write-Host "OK: PHP_HOME configurado" -ForegroundColor Green
+Write-Host "[OK] PHP_HOME = $InstallDir" -ForegroundColor Green
 
-# Agregar al PATH si no esta
-$currentUserPath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
-$pathEntries = $currentUserPath -split ";" | Where-Object { $_ -ne "" }
-$phpDirInPath = $false
+$userPath    = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
+$pathEntries = $userPath -split ";" | Where-Object { $_ -ne "" }
 
-foreach ($entry in $pathEntries) {
-    if ($entry.TrimEnd("\") -ieq $InstallDir.TrimEnd("\")) {
-        $phpDirInPath = $true
-        break
-    }
-}
-
-if (-not $phpDirInPath) {
-    $newPath = "$currentUserPath;$InstallDir"
-    [Environment]::SetEnvironmentVariable("Path", $newPath, [EnvironmentVariableTarget]::User)
+$phpEnPath = $pathEntries | Where-Object { $_.TrimEnd("\") -ieq $InstallDir.TrimEnd("\") }
+if (-not $phpEnPath) {
+    [Environment]::SetEnvironmentVariable("Path", "$userPath;$InstallDir", [EnvironmentVariableTarget]::User)
     $env:Path = "$env:Path;$InstallDir"
-    Write-Host "OK: Ruta PHP agregada al PATH" -ForegroundColor Green
+    Write-Host "[OK] PHP agregado al PATH de usuario" -ForegroundColor Green
 } else {
-    Write-Host "OK: Ruta PHP ya esta en PATH" -ForegroundColor Green
+    Write-Host "[OK] PHP ya estaba en el PATH" -ForegroundColor Green
 }
+
+# Refrescar PATH en la sesion actual
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path","User")
 
 Write-Host ""
 
-# ============================================================================
-# PASO 6: VALIDAR INSTALACION
-# ============================================================================
-
+# ── Validar instalacion ───────────────────────────────────────────────────────
 Write-Host "Validando instalacion..." -ForegroundColor Yellow
 
 if (-not (Test-Path $phpExe)) {
-    Write-Host "ERROR: No se encontro php.exe" -ForegroundColor Red
+    Write-Host "[ERROR] php.exe no encontrado en $InstallDir" -ForegroundColor Red
     exit 1
 }
 
-$phpVersionLine = & $phpExe -v | Select-Object -First 1
-Write-Host "OK: $phpVersionLine" -ForegroundColor Green
+$phpLine = & $phpExe -v 2>$null | Select-Object -First 1
+Write-Host "[OK] $phpLine" -ForegroundColor Green
 
-$modules = & $phpExe -m
-
-if ($modules -contains "ctype") {
-    Write-Host "OK: extension ctype disponible" -ForegroundColor Green
-} else {
-    Write-Host "AVISO: ctype no aparece en modulos" -ForegroundColor Yellow
+$modulos = & $phpExe -m 2>$null
+foreach ($ext in @("ctype", "iconv", "mbstring", "openssl")) {
+    if ($modulos -contains $ext) {
+        Write-Host "[OK] Extension $ext disponible" -ForegroundColor Green
+    } else {
+        Write-Host "[AVISO] Extension $ext no cargada (puede ser normal segun la build)" -ForegroundColor Yellow
+    }
 }
 
-if ($modules -contains "iconv") {
-    Write-Host "OK: extension iconv disponible" -ForegroundColor Green
+if ($modulos -contains "oci8") {
+    Write-Host "[OK] OCI8 ya cargado" -ForegroundColor Green
 } else {
-    Write-Host "AVISO: iconv no aparece en modulos" -ForegroundColor Yellow
-}
-
-if ($modules -contains "oci8") {
-    Write-Host "OK: extension oci8 ya cargada" -ForegroundColor Green
-} else {
-    Write-Host "AVISO: oci8 aun no cargada (ejecuta 03-INSTALAR-OCI8.ps1 despues)" -ForegroundColor Yellow
+    Write-Host "[INFO] OCI8 no cargado aun — ejecuta 02-CONFIGURAR-ORACLE-ENV.ps1 y 03-INSTALAR-OCI8.ps1" -ForegroundColor Cyan
 }
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host " INSTALACION FINALIZADA CON EXITO" -ForegroundColor Green
+Write-Host "   PHP INSTALADO CORRECTAMENTE" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-
-# ============================================================================
-# PASO 7: ACTUALIZAR PATH EN LA SESION ACTUAL
-# ============================================================================
-
-Write-Host "Actualizando variables de entorno en la sesión actual..." -ForegroundColor Yellow
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-Write-Host "OK: PATH actualizado" -ForegroundColor Green
-
+Write-Host "  Version : $phpLine" -ForegroundColor Gray
+Write-Host "  Ruta    : $InstallDir" -ForegroundColor Gray
+Write-Host "  php.ini : $iniPath" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Siguientes pasos:" -ForegroundColor Cyan
-Write-Host "1) Ejecuta 02-CONFIGURAR-ORACLE-ENV.ps1" -ForegroundColor White
-Write-Host "2) Ejecuta 03-INSTALAR-OCI8.ps1" -ForegroundColor White
-Write-Host "3) Ejecuta 03b-INSTALAR-COMPOSER.ps1" -ForegroundColor White
+Write-Host "  1. Ejecutar: 02-CONFIGURAR-ORACLE-ENV.ps1 (como Administrador)" -ForegroundColor White
+Write-Host "  2. Ejecutar: 03-INSTALAR-OCI8.ps1" -ForegroundColor White
+Write-Host "  3. Ejecutar: 03b-INSTALAR-COMPOSER.ps1" -ForegroundColor White
 Write-Host ""
-
-Read-Host "Presiona ENTER para continuar"

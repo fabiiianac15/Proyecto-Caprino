@@ -1,80 +1,90 @@
-﻿# 05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1
+# ============================================================================
+# 05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1
+# Instala dependencias Node.js del frontend con npm
+# Ejecutar: powershell -ExecutionPolicy Bypass -File "05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1"
+# ============================================================================
+# FIXES aplicados:
+#   - Ya NO elimina package-lock.json (el lock garantiza builds reproducibles)
+#   - Verifica version de Node.js antes de instalar
+# ============================================================================
 
 Write-Host ""
-Write-Host "==== INSTALAR DEPENDENCIAS FRONTEND ==== " -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   INSTALAR DEPENDENCIAS FRONTEND" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Actualizar PATH con variables de entorno del sistema
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+# Refrescar PATH
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+            [System.Environment]::GetEnvironmentVariable("Path","User")
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$frontendDir = "$projectRoot\frontend-web"
+$frontendDir = Join-Path $projectRoot "frontend-web"
 
-Write-Host "Frontend dir: $frontendDir" -ForegroundColor Cyan
+Write-Host "Frontend: $frontendDir" -ForegroundColor Gray
 Write-Host ""
 
 if (-not (Test-Path $frontendDir)) {
-    Write-Host "[ERROR] Directorio frontend no encontrado" -ForegroundColor Red
+    Write-Host "[ERROR] Directorio frontend no encontrado: $frontendDir" -ForegroundColor Red
     exit 1
 }
 
-Push-Location $frontendDir
-Write-Host "Directorio actual: $(Get-Location)" -ForegroundColor Yellow
-
-Write-Host ""
+# ── Verificar Node.js ─────────────────────────────────────────────────────────
 Write-Host "Verificando Node.js y npm..." -ForegroundColor Yellow
+$nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+$npmCmd  = Get-Command npm  -ErrorAction SilentlyContinue
 
-try {
-    $nodeVersion = node -v 2>$null
-    $npmVersion = npm -v 2>$null
-    Write-Host "[OK] Node.js $nodeVersion encontrado" -ForegroundColor Green
-    Write-Host "[OK] npm $npmVersion encontrado" -ForegroundColor Green
-} catch {
-    Write-Host "[ERROR] Node.js o npm no instalados" -ForegroundColor Red
-    Write-Host "Descarga desde: https://nodejs.org/" -ForegroundColor Yellow
-    Pop-Location
+if (-not $nodeCmd -or -not $npmCmd) {
+    Write-Host "[ERROR] Node.js o npm no encontrados en PATH." -ForegroundColor Red
+    Write-Host "Ejecuta primero: 00c-INSTALAR-NODE.ps1" -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host ""
-Write-Host "Limpiando instalacion anterior..." -ForegroundColor Yellow
+$nodeVer = & node --version 2>$null
+$npmVer  = & npm  --version 2>$null
+$numVer  = [int]($nodeVer.TrimStart("v").Split(".")[0])
 
-if (Test-Path "node_modules") {
-    Write-Host "[INFO] node_modules sera reemplazada (puede tardar...)" -ForegroundColor Yellow
+Write-Host "[OK] Node.js $nodeVer / npm $npmVer" -ForegroundColor Green
+
+if ($numVer -lt 18) {
+    Write-Host "[AVISO] Node.js $nodeVer es menor a v18 — pueden ocurrir errores con Vite" -ForegroundColor Yellow
 }
 
-if (Test-Path "package-lock.json") {
-    Remove-Item "package-lock.json" -Force -ErrorAction SilentlyContinue
-    Write-Host "[OK] package-lock.json eliminado" -ForegroundColor Green
-}
-
-Write-Host ""
-Write-Host "Instalando dependencias con npm..." -ForegroundColor Yellow
-Write-Host "(puede tardar varios minutos)" -ForegroundColor Gray
 Write-Host ""
 
+# ── Instalar dependencias ─────────────────────────────────────────────────────
+Push-Location $frontendDir
+
+Write-Host "Instalando dependencias npm (esto puede tardar varios minutos)..." -ForegroundColor Yellow
+Write-Host ""
+
+# FIX: NO borrar package-lock.json — el lock garantiza que todos usan las mismas versiones
+# npm install respeta el lock si existe; lo crea si no existe
 npm install
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host ""
-    Write-Host "[OK] Dependencias instaladas" -ForegroundColor Green
+    Write-Host "[OK] Dependencias instaladas exitosamente" -ForegroundColor Green
 } else {
     Write-Host ""
-    Write-Host "[ERROR] Error en instalacion" -ForegroundColor Red
+    Write-Host "[ERROR] npm install termino con errores" -ForegroundColor Red
     Pop-Location
     exit 1
 }
 
+# ── Verificar Vite ────────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "Verificando Vite..." -ForegroundColor Yellow
 if (Test-Path "node_modules\.bin\vite") {
-    Write-Host "[OK] Vite disponible" -ForegroundColor Green
+    Write-Host "[OK] Vite disponible en node_modules/.bin/vite" -ForegroundColor Green
 } else {
-    Write-Host "[AVISO] Vite no encontrado" -ForegroundColor Yellow
+    Write-Host "[AVISO] Vite no encontrado — verifica que esta en las dependencias del package.json" -ForegroundColor Yellow
 }
 
 Pop-Location
 
 Write-Host ""
-Write-Host "==== COMPLETADO ====" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host "   DEPENDENCIAS FRONTEND INSTALADAS" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""

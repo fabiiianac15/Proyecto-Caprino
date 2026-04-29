@@ -421,12 +421,14 @@ const LoginRegistro = () => {
                 {cargando ? 'Iniciando sesión...' : 'Iniciar Sesión'}
               </button>
 
-              {/* Credenciales de prueba */}
-              <div className="mt-4 p-3 bg-green-50 rounded-md text-sm border border-green-200">
-                <p className="font-medium text-green-900 mb-1">Credenciales de prueba:</p>
-                <p className="text-green-700">Email: juan.perez@institucion.edu</p>
-                <p className="text-green-700">Contraseña: Admin123!</p>
-              </div>
+              {/* Credenciales de prueba — remover en producción */}
+              {import.meta.env.DEV && (
+                <div className="mt-4 p-3 bg-green-50 rounded-md text-sm border border-green-200">
+                  <p className="font-medium text-green-900 mb-1">Credenciales de prueba:</p>
+                  <p className="text-green-700">Email: admin@caprino.com</p>
+                  <p className="text-green-700">Contraseña: Admin123!</p>
+                </div>
+              )}
             </form>
           )}
 
