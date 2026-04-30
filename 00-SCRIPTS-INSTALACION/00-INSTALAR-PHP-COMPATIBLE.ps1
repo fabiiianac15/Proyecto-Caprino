@@ -150,8 +150,15 @@ if ($iniContent -match '(?m)^\s*;?\s*date\.timezone\s*=') {
     $iniContent += "`r`ndate.timezone=`"America/Bogota`"`r`n"
 }
 
+# Habilitar extension zip (necesaria para Composer)
+if ($iniContent -match '(?m)^\s*;+\s*extension\s*=\s*zip') {
+    $iniContent = $iniContent -replace '(?m)^\s*;+\s*extension\s*=\s*zip', 'extension=zip'
+} elseif ($iniContent -notmatch '(?m)^extension\s*=\s*zip') {
+    $iniContent += "`r`nextension=zip`r`n"
+}
+
 Set-Content -Path $iniPath -Value $iniContent -Encoding ASCII
-Write-Host "[OK] php.ini configurado (extension_dir, timezone=America/Bogota)" -ForegroundColor Green
+Write-Host "[OK] php.ini configurado (extension_dir, timezone=America/Bogota, zip)" -ForegroundColor Green
 
 Write-Host ""
 

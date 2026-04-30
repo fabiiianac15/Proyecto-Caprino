@@ -139,13 +139,28 @@ if (-not (Test-Path $iniFile)) {
 
 $iniContent = Get-Content $iniFile -Raw
 
-if ($iniContent -match "(?m)^[;]*\s*extension\s*=\s*(php_)?oci8") {
-    $iniContent = $iniContent -replace "(?m)^[;]*\s*extension\s*=\s*(php_)?oci8.*", "extension=oci8"
-    Write-Host "[OK] Linea OCI8 activada en php.ini" -ForegroundColor Green
-} else {
-    $iniContent = $iniContent.TrimEnd() + "`r`n`r`n; Oracle OCI8 para Instant Client`r`nextension=oci8`r`n"
-    Write-Host "[OK] Linea OCI8 agregada a php.ini" -ForegroundColor Green
+# Procesar linea a linea para evitar duplicados: activar la primera aparicion
+# de extension=oci8 (comentada o no) y eliminar las demas
+$lines = $iniContent -split "`r?`n"
+$oci8Encontrado = $false
+$newLines = foreach ($line in $lines) {
+    if ($line -match "^[;]*\s*extension\s*=\s*(php_)?oci8") {
+        if (-not $oci8Encontrado) {
+            "extension=oci8"
+            $oci8Encontrado = $true
+        }
+        # omitir lineas duplicadas
+    } else {
+        $line
+    }
 }
+if (-not $oci8Encontrado) {
+    $newLines = $newLines + @("", "; Oracle OCI8 para Instant Client", "extension=oci8")
+    Write-Host "[OK] Linea OCI8 agregada a php.ini" -ForegroundColor Green
+} else {
+    Write-Host "[OK] Linea OCI8 activada en php.ini (sin duplicados)" -ForegroundColor Green
+}
+$iniContent = $newLines -join "`r`n"
 
 if ($iniContent -match '(?m)^;\s*extension_dir') {
     $iniContent = $iniContent -replace '(?m)^;\s*extension_dir\s*=\s*"ext"', 'extension_dir="ext"'

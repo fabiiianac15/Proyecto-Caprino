@@ -59,12 +59,15 @@ $adminPwd = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
     [Runtime.InteropServices.Marshal]::SecureStringToBSTR($adminPwdSecure)
 )
 
-# Funcion auxiliar: ejecutar SQL en sqlplus via archivo temporal (evita BOM en pipes)
+# Funcion auxiliar: ejecutar SQL en sqlplus via /nolog + CONNECT en el archivo SQL.
+# Usar /nolog evita que PowerShell corrompa caracteres especiales de la password
+# al pasarla como argumento de linea de comandos.
 function Invoke-SqlPlus {
-    param([string]$ConnStr, [string]$Sql)
+    param([string]$User, [string]$Password, [string]$TnsName, [string]$Sql)
     $tmpFile = [System.IO.Path]::ChangeExtension([System.IO.Path]::GetTempFileName(), ".sql")
-    [System.IO.File]::WriteAllText($tmpFile, $Sql, (New-Object System.Text.UTF8Encoding $false))
-    $out = & sqlplus -S $ConnStr "@`"$tmpFile`"" 2>&1
+    $fullSql = "CONNECT $User/`"$Password`"@$TnsName`r`n$Sql"
+    [System.IO.File]::WriteAllText($tmpFile, $fullSql, (New-Object System.Text.UTF8Encoding $false))
+    $out = & "C:\oracle\instantclient_21_14\sqlplus.exe" -S /nolog "@`"$tmpFile`"" 2>&1
     Remove-Item $tmpFile -Force -ErrorAction SilentlyContinue
     return $out
 }
@@ -75,8 +78,8 @@ Write-Host "Verificando conexion a Oracle Autonomous DB..." -ForegroundColor Yel
 Write-Host "  TNS_ADMIN = $env:TNS_ADMIN" -ForegroundColor Gray
 Write-Host "  Alias     = $tnsName" -ForegroundColor Gray
 
-$testOutput = Invoke-SqlPlus -ConnStr "ADMIN/`"$adminPwd`"@$tnsName" -Sql "SELECT 'CONEXION_OK' FROM DUAL;`r`nEXIT;"
-if ($testOutput -notmatch "CONEXION_OK") {
+$testOutput = Invoke-SqlPlus -User "ADMIN" -Password $adminPwd -TnsName $tnsName -Sql "SELECT 'CONEXION_OK' FROM DUAL;`r`nEXIT;"
+if (-not ($testOutput -match "CONEXION_OK")) {
     Write-Host "[ERROR] No se pudo conectar al ADB." -ForegroundColor Red
     Write-Host "Salida de sqlplus:" -ForegroundColor Yellow
     $testOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
@@ -117,7 +120,7 @@ SELECT 'USUARIO_CREADO' FROM DUAL;
 EXIT;
 "@
 
-$out1 = Invoke-SqlPlus -ConnStr "ADMIN/`"$adminPwd`"@$tnsName" -Sql $sqlCrearUsuario
+$out1 = Invoke-SqlPlus -User "ADMIN" -Password $adminPwd -TnsName $tnsName -Sql $sqlCrearUsuario
 # ORA-01920: el usuario ya existe  -  ignorar
 $errores1 = $out1 | Select-String "ORA-" | Where-Object { $_ -notmatch "ORA-01920" }
 if ($errores1) {
@@ -157,7 +160,11 @@ foreach ($s in $scriptsSQL) {
         continue
     }
     Write-Host "  Ejecutando: $($s.desc)..." -ForegroundColor Gray
-    $outSql = & sqlplus -S "caprino_user/`"$caprino_password`"@$tnsName" "@`"$rutaSql`"" 2>&1
+    $wrapFile = [System.IO.Path]::ChangeExtension([System.IO.Path]::GetTempFileName(), ".sql")
+    $wrapSql  = "CONNECT caprino_user/`"$caprino_password`"@$tnsName`r`n@`"$rutaSql`"`r`nEXIT;"
+    [System.IO.File]::WriteAllText($wrapFile, $wrapSql, (New-Object System.Text.UTF8Encoding $false))
+    $outSql = & "C:\oracle\instantclient_21_14\sqlplus.exe" -S /nolog "@`"$wrapFile`"" 2>&1
+    Remove-Item $wrapFile -Force -ErrorAction SilentlyContinue
     $errSql = $outSql | Select-String "ORA-" | Where-Object {
         $_ -notmatch "ORA-00955|ORA-01430|ORA-01442|ORA-02260|ORA-02261|ORA-02275|ORA-04043|ORA-00001"
     }
@@ -172,7 +179,7 @@ Write-Host ""
 
 # ── PASO 3: Verificar tablas creadas ─────────────────────────────────────────
 Write-Host "Paso 3/3: Verificando tablas..." -ForegroundColor Yellow
-$outVerif = Invoke-SqlPlus -ConnStr "caprino_user/`"$caprino_password`"@$tnsName" -Sql "SELECT COUNT(*) AS TOTAL_TABLAS FROM USER_TABLES;`r`nEXIT;"
+$outVerif = Invoke-SqlPlus -User "caprino_user" -Password $caprino_password -TnsName $tnsName -Sql "SELECT COUNT(*) AS TOTAL_TABLAS FROM USER_TABLES;`r`nEXIT;"
 $numTablas = ($outVerif | Select-String "^\s*\d+" | Select-Object -First 1) -replace "\s",""
 Write-Host "[OK] Tablas en caprino_user: $numTablas" -ForegroundColor Green
 
