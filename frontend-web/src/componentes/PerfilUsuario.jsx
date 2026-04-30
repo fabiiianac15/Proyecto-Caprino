@@ -3,7 +3,8 @@
  * Gestión de datos personales, foto de perfil e información de la finca
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useAuth } from '../contextos/AuthContext';
 import {
   User,
   Mail,
@@ -33,24 +34,33 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 
+const ETIQUETAS_ROL = {
+  administrador: 'Administrador de Granja',
+  pasante:       'Pasante',
+  veterinario:   'Veterinario',
+  zootecnista:   'Zootecnista',
+  tecnico:       'Técnico',
+};
+
 const PerfilUsuario = ({ onCerrar }) => {
+  const { usuario } = useAuth();
   const [seccionActiva, setSeccionActiva] = useState('personal');
   const [modoEdicion, setModoEdicion] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const fileInputRef = useRef(null);
 
   const [datosUsuario, setDatosUsuario] = useState({
-    // Datos personales
-    nombre: 'Juan Pérez',
-    email: 'juan.perez@granja.com',
-    telefono: '+57 300 123 4567',
-    direccion: 'Vereda El Carmen, Finca La Esperanza',
-    ciudad: 'Medellín',
-    departamento: 'Antioquia',
-    fechaNacimiento: '1985-05-15',
-    cedula: '1234567890',
-    rol: 'Administrador',
-    fechaRegistro: '2024-01-15',
+    // Datos personales — se sobreescriben con los reales al montar
+    nombre: '',
+    email: '',
+    telefono: '',
+    direccion: '',
+    ciudad: '',
+    departamento: '',
+    fechaNacimiento: '',
+    cedula: '',
+    rol: '',
+    fechaRegistro: '',
     fotoPerfil: null,
 
     // Datos de la granja
@@ -76,6 +86,18 @@ const PerfilUsuario = ({ onCerrar }) => {
   });
 
   const [imagenPreview, setImagenPreview] = useState(null);
+
+  // Cargar datos reales del usuario autenticado
+  useEffect(() => {
+    if (usuario) {
+      setDatosUsuario(prev => ({
+        ...prev,
+        nombre:  usuario.nombre || usuario.nombre_completo || '',
+        email:   usuario.email  || '',
+        rol:     ETIQUETAS_ROL[usuario.rol] || usuario.rol || '',
+      }));
+    }
+  }, [usuario]);
 
   const secciones = [
     { id: 'personal', nombre: 'Datos Personales', icono: User },

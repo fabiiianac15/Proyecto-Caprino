@@ -207,10 +207,14 @@ function App() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-white">
-                    {usuario?.nombre_completo}
+                    {usuario?.nombre || usuario?.nombre_completo}
                   </p>
                   <p className="text-xs text-green-100 capitalize">
-                    {usuario?.rol === 'administrador_granja' ? 'Administrador de Granja' : 'Pasante'}
+                    {usuario?.rol === 'administrador' ? 'Administrador de Granja' :
+                     usuario?.rol === 'pasante'       ? 'Pasante' :
+                     usuario?.rol === 'veterinario'   ? 'Veterinario' :
+                     usuario?.rol === 'zootecnista'   ? 'Zootecnista' :
+                     usuario?.rol || 'Usuario'}
                   </p>
                 </div>
               </button>

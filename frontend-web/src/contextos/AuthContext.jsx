@@ -116,14 +116,21 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await response.json();
-      
-      // El backend ya devuelve los datos del usuario junto con el token
+
+      // Lexik JWT solo devuelve {"token":"..."}, hay que pedir los datos del usuario
       setToken(data.token);
-      setUsuario(data.user);
-      
-      if (recordar) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('usuario', JSON.stringify(data.user));
+      localStorage.setItem('token', data.token);
+
+      const meResponse = await fetch(`${API_URL}/me`, {
+        headers: { 'Authorization': `Bearer ${data.token}` }
+      });
+
+      if (meResponse.ok) {
+        const userData = await meResponse.json();
+        setUsuario(userData);
+        if (recordar) {
+          localStorage.setItem('usuario', JSON.stringify(userData));
+        }
       }
 
       return { success: true };

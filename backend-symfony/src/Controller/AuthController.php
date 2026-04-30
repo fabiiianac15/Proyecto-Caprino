@@ -36,7 +36,14 @@ class AuthController extends AbstractController
             return $this->json(['error' => 'La contraseña debe tener al menos 8 caracteres'], Response::HTTP_BAD_REQUEST);
         }
 
-        if (!in_array($rol, ['administrador', 'zootecnista', 'tecnico', 'veterinario'])) {
+        // Mapear nombres del frontend a los valores que guarda la BD
+        $mapaRoles = [
+            'administrador_granja' => 'administrador',
+            'pasante'              => 'pasante',
+        ];
+        $rol = $mapaRoles[$rol] ?? $rol;
+
+        if (!in_array($rol, ['administrador', 'pasante', 'zootecnista', 'tecnico', 'veterinario'])) {
             $rol = 'tecnico';
         }
 
@@ -87,10 +94,11 @@ class AuthController extends AbstractController
         }
 
         return $this->json([
-            'id'     => $user->getId(),
-            'nombre' => $user->getNombreCompleto(),
-            'email'  => $user->getEmail(),
-            'rol'    => $user->getRol(),
+            'id'             => $user->getId(),
+            'nombre'         => $user->getNombreCompleto(),
+            'nombre_completo'=> $user->getNombreCompleto(),
+            'email'          => $user->getEmail(),
+            'rol'            => $user->getRol(),
         ]);
     }
 }
