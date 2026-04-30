@@ -163,7 +163,9 @@ try {
             echo json_encode(['error' => 'La contraseña debe tener al menos 8 caracteres']);
             exit;
         }
-        if (!in_array($rol, ['administrador', 'zootecnista', 'tecnico', 'veterinario'])) {
+        $mapaRoles = ['administrador_granja' => 'administrador', 'pasante' => 'pasante'];
+        $rol = $mapaRoles[$rol] ?? $rol;
+        if (!in_array($rol, ['administrador', 'pasante', 'zootecnista', 'tecnico', 'veterinario'])) {
             $rol = 'tecnico';
         }
 
@@ -1130,6 +1132,190 @@ try {
         ];
         oci_free_statement($stmt);
         echo json_encode(['data' => $rows], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // PERFIL DE USUARIO
+    // ════════════════════════════════════════════════════════════════════════
+
+    // GET /api/perfil
+    if (preg_match('#^/api/perfil/?$#', $path) && $method === 'GET') {
+        $userId = extraerUserId($jwtSecret);
+        if (!$userId) { http_response_code(401); echo json_encode(['error' => 'No autenticado']); exit; }
+
+        $stmt = oci_parse($conn, "SELECT COUNT(*) AS CNT FROM USUARIO_PERFIL WHERE id_usuario = :id");
+        oci_bind_by_name($stmt, ':id', $userId);
+        oci_execute($stmt);
+        $row = oci_fetch_assoc($stmt);
+        oci_free_statement($stmt);
+        if ((int)$row['CNT'] === 0) {
+            $stmt = oci_parse($conn, "INSERT INTO USUARIO_PERFIL (id_usuario) VALUES (:id)");
+            oci_bind_by_name($stmt, ':id', $userId);
+            oci_execute($stmt, OCI_COMMIT_ON_SUCCESS);
+            oci_free_statement($stmt);
+        }
+
+        $stmt = oci_parse($conn,
+            "SELECT p.*, u.nombre_completo FROM USUARIO_PERFIL p
+             JOIN USUARIO u ON u.id_usuario = p.id_usuario
+             WHERE p.id_usuario = :id"
+        );
+        oci_bind_by_name($stmt, ':id', $userId);
+        oci_execute($stmt);
+        $p = oci_fetch_assoc($stmt);
+        oci_free_statement($stmt);
+
+        echo json_encode([
+            'nombre'             => $p['NOMBRE_COMPLETO']    ?? '',
+            'telefono'           => $p['TELEFONO']           ?? '',
+            'cedula'             => $p['CEDULA']             ?? '',
+            'fechaNacimiento'    => $p['FECHA_NACIMIENTO']   ?? '',
+            'direccion'          => $p['DIRECCION']          ?? '',
+            'ciudad'             => $p['CIUDAD']             ?? '',
+            'departamento'       => $p['DEPARTAMENTO']       ?? '',
+            'nombreGranja'       => $p['NOMBRE_GRANJA']      ?? 'Granja Experimental UFPSO',
+            'tipoProduccion'     => $p['TIPO_PRODUCCION']    ?? 'Leche y Carne',
+            'areaTotal'          => $p['AREA_TOTAL']         ?? '',
+            'sistemaManejo'      => $p['SISTEMA_MANEJO']     ?? '',
+            'capacidadInstalada' => $p['CAPACIDAD_INSTALADA'] !== null ? (string)$p['CAPACIDAD_INSTALADA'] : '',
+            'coordenadasGPS'     => $p['COORDENADAS_GPS']    ?? "8\u{00B0}14'20\"N, 73\u{00B0}21'21\"W",
+            'altitud'            => $p['ALTITUD']            ?? '1.200 msnm',
+            'temperaturaPromedio'=> $p['TEMPERATURA_PROM']   ?? '21°C',
+            'precipitacion'      => $p['PRECIPITACION']      ?? '1.400 mm/año',
+            'nit'                => $p['NIT']                ?? '',
+            'ica'                => $p['REGISTRO_ICA']       ?? '',
+            'registroGanadero'   => $p['REGISTRO_GANADERO']  ?? '',
+            'licenciaAmbiental'  => $p['LICENCIA_AMBIENTAL'] ?? '',
+            'notifReproduccion'  => (bool)(int)($p['NOTIF_REPRODUCCION'] ?? 1),
+            'notifSalud'         => (bool)(int)($p['NOTIF_SALUD']        ?? 1),
+            'notifProduccion'    => (bool)(int)($p['NOTIF_PRODUCCION']   ?? 1),
+            'notifReportes'      => (bool)(int)($p['NOTIF_REPORTES']     ?? 0),
+            'notifPush'          => (bool)(int)($p['NOTIF_PUSH']         ?? 1),
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // PUT /api/perfil
+    if (preg_match('#^/api/perfil/?$#', $path) && $method === 'PUT') {
+        $userId = extraerUserId($jwtSecret);
+        if (!$userId) { http_response_code(401); echo json_encode(['error' => 'No autenticado']); exit; }
+
+        if (!empty($data['nombre'])) {
+            $nombre = trim($data['nombre']);
+            $stmt = oci_parse($conn, "UPDATE USUARIO SET nombre_completo = :nombre WHERE id_usuario = :id");
+            oci_bind_by_name($stmt, ':nombre', $nombre);
+            oci_bind_by_name($stmt, ':id', $userId);
+            oci_execute($stmt, OCI_COMMIT_ON_SUCCESS);
+            oci_free_statement($stmt);
+        }
+
+        $stmt = oci_parse($conn, "SELECT COUNT(*) AS CNT FROM USUARIO_PERFIL WHERE id_usuario = :id");
+        oci_bind_by_name($stmt, ':id', $userId);
+        oci_execute($stmt);
+        $row = oci_fetch_assoc($stmt);
+        oci_free_statement($stmt);
+        if ((int)$row['CNT'] === 0) {
+            $stmt = oci_parse($conn, "INSERT INTO USUARIO_PERFIL (id_usuario) VALUES (:id)");
+            oci_bind_by_name($stmt, ':id', $userId);
+            oci_execute($stmt, OCI_COMMIT_ON_SUCCESS);
+            oci_free_statement($stmt);
+        }
+
+        $mapaCampos = [
+            'telefono'            => 'telefono',
+            'cedula'              => 'cedula',
+            'direccion'           => 'direccion',
+            'ciudad'              => 'ciudad',
+            'departamento'        => 'departamento',
+            'nombre_granja'       => 'nombreGranja',
+            'tipo_produccion'     => 'tipoProduccion',
+            'area_total'          => 'areaTotal',
+            'sistema_manejo'      => 'sistemaManejo',
+            'capacidad_instalada' => 'capacidadInstalada',
+            'coordenadas_gps'     => 'coordenadasGPS',
+            'altitud'             => 'altitud',
+            'temperatura_prom'    => 'temperaturaPromedio',
+            'precipitacion'       => 'precipitacion',
+            'nit'                 => 'nit',
+            'registro_ica'        => 'ica',
+            'registro_ganadero'   => 'registroGanadero',
+            'licencia_ambiental'  => 'licenciaAmbiental',
+            'notif_reproduccion'  => 'notifReproduccion',
+            'notif_salud'         => 'notifSalud',
+            'notif_produccion'    => 'notifProduccion',
+            'notif_reportes'      => 'notifReportes',
+            'notif_push'          => 'notifPush',
+        ];
+
+        $sets   = ["fecha_actualizacion = CURRENT_TIMESTAMP"];
+        $params = [];
+        foreach ($mapaCampos as $dbField => $frontField) {
+            if (array_key_exists($frontField, $data)) {
+                $val = $data[$frontField];
+                if (is_bool($val)) $val = $val ? 1 : 0;
+                $sets[]            = "$dbField = :$dbField";
+                $params[$dbField]  = $val;
+            }
+        }
+        if (!empty($data['fechaNacimiento'])) {
+            $sets[] = "fecha_nacimiento = TO_DATE(:fecha_nacimiento, 'YYYY-MM-DD')";
+            $params['fecha_nacimiento'] = date('Y-m-d', strtotime($data['fechaNacimiento']));
+        }
+
+        if (count($sets) > 1) {
+            $sql  = "UPDATE USUARIO_PERFIL SET " . implode(', ', $sets) . " WHERE id_usuario = :id";
+            $stmt = oci_parse($conn, $sql);
+            foreach ($params as $k => $v) {
+                oci_bind_by_name($stmt, ":$k", $params[$k]);
+            }
+            oci_bind_by_name($stmt, ':id', $userId);
+            oci_execute($stmt, OCI_COMMIT_ON_SUCCESS);
+            oci_free_statement($stmt);
+        }
+
+        echo json_encode(['success' => true, 'message' => 'Perfil actualizado correctamente'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // PUT /api/perfil/password
+    if (preg_match('#^/api/perfil/password/?$#', $path) && $method === 'PUT') {
+        $userId = extraerUserId($jwtSecret);
+        if (!$userId) { http_response_code(401); echo json_encode(['error' => 'No autenticado']); exit; }
+
+        $pwActual = $data['password_actual'] ?? '';
+        $pwNueva  = $data['password_nueva']  ?? '';
+        if (!$pwActual || !$pwNueva) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Se requieren ambas contraseñas']);
+            exit;
+        }
+        if (strlen($pwNueva) < 8) {
+            http_response_code(400);
+            echo json_encode(['error' => 'La nueva contraseña debe tener al menos 8 caracteres']);
+            exit;
+        }
+
+        $stmt = oci_parse($conn, "SELECT password_hash FROM USUARIO WHERE id_usuario = :id");
+        oci_bind_by_name($stmt, ':id', $userId);
+        oci_execute($stmt);
+        $row = oci_fetch_assoc($stmt);
+        oci_free_statement($stmt);
+
+        if (!$row || !password_verify($pwActual, $row['PASSWORD_HASH'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'La contraseña actual es incorrecta']);
+            exit;
+        }
+
+        $nuevoHash = password_hash($pwNueva, PASSWORD_BCRYPT);
+        $stmt = oci_parse($conn, "UPDATE USUARIO SET password_hash = :hash WHERE id_usuario = :id");
+        oci_bind_by_name($stmt, ':hash', $nuevoHash);
+        oci_bind_by_name($stmt, ':id', $userId);
+        oci_execute($stmt, OCI_COMMIT_ON_SUCCESS);
+        oci_free_statement($stmt);
+
+        echo json_encode(['success' => true, 'message' => 'Contraseña actualizada correctamente'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 

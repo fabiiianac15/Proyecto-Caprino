@@ -1,24 +1,47 @@
-1.
-Verificando conexion a Oracle Autonomous DB...
-[ERROR] No se pudo conectar al ADB.
-Salida de sqlplus:
-  ERROR:
-  ORA-12154: TNS:could not resolve the connect identifier specified
 
-  
-  SP2-0306: Invalid option.
-  Usage: CONN[ECT] [{logon|/|proxy} [AS {SYSDBA|SYSOPER|SYSASM|SYSBACKUP|SYSDG|SYSKM|SYSRAC}] [edition=value]]
-  where <logon> ::= <username>[/<password>][@<connect_identifier>]
-        <proxy> ::= <proxyuser>[<username>][/<password>][@<connect_identifier>]
-  ERROR:
-  ORA-12560: TNS:protocol adapter error
+Run composer recipes at any time to see the status of your Symfony recipes.
 
+Executing script cache:clear [KO]
+ [KO]
+Script cache:clear returned with error code 255
+!!  ParseError {#1794
+!!    #message: "syntax error, unexpected identifier "SERIALIZATION_FORMAT_USE_UNSER...", expecting "=""
+!!    #code: 0
+!!    #file: "C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\doctrine\instantiator\src\Doctrine\Instantiator\Instantiator.php"
+!!    #line: 32
+!!    trace: {
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\doctrine\instantiator\src\Doctrine\Instantiator\Instantiator.php:32 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\doctrine\orm\src\Mapping\ClassMetadataInfo.php:816 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\doctrine\orm\src\Mapping\ClassMetadata.php:116 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\doctrine\orm\src\Mapping\ClassMetadataFactory.php:324 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\doctrine\persistence\src\Persistence\Mapping\AbstractClassMetadataFactory.php:340 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\doctrine\persistence\src\Persistence\Mapping\AbstractClassMetadataFactory.php:207 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\doctrine\persistence\src\Persistence\Mapping\AbstractClassMetadataFactory.php:96 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\symfony\doctrine-bridge\CacheWarmer\ProxyCacheWarmer.php:58 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\symfony\http-kernel\CacheWarmer\CacheWarmerAggregate.php:108 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\symfony\http-kernel\Kernel.php:565 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\symfony\http-kernel\Kernel.php:783 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\symfony\http-kernel\Kernel.php:128 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\symfony\framework-bundle\Console\Application.php:190 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\symfony\framework-bundle\Console\Application.php:72 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\symfony\console\Application.php:175 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\symfony\runtime\Runner\Symfony\ConsoleApplicationRunner.php:49 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\autoload_runtime.php:29 { …}
+!!      C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\bin\console:11 {
+!!        › \r
+!!        › require_once dirname(__DIR__).'/vendor/autoload_runtime.php';\r
+!!        › \r
+!!        arguments: {
+!!          "C:\Users\User\Desktop\Proyecto-Caprino\backend-symfony\vendor\autoload_runtime.php"
+!!        }
+!!      }
+!!    }
+!!  }
+!!  2026-04-30T16:40:45-05:00 [info] User Deprecated: Since symfony/dependency-injection 6.4: "Symfony\Bridge\Doctrine\DataFixtures\ContainerAwareLoader" is deprecated, use dependency injection in your fixtures instead.
+!!  2026-04-30T16:40:45-05:00 [info] User Deprecated: The "Doctrine\Bundle\FixturesBundle\Loader\SymfonyBridgeLoader" class extends "Symfony\Bridge\Doctrine\DataFixtures\ContainerAwareLoader" that is deprecated since Symfony 6.4, use dependency injection in your fixtures instead.
+!!  2026-04-30T16:40:45-05:00 [critical] Uncaught Error: syntax error, unexpected identifier "SERIALIZATION_FORMAT_USE_UNSER...", expecting "="
+!!  
+Script @auto-scripts was called via post-install-cmd
 
-  SP2-0157: unable to CONNECT to ORACLE after 3 attempts, exiting SQL*Plus
-
-Verifica:
-  1. La password del usuario ADMIN es correcta
-  2. El wallet esta configurado (TNS_ADMIN=C:\Caprino-Wallet)
-  3. El alias 'caprinodb_high' existe en tnsnames.ora
-  4. Tienes conexion a internet
+[ERROR] composer install termino con errores
 [ERROR] El script termino con codigo 1
