@@ -18,8 +18,8 @@ const reproduccionService = {
   obtenerTodos: async (filtros = {}) => {
     try {
       const params = new URLSearchParams(filtros).toString();
-      const response = await axios.get(`${API_BASE_URL}/api/reproduccions?${params}`);
-      return response.data['hydra:member'] || response.data;
+      const response = await axios.get(`${API_BASE_URL}/api/reproduccion?${params}`);
+      return response.data.data || response.data;
     } catch (error) {
       console.error('Error al obtener reproducción:', error);
       throw error;
@@ -34,7 +34,7 @@ const reproduccionService = {
    */
   registrarServicio: async (datos) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/reproduccions`, datos);
+      const response = await axios.post(`${API_BASE_URL}/api/reproduccion`, datos);
       return response.data;
     } catch (error) {
       console.error('Error al registrar servicio:', error);
@@ -51,7 +51,7 @@ const reproduccionService = {
    */
   actualizar: async (id, datos) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/reproduccions/${id}`, datos);
+      const response = await axios.put(`${API_BASE_URL}/api/reproduccion/${id}`, datos);
       return response.data;
     } catch (error) {
       console.error(`Error al actualizar reproducción ${id}:`, error);
@@ -68,7 +68,7 @@ const reproduccionService = {
    */
   registrarDiagnostico: async (id, diagnostico) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/reproduccions/${id}`, {
+      const response = await axios.put(`${API_BASE_URL}/api/reproduccion/${id}`, {
         fechaDiagnostico: diagnostico.fecha,
         resultadoDiagnostico: diagnostico.resultado,
         metodoDiagnostico: diagnostico.metodo,
@@ -89,7 +89,7 @@ const reproduccionService = {
    */
   registrarParto: async (id, parto) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/reproduccions/${id}`, {
+      const response = await axios.put(`${API_BASE_URL}/api/reproduccion/${id}`, {
         fechaPartoReal: parto.fecha,
         tipoParto: parto.tipo,
         numeroCrias: parto.numeroCrias,

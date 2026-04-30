@@ -16,7 +16,7 @@ Write-Host "   INICIAR BACKEND - Servidor PHP" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Refrescar PATH (importante para ver ORACLE_HOME y OCI8)
+# Refrescar PATH (importante para ver Instant Client y OCI8)
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
             [System.Environment]::GetEnvironmentVariable("Path","User")
 

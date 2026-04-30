@@ -2,82 +2,49 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Get;
-use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Post;
-use ApiPlatform\Metadata\Put;
-use ApiPlatform\Metadata\Delete;
 use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
-use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
-#[ORM\Table(name: 'USUARIOS')]
-#[ApiResource(
-    operations: [
-        new GetCollection(security: "is_granted('ROLE_ADMIN')"),
-        new Get(security: "is_granted('ROLE_USER') and object == user"),
-        new Post(security: "is_granted('PUBLIC_ACCESS')"),
-        new Put(security: "is_granted('ROLE_USER') and object == user"),
-        new Delete(security: "is_granted('ROLE_ADMIN')")
-    ],
-    normalizationContext: ['groups' => ['user:read']],
-    denormalizationContext: ['groups' => ['user:write']]
-)]
+#[ORM\Table(name: 'USUARIO')]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
-    #[ORM\GeneratedValue(strategy: 'AUTO')]
-    #[ORM\Column(name: 'ID', type: 'integer')]
-    #[Groups(['user:read'])]
+    #[ORM\GeneratedValue(strategy: 'IDENTITY')]
+    #[ORM\Column(name: 'ID_USUARIO', type: 'integer')]
     private ?int $id = null;
 
+    #[ORM\Column(name: 'NOMBRE_COMPLETO', type: 'string', length: 150)]
+    private ?string $nombreCompleto = null;
+
     #[ORM\Column(name: 'EMAIL', type: 'string', length: 180, unique: true)]
-    #[Groups(['user:read', 'user:write'])]
     private ?string $email = null;
 
-    #[ORM\Column(name: 'ROLES', type: 'json')]
-    #[Groups(['user:read'])]
-    private array $roles = [];
-
-    #[ORM\Column(name: 'PASSWORD', type: 'string')]
+    #[ORM\Column(name: 'PASSWORD_HASH', type: 'string')]
     private ?string $password = null;
 
-    #[Groups(['user:write'])]
-    private ?string $plainPassword = null;
+    #[ORM\Column(name: 'ROL', type: 'string', length: 30)]
+    private string $rol = 'tecnico';
 
-    #[ORM\Column(name: 'NOMBRE', type: 'string', length: 100)]
-    #[Groups(['user:read', 'user:write'])]
-    private ?string $nombre = null;
-
-    #[ORM\Column(name: 'APELLIDO', type: 'string', length: 100, nullable: true)]
-    #[Groups(['user:read', 'user:write'])]
-    private ?string $apellido = null;
-
-    #[ORM\Column(name: 'TELEFONO', type: 'string', length: 20, nullable: true)]
-    #[Groups(['user:read', 'user:write'])]
-    private ?string $telefono = null;
-
-    #[ORM\Column(name: 'ACTIVO', type: 'boolean')]
-    #[Groups(['user:read'])]
-    private bool $activo = true;
-
-    #[ORM\Column(name: 'FECHA_REGISTRO', type: 'datetime')]
-    #[Groups(['user:read'])]
-    private ?\DateTimeInterface $fechaRegistro = null;
-
-    public function __construct()
-    {
-        $this->fechaRegistro = new \DateTime();
-        $this->roles = ['ROLE_USER'];
-    }
+    #[ORM\Column(name: 'ESTADO', type: 'string', length: 20)]
+    private string $estado = 'activo';
 
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getNombreCompleto(): ?string
+    {
+        return $this->nombreCompleto;
+    }
+
+    public function setNombreCompleto(string $nombreCompleto): self
+    {
+        $this->nombreCompleto = $nombreCompleto;
+        return $this;
     }
 
     public function getEmail(): ?string
@@ -91,40 +58,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    /**
-     * A visual identifier that represents this user.
-     *
-     * @see UserInterface
-     */
     public function getUserIdentifier(): string
     {
         return (string) $this->email;
     }
 
-    /**
-     * @see UserInterface
-     */
     public function getRoles(): array
     {
-        $roles = $this->roles;
-        // guarantee every user at least has ROLE_USER
-        $roles[] = 'ROLE_USER';
-
+        $roles = ['ROLE_USER'];
+        if ($this->rol === 'administrador') {
+            $roles[] = 'ROLE_ADMIN';
+        }
         return array_unique($roles);
     }
 
-    public function setRoles(array $roles): self
-    {
-        $this->roles = $roles;
-        return $this;
-    }
-
-    /**
-     * @see PasswordAuthenticatedUserInterface
-     */
     public function getPassword(): string
     {
-        return $this->password;
+        return (string) $this->password;
     }
 
     public function setPassword(string $password): self
@@ -133,82 +83,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getPlainPassword(): ?string
+    public function getRol(): string
     {
-        return $this->plainPassword;
+        return $this->rol;
     }
 
-    public function setPlainPassword(?string $plainPassword): self
+    public function setRol(string $rol): self
     {
-        $this->plainPassword = $plainPassword;
+        $this->rol = $rol;
         return $this;
     }
 
-    /**
-     * @see UserInterface
-     */
-    public function eraseCredentials(): void
+    public function getEstado(): string
     {
-        $this->plainPassword = null;
+        return $this->estado;
     }
 
-    public function getNombre(): ?string
+    public function setEstado(string $estado): self
     {
-        return $this->nombre;
-    }
-
-    public function setNombre(string $nombre): self
-    {
-        $this->nombre = $nombre;
+        $this->estado = $estado;
         return $this;
     }
 
-    public function getApellido(): ?string
-    {
-        return $this->apellido;
-    }
-
-    public function setApellido(?string $apellido): self
-    {
-        $this->apellido = $apellido;
-        return $this;
-    }
-
-    public function getTelefono(): ?string
-    {
-        return $this->telefono;
-    }
-
-    public function setTelefono(?string $telefono): self
-    {
-        $this->telefono = $telefono;
-        return $this;
-    }
-
-    public function isActivo(): bool
-    {
-        return $this->activo;
-    }
-
-    public function setActivo(bool $activo): self
-    {
-        $this->activo = $activo;
-        return $this;
-    }
-
-    public function getFechaRegistro(): ?\DateTimeInterface
-    {
-        return $this->fechaRegistro;
-    }
-
-    public function setFechaRegistro(\DateTimeInterface $fechaRegistro): self
-    {
-        $this->fechaRegistro = $fechaRegistro;
-        return $this;
-    }
-
-    public function getNombreCompleto(): string
-    {
-        return trim($this->nombre . ' ' . $this->apellido);
-    }
+    public function eraseCredentials(): void {}
 }

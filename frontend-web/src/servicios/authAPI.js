@@ -15,7 +15,7 @@ import api from './api';
  */
 export const iniciarSesion = async (email, password) => {
   try {
-    const response = await api.post('/login', {
+    const response = await api.post('/auth/login', {
       username: email,
       password: password,
     });

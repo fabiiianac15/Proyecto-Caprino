@@ -1,176 +1,85 @@
-# 📋 ORDEN DE INSTALACIÓN - Proyecto Caprino
+# Scripts de Instalación — Proyecto Caprino
 
-## ⚠️ IMPORTANTE
-
-Este directorio contiene **scripts en orden** para instalar y configurar el proyecto Caprino.
-
-**EJECUTA LOS SCRIPTS EN ORDEN NUMÉRICO (01, 02, 03, 04...)**
+Guía de instalación para conectar el sistema a **Oracle Autonomous Database** (nube).
 
 ---
 
-## 📝 INSTRUCCIONES
+## Prerequisitos manuales (antes de ejecutar cualquier script)
 
-### **PRIMERA VEZ: Instalación Completa**
-
-#### Paso 0️⃣ - Instalar Visual C++ Runtime (EJECUTAR PRIMERO)
-```
-00b-INSTALAR-VCRUNTIME.ps1
-```
-- Descarga e instala Visual C++ 2015-2022 Runtime (prerequisito para PHP 8.2)
-- Sin esto, PHP mostrará warnings de incompatibilidad
-- Ejecuta una sola vez
-
-#### Paso 0️⃣ (b) - Instalar PHP compatible automáticamente
-```
-00-INSTALAR-PHP-COMPATIBLE.bat
-```
-- Descarga e instala PHP 8.2 Thread Safe x64 compatible con este proyecto
-- Configura `PHP_HOME`, `PATH` y `php.ini` de forma automática
-- Si ya tienes PHP en otro lugar, puedes usar el `.ps1` con parámetros para cambiar versión/ruta
-
-#### Paso 1️⃣ - Verificar Requisitos
-```
-01-VERIFICAR-REQUISITOS.bat
-```
-- Verifica que tienes PHP 8.2, Composer, Node.js, Oracle
-- Si algo falta, el script te indicará qué instalar
-
-#### Paso 2️⃣ - Configurar Oracle (EJECUTAR COMO ADMINISTRADOR)
-```
-Clic derecho en 02-CONFIGURAR-ORACLE-ENV.bat → Ejecutar como administrador
-```
-- Configura variables de entorno para Oracle
-- **Importantes después de ejecutar**: Cierra y reabre PowerShell
-
-#### Paso 3️⃣ - Instalar OCI8 (EJECUTAR COMO ADMINISTRADOR)
-```
-Clic derecho en 03-INSTALAR-OCI8.ps1 → Run with PowerShell
-(O: powershell -ExecutionPolicy Bypass -File "03-INSTALAR-OCI8.ps1")
-```
-- Descarga e instala la extensión OCI8 para PHP
-- Permite que PHP se conecte a Oracle
-
-#### Paso 4️⃣ - Instalar Dependencias Backend
-```
-04-INSTALAR-DEPENDENCIAS-BACKEND.bat
-```
-- Ejecuta `composer install`
-- Descarga bibliotecas PHP necesarias (Symfony, JWT, etc.)
-
-#### Paso 5️⃣ - Instalar Dependencias Frontend
-```
-05-INSTALAR-DEPENDENCIAS-FRONTEND.bat
-```
-- Ejecuta `npm install`
-- Descarga librerías de React, Tailwind, etc.
-
-#### Paso 6️⃣ - Iniciar Oracle (EJECUTAR COMO ADMINISTRADOR)
-```
-Clic derecho en 06-INICIAR-ORACLE.ps1 → Run with PowerShell
-```
-- Inicia el servicio OracleServiceXE
-- Verifica que Oracle está listo
+1. **Oracle Autonomous DB creado** en Oracle Cloud Console
+2. **Wallet descargado**: ADB → DB Connection → Download Wallet → extraer en `C:\Caprino-Wallet`
+3. **Password del usuario ADMIN** del ADB (la configuraste al crear la instancia)
 
 ---
 
-### **DESPUÉS DE INSTALACIÓN: Iniciar el Proyecto**
+## Opción A — Instalación automática (recomendada)
 
-#### Terminal 1️⃣ - Iniciar Backend
-```
-07-INICIAR-BACKEND.bat
-```
-- Inicia PHP en puerto 8000
-- Backend disponible en: http://localhost:8000
-
-#### Terminal 2️⃣ - Iniciar Frontend (EN UNA NUEVA TERMINAL DIFERENTE)
-```
-08-INICIAR-FRONTEND.bat
-```
-- Inicia Vite en puerto 5173
-- Frontend disponible en: http://localhost:5173
-
----
-
-## 🔄 CICLO DE DESARROLLO
-
-1. Mantén ambos servidores corriendo (Backend en Terminal 1, Frontend en Terminal 2)
-2. Frontend hace peticiones a http://localhost:8000/api/...
-3. Backend conecta a Oracle en localhost:1521
-4. Haz cambios en el código - se recargan automáticamente
-
----
-
-## 🛑 DETENER SERVIDORES
-
-- **Backend**: Presiona `CTRL+C` en Terminal 1
-- **Frontend**: Presiona `CTRL+C` en Terminal 2
-
----
-
-## 📂 ESTRUCTURA DE ARCHIVOS
+Ejecuta el script maestro; él corre todos los pasos en orden:
 
 ```
-00-SCRIPTS-INSTALACION/
-├── 00b-INSTALAR-VCRUNTIME.ps1       # Instala Visual C++ Runtime
-├── 00-INSTALAR-PHP-COMPATIBLE.ps1    # Instala y configura PHP 8.2
-├── 00-INSTALAR-PHP-COMPATIBLE.bat    # Ejecutable Windows
-├── 01-VERIFICAR-REQUISITOS.ps1      # Verificar dependencias
-├── 01-VERIFICAR-REQUISITOS.bat      # Ejecutable Windows
-├── 02-CONFIGURAR-ORACLE-ENV.ps1     # Configurar variables
-├── 02-CONFIGURAR-ORACLE-ENV.bat     # Ejecutable Windows
-├── 03-INSTALAR-OCI8.ps1             # Instalar extensión OCI8
-├── 04-INSTALAR-DEPENDENCIAS-BACKEND.ps1
-├── 04-INSTALAR-DEPENDENCIAS-BACKEND.bat
-├── 05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1
-├── 05-INSTALAR-DEPENDENCIAS-FRONTEND.bat
-├── 06-INICIAR-ORACLE.ps1
-├── 07-INICIAR-BACKEND.ps1
-├── 07-INICIAR-BACKEND.bat           # Ejecutable Windows
-├── 08-INICIAR-FRONTEND.ps1
-├── 08-INICIAR-FRONTEND.bat          # Ejecutable Windows
-├── logs/                            # Registro de ejecuciones
-└── README.md                        # Este archivo
+powershell -ExecutionPolicy Bypass -File "00-INSTALACION-COMPLETA.ps1"
 ```
 
 ---
 
-## 🐛 SOLUCIÓN DE PROBLEMAS
+## Opción B — Instalación paso a paso
 
-### "El script no se ejecuta en PowerShell"
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
-```
-
-### "PHP no encuentra OCI8"
-- Cierra PowerShell completamente y abre una nueva
-- Verifica: `php -m | findstr oci8`
-
-### "Composer da error"
-```powershell
-cd backend-symfony
-composer clear-cache
-composer install --ignore-platform-req=php --ignore-platform-req=ext-sodium
-```
-
-### "npm no funciona"
-```powershell
-npm cache clean --force
-npm install
-```
-
-### "Oracle no conecta"
-- Verifica el servicio: Services.msc → busca "OracleServiceXE"
-- Debe estar en estado "Running"
+| Script | Qué hace | Admin |
+|--------|----------|-------|
+| `00b-INSTALAR-VCRUNTIME.ps1` | Instala Visual C++ Runtime (prerequisito PHP) | No |
+| `00-INSTALAR-PHP-COMPATIBLE.ps1` | Instala PHP 8.2 | No |
+| `00c-INSTALAR-NODE.ps1` | Instala Node.js LTS | No |
+| `02-INSTALAR-INSTANT-CLIENT.ps1` | Instala Oracle Instant Client 21.x | No |
+| `02-CONFIGURAR-ORACLE-ENV.ps1` | Configura wallet + TNS_ADMIN | **Si** |
+| `02b-CREAR-USUARIO-ORACLE.ps1` | Crea usuario y tablas en el ADB | No |
+| `03-INSTALAR-OCI8.ps1` | Instala extension OCI8 para PHP | No |
+| `03b-INSTALAR-COMPOSER.ps1` | Instala Composer | No |
+| `04-INSTALAR-DEPENDENCIAS-BACKEND.ps1` | `composer install` | No |
+| `05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1` | `npm install` | No |
+| `09-CONFIGURAR-ENV.ps1` | Genera secrets y configura `.env` | No |
+| `01-VERIFICAR-REQUISITOS.ps1` | Comprobacion final de todo | No |
 
 ---
 
-## 📞 CONTACTO / SOPORTE
+## Iniciar el sistema (cada vez que quieras usarlo)
 
-Si tienes problemas:
-1. Revisa los logs en carpeta `logs/`
-2. Ejecuta de nuevo el script que falla
-3. Verifica los mensajes de error en consola
+```
+# Terminal 1
+07-INICIAR-BACKEND.bat      -> http://localhost:8000
+
+# Terminal 2
+08-INICIAR-FRONTEND.bat     -> http://localhost:5173
+```
 
 ---
 
-**¡Proyecto listo para desarrollar!** 🚀
+## Arquitectura de conexion
+
+```
+Frontend (React/Vite :5173)
+    | HTTP
+Backend (Symfony/PHP :8000)
+    | OCI8 + Instant Client + Wallet
+Oracle Autonomous Database (nube)
+```
+
+---
+
+## Solucion de problemas frecuentes
+
+**"OCI8 no cargado"**
+- Abre una nueva terminal (para que el PATH con Instant Client este activo)
+- Ejecuta: `php -m | findstr oci8`
+- Si sigue fallando: corre `03-INSTALAR-OCI8.ps1`
+
+**"TNS: sin nombre de servicio encontrado"**
+- Verifica que TNS_ADMIN apunte a la carpeta del wallet: `echo %TNS_ADMIN%`
+- Verifica que `C:\Caprino-Wallet\tnsnames.ora` existe
+- Corre `02-CONFIGURAR-ORACLE-ENV.ps1` de nuevo como Administrador
+
+**"ORA-12541: TNS sin listener"**
+- El alias TNS no es correcto — abre `C:\Caprino-Wallet\tnsnames.ora` y verifica los nombres
+- Actualiza `DATABASE_TNS_NAME` en `backend-symfony\.env`
+
+**"ORA-01017: usuario/contrasena no validos"**
+- Verifica `DATABASE_USER` y `DATABASE_PASSWORD` en `backend-symfony\.env`

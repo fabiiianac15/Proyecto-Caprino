@@ -1,0 +1,131 @@
+
+---
+
+# Épica: Migrar API monolítica `public/api.php` a backend Symfony estándar (manteniendo compatibilidad)
+
+## Contexto (estado actual)
+- El backend corre desde `backend-symfony/public/api.php`, que implementa:
+  - CORS + parseo de request manual
+  - Conexión Oracle por OCI8 directa
+  - JWT HS256 implementado “a mano”
+  - Routing por `preg_match` y `if` en un único archivo
+- Aunque está dentro de `backend-symfony/`, **no se usa el flujo estándar de Symfony** (controllers/routing/services).
+- El frontend React consume endpoints `/api/...` definidos en `api.php`.
+
+## Objetivo
+Reemplazar `backend-symfony/public/api.php` como motor principal por un **backend Symfony real** (entrypoint `public/index.php`), con arquitectura por capas, manteniendo los mismos endpoints y contratos JSON para no romper el frontend.
+
+## Alcance (qué incluye)
+1) **Routing y controllers Symfony**
+- Implementar rutas Symfony equivalentes a los endpoints actuales.
+- La API debe responder desde `public/index.php` (Symfony kernel).
+
+2) **Autenticación profesional**
+- Sustituir JWT “casero” por una implementación estándar:
+  - Symfony Security + JWT (recomendado: LexikJWTAuthenticationBundle) o equivalente.
+- Mantener `Authorization: Bearer <token>` y el comportamiento de:
+  - `POST /api/auth/register`
+  - `POST /api/auth/login`
+  - `GET /api/me`
+
+3) **Acceso a datos Oracle**
+- Crear una capa de acceso a datos reutilizable:
+  - Opción A: Doctrine DBAL (si es viable con Oracle)
+  - Opción B: servicio Oracle (OCI8) encapsulado + repositorios por tabla/aggregate
+- **Prohibido** SQL por concatenación en endpoints (ej. filtros de `/api/animales`); todo con binds/parámetros.
+
+4) **CORS y manejo de errores centralizado**
+- Configurar CORS por entorno (dev/prod) desde Symfony (no headers hardcodeados).
+- Respuestas JSON consistentes para errores (400/401/404/409/500).
+
+5) **Compatibilidad con frontend**
+Mantener endpoints y estructura de respuesta (o documentar cambios y actualizar frontend en el mismo trabajo). Endpoints a cubrir como mínimo:
+
+- `GET /api/health`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/me`
+- `GET /api/razas`
+
+- Animales:
+  - `GET /api/animales`
+  - `GET /api/animales/{id}`
+  - `POST /api/animales`
+  - `PUT /api/animales/{id}`
+  - `DELETE /api/animales/{id}`
+
+- Producción:
+  - `GET/POST /api/produccion`
+  - `DELETE /api/produccion/{id}`
+
+- Salud:
+  - `GET/POST /api/salud`
+  - `DELETE /api/salud/{id}`
+
+- Reproducción:
+  - `GET/POST /api/reproduccion`
+  - `PUT /api/reproduccion/{id}`
+
+- Pesaje:
+  - `GET/POST /api/pesaje`
+  - `DELETE /api/pesaje/{id}`
+
+- Genealogía:
+  - `GET /api/genealogia/{id}`
+  - `POST /api/genealogia`
+
+- Notificaciones:
+  - `GET /api/notificaciones`
+
+- Reportes:
+  - `GET /api/reportes/resumen`
+  - `GET /api/reportes/produccion`
+
+## Fuera de alcance (por ahora)
+- Reescribir frontend
+- Cambiar modelo de datos Oracle
+- Optimización de performance avanzada
+- Nuevos módulos funcionales no existentes
+
+## Plan de ejecución (por fases, sin romper producción/dev)
+**Fase 0 — Preparación**
+- Definir “contrato” de API actual:
+  - capturar ejemplos de request/response (Postman/Insomnia o documentación)
+- Crear `.env.example` para backend (sin credenciales reales)
+- Asegurar que el backend Symfony puede arrancar con `public/index.php` (hello world + health)
+
+**Fase 1 — Autenticación y usuario actual**
+- Implementar en Symfony:
+  - `POST /api/auth/register`
+  - `POST /api/auth/login`
+  - `GET /api/me`
+- Validar que el frontend puede loguearse y mantenerse autenticado.
+
+**Fase 2 — Catálogos y Animales**
+- Migrar `/api/razas` y el CRUD de `/api/animales`.
+- Incluir filtros de `GET /api/animales` con parámetros seguros (binds).
+
+**Fase 3 — Módulos restantes**
+- Migrar producción, salud, reproducción, pesaje, genealogía, notificaciones, reportes.
+
+**Fase 4 — Retiro controlado de `api.php`**
+- Marcar `public/api.php` como deprecated y luego eliminarlo o dejarlo inaccesible.
+- Actualizar README/guías/scripts para que el arranque sea Symfony estándar.
+
+## Criterios de aceptación (Definition of Done)
+- El backend responde correctamente desde Symfony (`public/index.php`) y **no depende** de `public/api.php`.
+- El frontend funciona sin cambios (o con cambios documentados y aplicados).
+- Todas las rutas listadas están implementadas y probadas al menos con:
+  - colección Postman/Insomnia, o
+  - tests de integración básicos.
+- CORS configurado por entorno.
+- No hay SQL concatenado con input del usuario.
+- JWT secret y credenciales solo por variables de entorno; sin defaults inseguros.
+
+## Riesgos conocidos
+- Integración Oracle con Symfony/Doctrine puede requerir configuración extra.
+- Migración puede romper contratos JSON; se debe validar endpoint por endpoint.
+
+---
+
+##

@@ -18,8 +18,8 @@ const animalService = {
   obtenerTodos: async (filtros = {}) => {
     try {
       const params = new URLSearchParams(filtros).toString();
-      const response = await axios.get(`${API_BASE_URL}/api/animals?${params}`);
-      return response.data['hydra:member'] || response.data;
+      const response = await axios.get(`${API_BASE_URL}/api/animales?${params}`);
+      return response.data.data || response.data;
     } catch (error) {
       console.error('Error al obtener animales:', error);
       throw error;
@@ -34,7 +34,7 @@ const animalService = {
    */
   obtenerPorId: async (id) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/animals/${id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/animales/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error al obtener animal ${id}:`, error);
@@ -50,7 +50,7 @@ const animalService = {
    */
   crear: async (datos) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/animals`, datos);
+      const response = await axios.post(`${API_BASE_URL}/api/animales`, datos);
       return response.data;
     } catch (error) {
       console.error('Error al crear animal:', error);
@@ -67,7 +67,7 @@ const animalService = {
    */
   actualizar: async (id, datos) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/animals/${id}`, datos);
+      const response = await axios.put(`${API_BASE_URL}/api/animales/${id}`, datos);
       return response.data;
     } catch (error) {
       console.error(`Error al actualizar animal ${id}:`, error);
@@ -83,7 +83,7 @@ const animalService = {
    */
   eliminar: async (id) => {
     try {
-      await axios.delete(`${API_BASE_URL}/api/animals/${id}`);
+      await axios.delete(`${API_BASE_URL}/api/animales/${id}`);
     } catch (error) {
       console.error(`Error al eliminar animal ${id}:`, error);
       throw error;
@@ -98,13 +98,13 @@ const animalService = {
    */
   buscar: async (termino) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/animals`, {
+      const response = await axios.get(`${API_BASE_URL}/api/animales`, {
         params: {
           'identificacion': termino,
           'nombre': termino,
         }
       });
-      return response.data['hydra:member'] || response.data;
+      return response.data.data || response.data;
     } catch (error) {
       console.error('Error al buscar animales:', error);
       throw error;
@@ -118,7 +118,7 @@ const animalService = {
    */
   obtenerEstadisticas: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/animals/estadisticas`);
+      const response = await axios.get(`${API_BASE_URL}/api/animales/estadisticas`);
       return response.data;
     } catch (error) {
       console.error('Error al obtener estadísticas:', error);

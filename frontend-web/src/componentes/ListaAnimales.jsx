@@ -90,8 +90,8 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
       const respuesta = await animalesAPI.search(parametros);
       
       // La respuesta puede venir en formato: {data: [...], total: ...}, Hydra, o array simple
-      const listaAnimales = respuesta.data || respuesta['hydra:member'] || respuesta;
-      const total = respuesta.total || respuesta['hydra:totalItems'] || (Array.isArray(listaAnimales) ? listaAnimales.length : 0);
+      const listaAnimales = respuesta.data || [];
+      const total = respuesta.total || listaAnimales.length;
       
       setAnimales(Array.isArray(listaAnimales) ? listaAnimales : []);
       setTotalPaginas(Math.ceil(total / animalesPorPagina));
@@ -179,7 +179,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
       animal.nombre || 'Sin nombre',
       animal.sexo === 'macho' ? 'Macho' : 'Hembra',
       calcularEdadMeses(animal.fechaNacimiento),
-      animal.raza?.nombre || 'Sin raza',
+      animal.nombreRaza || 'Sin raza',
       animal.estado
     ]);
 
@@ -369,7 +369,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
               <div className="h-48 bg-gradient-to-br from-green-100 to-green-50 relative overflow-hidden">
                 {(animal.fotoUrl || animal.foto) ? (
                   <img 
-                    src={`http://localhost:8000${animal.fotoUrl || animal.foto}`}
+                    src={`${import.meta.env.VITE_API_URL?.replace('/api','') || 'http://localhost:8000'}${animal.fotoUrl || animal.foto}`}
                     alt={animal.nombre}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -407,7 +407,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
                   <div className="flex items-center text-sm text-gray-600">
                     <Tag className="w-4 h-4 mr-2 text-gray-400" />
                     <span className="font-medium">Raza:</span>
-                    <span className="ml-2">{animal.raza}</span>
+                    <span className="ml-2">{animal.nombreRaza || 'Sin raza'}</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-600">
                     <Calendar className="w-4 h-4 mr-2 text-gray-400" />

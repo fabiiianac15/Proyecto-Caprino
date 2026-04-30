@@ -18,8 +18,8 @@ const produccionService = {
   obtenerTodos: async (filtros = {}) => {
     try {
       const params = new URLSearchParams(filtros).toString();
-      const response = await axios.get(`${API_BASE_URL}/api/produccion_leches?${params}`);
-      return response.data['hydra:member'] || response.data;
+      const response = await axios.get(`${API_BASE_URL}/api/produccion?${params}`);
+      return response.data.data || response.data;
     } catch (error) {
       console.error('Error al obtener producción:', error);
       throw error;
@@ -34,10 +34,10 @@ const produccionService = {
    */
   obtenerPorAnimal: async (idAnimal) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/produccion_leches`, {
+      const response = await axios.get(`${API_BASE_URL}/api/produccion`, {
         params: { 'animal.id': idAnimal }
       });
-      return response.data['hydra:member'] || response.data;
+      return response.data.data || response.data;
     } catch (error) {
       console.error(`Error al obtener producción del animal ${idAnimal}:`, error);
       throw error;
@@ -52,7 +52,7 @@ const produccionService = {
    */
   registrar: async (datos) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/produccion_leches`, datos);
+      const response = await axios.post(`${API_BASE_URL}/api/produccion`, datos);
       return response.data;
     } catch (error) {
       console.error('Error al registrar producción:', error);

@@ -1,127 +1,182 @@
 # ============================================================================
 # 02-CONFIGURAR-ORACLE-ENV.ps1
-# Detecta Oracle XE y configura ORACLE_HOME, ORACLE_SID, NLS_LANG y PATH
+# Configura el wallet de Oracle Autonomous DB y la variable TNS_ADMIN
 # Ejecutar como Administrador: powershell -ExecutionPolicy Bypass -File "02-CONFIGURAR-ORACLE-ENV.ps1"
 # ============================================================================
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "   CONFIGURAR VARIABLES DE ENTORNO DE ORACLE" -ForegroundColor Cyan
+Write-Host "   CONFIGURAR WALLET - Oracle Autonomous DB" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Este script configura la conexion a Oracle Autonomous DB." -ForegroundColor Gray
+Write-Host "Necesitas tener el wallet descargado desde Oracle Cloud Console." -ForegroundColor Gray
 Write-Host ""
 
 # Refrescar PATH
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
             [System.Environment]::GetEnvironmentVariable("Path","User")
 
-$ORACLE_HOME = $null
+$projectRoot = Split-Path -Parent $PSScriptRoot
 
-# ── 1. Buscar por sqlplus ya en PATH ─────────────────────────────────────────
-$sqlplusCmd = Get-Command sqlplus -ErrorAction SilentlyContinue
-if ($sqlplusCmd) {
-    # sqlplus esta en C:\...\bin\sqlplus.exe → subir dos niveles = ORACLE_HOME
-    $ORACLE_HOME = Split-Path -Parent (Split-Path -Parent $sqlplusCmd.Source)
-    Write-Host "[OK] Oracle detectado via sqlplus en PATH: $ORACLE_HOME" -ForegroundColor Green
+# ── 1. Verificar Oracle Instant Client ───────────────────────────────────────
+Write-Host "[1/4] Verificando Oracle Instant Client..." -ForegroundColor Yellow
+
+$icDir = $null
+$candidatosIC = @(
+    "C:\oracle\instantclient_21_14",
+    "C:\oracle\instantclient_21_13",
+    "C:\oracle\instantclient_21_12",
+    "C:\oracle\instantclient_21_3",
+    "C:\instantclient_21_14",
+    "C:\oracle\instantclient"
+)
+
+foreach ($c in $candidatosIC) {
+    if (Test-Path "$c\oci.dll") { $icDir = $c; break }
 }
 
-# ── 2. Buscar en rutas tipicas de Oracle XE (cualquier usuario) ──────────────
-if (-not $ORACLE_HOME) {
-    # FIX: buscar dinamicamente en C:\app\<cualquier-usuario>\product\...
-    $candidatos = @()
-
-    # Oracle XE 21c instalado para cualquier usuario
-    if (Test-Path "C:\app") {
-        Get-ChildItem "C:\app" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-            $p21 = Join-Path $_.FullName "product\21c\dbhomeXE"
-            $p18 = Join-Path $_.FullName "product\18c\dbhomeXE"
-            if (Test-Path $p21) { $candidatos += $p21 }
-            if (Test-Path $p18) { $candidatos += $p18 }
-        }
-    }
-
-    # Rutas adicionales comunes
-    @(
-        "C:\Oracle\product\21c\dbhomeXE",
-        "C:\oracle\product\21c\dbhomeXE",
-        "C:\Oracle21c",
-        "C:\OracleXE21c\app\oracle\product\21c\dbhomeXE"
-    ) | Where-Object { Test-Path $_ } | ForEach-Object { $candidatos += $_ }
-
-    if ($candidatos.Count -gt 0) {
-        $ORACLE_HOME = $candidatos[0]
-        Write-Host "[OK] Oracle encontrado en: $ORACLE_HOME" -ForegroundColor Green
-        if ($candidatos.Count -gt 1) {
-            Write-Host "     (se encontraron $($candidatos.Count) instalaciones, usando la primera)" -ForegroundColor Gray
-        }
+# Buscar tambien via PATH actual
+if (-not $icDir) {
+    $ociEnPath = Get-Command oci.dll -ErrorAction SilentlyContinue
+    if ($ociEnPath) {
+        $icDir = Split-Path -Parent $ociEnPath.Source
     }
 }
 
-# ── 3. Si aun no se encontro, pedir al usuario ───────────────────────────────
-if (-not $ORACLE_HOME) {
-    Write-Host "[AVISO] No se pudo detectar Oracle automaticamente." -ForegroundColor Yellow
-    Write-Host "Busca la carpeta que contiene BIN\sqlplus.exe (ej: C:\app\juan\product\21c\dbhomeXE)" -ForegroundColor Yellow
-    $ORACLE_HOME = Read-Host "Ingresa la ruta de ORACLE_HOME"
+if ($icDir) {
+    Write-Host "  [OK] Instant Client encontrado: $icDir" -ForegroundColor Green
+} else {
+    Write-Host "  [ERROR] Oracle Instant Client no encontrado." -ForegroundColor Red
+    Write-Host "  Ejecuta primero: 02-INSTALAR-INSTANT-CLIENT.ps1" -ForegroundColor Yellow
+    exit 1
+}
 
-    if (-not (Test-Path "$ORACLE_HOME\bin\sqlplus.exe")) {
-        Write-Host "[ERROR] No se encontro sqlplus.exe en '$ORACLE_HOME\bin'" -ForegroundColor Red
-        Write-Host "Asegurate de que Oracle XE este instalado e ingresa la ruta correcta." -ForegroundColor Yellow
+Write-Host ""
+
+# ── 2. Ubicar el wallet ───────────────────────────────────────────────────────
+Write-Host "[2/4] Ubicando wallet de Oracle Autonomous DB..." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  El wallet es un ZIP que descargas desde Oracle Cloud Console:" -ForegroundColor Gray
+Write-Host "  ADB -> DB Connection -> Download Wallet" -ForegroundColor Gray
+Write-Host "  Extrae el ZIP en una carpeta local (ej: C:\Caprino-Wallet)" -ForegroundColor Gray
+Write-Host ""
+
+# Buscar wallet en rutas comunes
+$walletCandidatos = @(
+    "C:\Caprino-Wallet",
+    "C:\oracle\wallet",
+    "C:\oracle\adb-wallet",
+    "$env:USERPROFILE\wallet",
+    "$env:USERPROFILE\Downloads\wallet"
+)
+
+$walletEncontrado = $walletCandidatos | Where-Object { Test-Path "$_\tnsnames.ora" } | Select-Object -First 1
+
+if ($walletEncontrado) {
+    Write-Host "  Wallet encontrado automaticamente en: $walletEncontrado" -ForegroundColor Green
+    $respuesta = Read-Host "  Usar esta ruta? (s/n)"
+    if ($respuesta -notmatch "^[sS]$") {
+        $walletEncontrado = $null
+    }
+}
+
+if (-not $walletEncontrado) {
+    $walletPath = Read-Host "  Ingresa la ruta donde extrajiste el wallet (ej: C:\Caprino-Wallet)"
+    $walletPath = $walletPath.Trim('"').Trim("'")
+
+    if (-not (Test-Path "$walletPath\tnsnames.ora")) {
+        Write-Host "  [ERROR] No se encontro tnsnames.ora en: $walletPath" -ForegroundColor Red
+        Write-Host "  Verifica que el wallet este extraido correctamente." -ForegroundColor Yellow
         exit 1
     }
+    $walletEncontrado = $walletPath
 }
 
+Write-Host "  [OK] Wallet valido en: $walletEncontrado" -ForegroundColor Green
 Write-Host ""
 
-# ── 4. Configurar variables de entorno del sistema ───────────────────────────
-Write-Host "Configurando ORACLE_HOME = $ORACLE_HOME" -ForegroundColor Yellow
-[Environment]::SetEnvironmentVariable("ORACLE_HOME", $ORACLE_HOME, [EnvironmentVariableTarget]::Machine)
-$env:ORACLE_HOME = $ORACLE_HOME
+# ── 3. Actualizar sqlnet.ora con la ruta real del wallet ──────────────────────
+Write-Host "[3/4] Actualizando sqlnet.ora..." -ForegroundColor Yellow
 
-Write-Host "Configurando ORACLE_SID = XE" -ForegroundColor Yellow
-[Environment]::SetEnvironmentVariable("ORACLE_SID", "XE", [EnvironmentVariableTarget]::Machine)
-$env:ORACLE_SID = "XE"
+$sqlnetPath = Join-Path $walletEncontrado "sqlnet.ora"
+$walletEscapado = $walletEncontrado -replace "\\", "\\"
 
-Write-Host "Configurando NLS_LANG = AMERICAN_AMERICA.AL32UTF8" -ForegroundColor Yellow
+$sqlnetContent = @"
+WALLET_LOCATION = (SOURCE = (METHOD = file)(METHOD_DATA = (DIRECTORY="$walletEncontrado")))
+SSL_SERVER_DN_MATCH=yes
+"@
+
+Set-Content -Path $sqlnetPath -Value $sqlnetContent -Encoding ASCII
+Write-Host "  [OK] sqlnet.ora actualizado con WALLET_LOCATION = $walletEncontrado" -ForegroundColor Green
+Write-Host ""
+
+# ── 4. Configurar variables de entorno del sistema ────────────────────────────
+Write-Host "[4/4] Configurando variables de entorno del sistema..." -ForegroundColor Yellow
+
+[Environment]::SetEnvironmentVariable("TNS_ADMIN", $walletEncontrado, [EnvironmentVariableTarget]::Machine)
+$env:TNS_ADMIN = $walletEncontrado
+Write-Host "  [OK] TNS_ADMIN = $walletEncontrado" -ForegroundColor Green
+
+# NLS_LANG para manejo correcto de caracteres
 [Environment]::SetEnvironmentVariable("NLS_LANG", "AMERICAN_AMERICA.AL32UTF8", [EnvironmentVariableTarget]::Machine)
 $env:NLS_LANG = "AMERICAN_AMERICA.AL32UTF8"
+Write-Host "  [OK] NLS_LANG  = AMERICAN_AMERICA.AL32UTF8" -ForegroundColor Green
 
 Write-Host ""
 
-# ── 5. Agregar ORACLE_HOME\bin al PATH del sistema ───────────────────────────
-$binPath     = "$ORACLE_HOME\bin"
-$machinePath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine)
-$entradas    = $machinePath -split ";" | Where-Object { $_ -ne "" }
-
-# FIX: usar -notcontains sobre array de entradas (no sobre el string completo)
-if ($entradas -notcontains $binPath) {
-    $nuevoPath = ($entradas + $binPath) -join ";"
-    [Environment]::SetEnvironmentVariable("Path", $nuevoPath, [EnvironmentVariableTarget]::Machine)
-    Write-Host "[OK] '$binPath' agregado al PATH del sistema" -ForegroundColor Green
+# ── Mostrar TNS names disponibles ─────────────────────────────────────────────
+Write-Host "Servicios TNS disponibles en el wallet:" -ForegroundColor Cyan
+$tnsContent = Get-Content "$walletEncontrado\tnsnames.ora" -ErrorAction SilentlyContinue
+$tnsNames = $tnsContent | Where-Object { $_ -match "^\w.*=\s*\(" } | ForEach-Object {
+    ($_ -split "=")[0].Trim()
+}
+if ($tnsNames) {
+    $tnsNames | ForEach-Object { Write-Host "  - $_" -ForegroundColor White }
+    $defaultTns = $tnsNames | Where-Object { $_ -match "_high$" } | Select-Object -First 1
+    if (-not $defaultTns) { $defaultTns = $tnsNames | Select-Object -First 1 }
 } else {
-    Write-Host "[OK] '$binPath' ya esta en el PATH del sistema" -ForegroundColor Green
+    Write-Host "  (no se pudieron leer — verifica tnsnames.ora)" -ForegroundColor Yellow
+    $defaultTns = "caprinodb_high"
 }
 
-# Refrescar PATH en la sesion actual
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
-            [System.Environment]::GetEnvironmentVariable("Path","User")
-
 Write-Host ""
-Write-Host "Verificando sqlplus..." -ForegroundColor Yellow
-$sqlp2 = Get-Command sqlplus -ErrorAction SilentlyContinue
-if ($sqlp2) {
-    Write-Host "[OK] sqlplus disponible en PATH" -ForegroundColor Green
+Write-Host "Recomendado para uso general: _high (mas recursos)" -ForegroundColor Gray
+Write-Host "Para cargas ligeras: _low o _medium" -ForegroundColor Gray
+Write-Host ""
+
+# ── Actualizar .env del backend ───────────────────────────────────────────────
+Write-Host "Actualizando backend\.env con la ruta del wallet..." -ForegroundColor Yellow
+
+$backendEnvPath = Join-Path $projectRoot "backend-symfony\.env"
+if (Test-Path $backendEnvPath) {
+    $envContent = Get-Content $backendEnvPath -Raw
+    $walletEscapado2 = $walletEncontrado -replace "\\", "\\"
+
+    $envContent = $envContent -replace '(?m)^DATABASE_WALLET_PATH=.*', "DATABASE_WALLET_PATH=$walletEncontrado"
+    if ($defaultTns) {
+        $envContent = $envContent -replace '(?m)^DATABASE_TNS_NAME=.*', "DATABASE_TNS_NAME=$defaultTns"
+    }
+    Set-Content -Path $backendEnvPath -Value $envContent -Encoding UTF8
+    Write-Host "  [OK] .env actualizado (DATABASE_WALLET_PATH, DATABASE_TNS_NAME)" -ForegroundColor Green
 } else {
-    Write-Host "[AVISO] sqlplus aun no visible — abre una nueva terminal para que surtan efecto los cambios" -ForegroundColor Yellow
+    Write-Host "  [AVISO] backend\.env no encontrado — actualiza manualmente" -ForegroundColor Yellow
 }
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "   CONFIGURACION COMPLETADA" -ForegroundColor Green
+Write-Host "   WALLET CONFIGURADO" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Variables configuradas:" -ForegroundColor Cyan
-Write-Host "  ORACLE_HOME = $ORACLE_HOME" -ForegroundColor Gray
-Write-Host "  ORACLE_SID  = XE" -ForegroundColor Gray
-Write-Host "  NLS_LANG    = AMERICAN_AMERICA.AL32UTF8" -ForegroundColor Gray
+Write-Host "  Instant Client : $icDir" -ForegroundColor Gray
+Write-Host "  Wallet         : $walletEncontrado" -ForegroundColor Gray
+Write-Host "  TNS_ADMIN      : $walletEncontrado" -ForegroundColor Gray
+if ($defaultTns) {
+    Write-Host "  TNS default    : $defaultTns" -ForegroundColor Gray
+}
 Write-Host ""
-Write-Host "Siguiente paso: ejecuta 03-INSTALAR-OCI8.ps1" -ForegroundColor Yellow
+Write-Host "IMPORTANTE: Abre una nueva terminal para que TNS_ADMIN surta efecto." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Siguiente paso: ejecuta 02b-CREAR-USUARIO-ORACLE.ps1" -ForegroundColor Yellow
+Write-Host "(crea el usuario y las tablas en tu ADB)" -ForegroundColor Gray
 Write-Host ""

@@ -67,14 +67,14 @@ const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
         sexo: 'Macho', 
         estadoGeneral: 'Sano' 
       });
-      setMachos(respuestaMachos['hydra:member'] || respuestaMachos);
+      setMachos(respuestaMachos.data || []);
 
       // Cargar hembras reproductoras
       const respuestaHembras = await animalesAPI.search({ 
         sexo: 'Hembra', 
         estadoGeneral: 'Sano' 
       });
-      setHembras(respuestaHembras['hydra:member'] || respuestaHembras);
+      setHembras(respuestaHembras.data || []);
     } catch (error) {
       console.error('Error al cargar datos iniciales:', error);
       mostrarMensaje('error', 'Error al cargar datos del formulario');

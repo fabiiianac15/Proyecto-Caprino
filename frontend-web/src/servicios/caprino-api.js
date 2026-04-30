@@ -1,5 +1,5 @@
 // API Base Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 // Mock data flag - change to false when backend is ready
 const USE_MOCK_DATA = false;
@@ -14,19 +14,19 @@ const getHeaders = () => {
   const headers = {
     'Content-Type': 'application/json'
   };
-  
+
   const token = getAuthToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  
+
   return headers;
 };
 
 // Helper function to make authenticated fetch
 const apiFetch = async (url, options = {}) => {
   const { method = 'GET', headers: optionsHeaders = {}, ...restOptions } = options;
-  
+
   const config = {
     method,
     ...restOptions,
@@ -35,9 +35,7 @@ const apiFetch = async (url, options = {}) => {
       ...optionsHeaders
     }
   };
-  
-  console.log('=== API FETCH - URL:', url, 'Method:', config.method);
-  
+
   return fetch(url, config);
 };
 
@@ -109,15 +107,15 @@ export const animalesAPI = {
       await mockDelay();
       return { data: MOCK_ANIMALS, total: MOCK_ANIMALS.length };
     }
-    
+
     try {
       const response = await apiFetch(`${API_BASE_URL}/animales`, {
         headers: getHeaders()
       });
       const data = await handleResponse(response);
       return {
-        data: data.data || data['hydra:member'] || [],
-        total: data.total || data['hydra:totalItems'] || (data.data ? data.data.length : 0)
+        data: data.data || [],
+        total: data.total || (data.data ? data.data.length : 0)
       };
     } catch (error) {
       console.error('Error fetching animals:', error);
@@ -133,7 +131,7 @@ export const animalesAPI = {
       if (!animal) throw new Error('Animal no encontrado');
       return animal;
     }
-    
+
     try {
       const response = await apiFetch(`${API_BASE_URL}/animales/${id}`);
       return await handleResponse(response);
@@ -145,8 +143,6 @@ export const animalesAPI = {
 
   // Create new animal
   create: async (animalData) => {
-    console.log('=== CREATE ANIMAL - Datos originales:', animalData);
-    
     if (USE_MOCK_DATA) {
       await mockDelay();
       const newAnimal = {
@@ -156,9 +152,8 @@ export const animalesAPI = {
       MOCK_ANIMALS.push(newAnimal);
       return newAnimal;
     }
-    
+
     try {
-      // Transformar campos del formulario al formato del backend
       const dataTransformada = {
         codigoIdentificacion: animalData.identificacion || animalData.numeroIdentificacion || animalData.codigo,
         nombre: animalData.nombre,
@@ -170,10 +165,7 @@ export const animalesAPI = {
         observaciones: animalData.observaciones,
         fotoUrl: animalData.foto || animalData.fotoUrl
       };
-      
-      console.log('=== CREATE ANIMAL - Datos transformados:', dataTransformada);
-      console.log('=== CREATE ANIMAL - URL:', `${API_BASE_URL}/animales`);
-      
+
       const response = await apiFetch(`${API_BASE_URL}/animales`, {
         method: 'POST',
         headers: {
@@ -181,24 +173,17 @@ export const animalesAPI = {
         },
         body: JSON.stringify(dataTransformada),
       });
-      
-      console.log('=== CREATE ANIMAL - Response status:', response.status);
-      
+
       const result = await handleResponse(response);
-      console.log('=== CREATE ANIMAL - Result:', result);
-      
       return result.data || result;
     } catch (error) {
-      console.error('=== CREATE ANIMAL - Error:', error);
+      console.error('Error creating animal:', error);
       throw error;
     }
   },
 
   // Update animal
   update: async (id, animalData) => {
-    console.log('=== UPDATE ANIMAL START - ID:', id);
-    console.log('=== UPDATE ANIMAL - Datos originales:', animalData);
-    
     if (USE_MOCK_DATA) {
       await mockDelay();
       const index = MOCK_ANIMALS.findIndex(a => a.id === parseInt(id));
@@ -206,8 +191,7 @@ export const animalesAPI = {
       MOCK_ANIMALS[index] = { ...MOCK_ANIMALS[index], ...animalData };
       return MOCK_ANIMALS[index];
     }
-    
-    // Transformar los datos al formato esperado por el backend
+
     const dataTransformada = {
       codigoIdentificacion: animalData.identificacion || animalData.codigo,
       nombre: animalData.nombre,
@@ -219,15 +203,7 @@ export const animalesAPI = {
       observaciones: animalData.observaciones,
       fotoUrl: animalData.fotoUrl || animalData.foto
     };
-    
-    console.log('=== UPDATE ANIMAL - Datos transformados:', dataTransformada);
-    console.log('=== UPDATE ANIMAL - URL:', `${API_BASE_URL}/animales/${id}`);
-    console.log('=== UPDATE ANIMAL - Opciones fetch:', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: 'JSON.stringify(dataTransformada)'
-    });
-    
+
     try {
       const response = await apiFetch(`${API_BASE_URL}/animales/${id}`, {
         method: 'PUT',
@@ -236,11 +212,8 @@ export const animalesAPI = {
         },
         body: JSON.stringify(dataTransformada),
       });
-      
-      console.log('=== UPDATE ANIMAL - Response status:', response.status);
-      
+
       const result = await handleResponse(response);
-      console.log('=== UPDATE ANIMAL - Result:', result);
       return result.data || result;
     } catch (error) {
       console.error(`Error updating animal ${id}:`, error);
@@ -257,7 +230,7 @@ export const animalesAPI = {
       MOCK_ANIMALS.splice(index, 1);
       return { success: true };
     }
-    
+
     try {
       const response = await apiFetch(`${API_BASE_URL}/animales/${id}`, {
         method: 'DELETE',
@@ -275,7 +248,7 @@ export const animalesAPI = {
     if (USE_MOCK_DATA) {
       await mockDelay();
       let filtered = [...MOCK_ANIMALS];
-      
+
       if (filters.sexo) {
         filtered = filtered.filter(a => a.sexo === filters.sexo);
       }
@@ -287,22 +260,22 @@ export const animalesAPI = {
       }
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
-        filtered = filtered.filter(a => 
+        filtered = filtered.filter(a =>
           a.numeroIdentificacion.toLowerCase().includes(searchLower) ||
           (a.nombre && a.nombre.toLowerCase().includes(searchLower))
         );
       }
-      
+
       return { data: filtered, total: filtered.length };
     }
-    
+
     try {
       const params = new URLSearchParams(filters);
       const response = await apiFetch(`${API_BASE_URL}/animales?${params}`);
       const data = await handleResponse(response);
       return {
-        data: data.data || data['hydra:member'] || [],
-        total: data.total || data['hydra:totalItems'] || (data.data ? data.data.length : 0)
+        data: data.data || [],
+        total: data.total || (data.data ? data.data.length : 0)
       };
     } catch (error) {
       console.error('Error searching animals:', error);
@@ -320,13 +293,13 @@ export const razasAPI = {
       await mockDelay();
       return { data: MOCK_RAZAS, total: MOCK_RAZAS.length };
     }
-    
+
     try {
       const response = await apiFetch(`${API_BASE_URL}/razas`);
       const data = await handleResponse(response);
       return {
-        data: data.data || data['hydra:member'] || [],
-        total: data.total || data['hydra:totalItems'] || (data.data ? data.data.length : 0)
+        data: data.data || [],
+        total: data.total || (data.data ? data.data.length : 0)
       };
     } catch (error) {
       console.error('Error fetching breeds:', error);
@@ -341,13 +314,13 @@ export const razasAPI = {
       const activas = MOCK_RAZAS.filter(r => r.activo);
       return { data: activas, total: activas.length };
     }
-    
+
     try {
       const response = await apiFetch(`${API_BASE_URL}/razas?activo=true`);
       const data = await handleResponse(response);
       return {
-        data: data.data || data['hydra:member'] || [],
-        total: data.total || data['hydra:totalItems'] || (data.data ? data.data.length : 0)
+        data: data.data || [],
+        total: data.total || (data.data ? data.data.length : 0)
       };
     } catch (error) {
       console.error('Error fetching active breeds:', error);
@@ -365,14 +338,14 @@ export const produccionAPI = {
       await mockDelay();
       return { data: [], total: 0 };
     }
-    
+
     try {
       const params = new URLSearchParams(filters);
-      const response = await apiFetch(`${API_BASE_URL}/produccion_leches?${params}`);
+      const response = await apiFetch(`${API_BASE_URL}/produccion?${params}`);
       const data = await handleResponse(response);
       return {
-        data: data['hydra:member'] || [],
-        total: data['hydra:totalItems'] || 0
+        data: data.data || [],
+        total: data.total || 0
       };
     } catch (error) {
       console.error('Error fetching production records:', error);
@@ -386,9 +359,9 @@ export const produccionAPI = {
       await mockDelay();
       return { ...produccionData, id: Date.now() };
     }
-    
+
     try {
-      const response = await apiFetch(`${API_BASE_URL}/produccion_leches`, {
+      const response = await apiFetch(`${API_BASE_URL}/produccion`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -412,14 +385,14 @@ export const reproduccionAPI = {
       await mockDelay();
       return { data: [], total: 0 };
     }
-    
+
     try {
       const params = new URLSearchParams(filters);
-      const response = await apiFetch(`${API_BASE_URL}/reproduccions?${params}`);
+      const response = await apiFetch(`${API_BASE_URL}/reproduccion?${params}`);
       const data = await handleResponse(response);
       return {
-        data: data['hydra:member'] || [],
-        total: data['hydra:totalItems'] || 0
+        data: data.data || [],
+        total: data.total || 0
       };
     } catch (error) {
       console.error('Error fetching reproduction records:', error);
@@ -433,9 +406,9 @@ export const reproduccionAPI = {
       await mockDelay();
       return { ...reproduccionData, id: Date.now() };
     }
-    
+
     try {
-      const response = await apiFetch(`${API_BASE_URL}/reproduccions`, {
+      const response = await apiFetch(`${API_BASE_URL}/reproduccion`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -459,14 +432,14 @@ export const saludAPI = {
       await mockDelay();
       return { data: [], total: 0 };
     }
-    
+
     try {
       const params = new URLSearchParams(filters);
-      const response = await apiFetch(`${API_BASE_URL}/saluds?${params}`);
+      const response = await apiFetch(`${API_BASE_URL}/salud?${params}`);
       const data = await handleResponse(response);
       return {
-        data: data['hydra:member'] || [],
-        total: data['hydra:totalItems'] || 0
+        data: data.data || [],
+        total: data.total || 0
       };
     } catch (error) {
       console.error('Error fetching health records:', error);
@@ -480,9 +453,9 @@ export const saludAPI = {
       await mockDelay();
       return { ...saludData, id: Date.now() };
     }
-    
+
     try {
-      const response = await apiFetch(`${API_BASE_URL}/saluds`, {
+      const response = await apiFetch(`${API_BASE_URL}/salud`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -506,14 +479,14 @@ export const pesajeAPI = {
       await mockDelay();
       return { data: [], total: 0 };
     }
-    
+
     try {
       const params = new URLSearchParams(filters);
-      const response = await apiFetch(`${API_BASE_URL}/pesajes?${params}`);
+      const response = await apiFetch(`${API_BASE_URL}/pesaje?${params}`);
       const data = await handleResponse(response);
       return {
-        data: data['hydra:member'] || [],
-        total: data['hydra:totalItems'] || 0
+        data: data.data || [],
+        total: data.total || 0
       };
     } catch (error) {
       console.error('Error fetching weight records:', error);
@@ -527,9 +500,9 @@ export const pesajeAPI = {
       await mockDelay();
       return { ...pesajeData, id: Date.now() };
     }
-    
+
     try {
-      const response = await apiFetch(`${API_BASE_URL}/pesajes`, {
+      const response = await apiFetch(`${API_BASE_URL}/pesaje`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

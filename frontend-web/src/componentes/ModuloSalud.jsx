@@ -53,7 +53,7 @@ const ModuloSalud = () => {
     setCargando(true);
     try {
       const datos = await saludAPI.getAll();
-      setEventos(datos['hydra:member'] || datos);
+      setEventos(datos.data || []);
     } catch (error) {
       console.error('Error al cargar salud:', error);
       setEventos([]);

@@ -52,7 +52,7 @@ const ModuloReproduccion = () => {
     setCargando(true);
     try {
       const datos = await reproduccionAPI.getAll();
-      setEventos(datos['hydra:member'] || datos);
+      setEventos(datos.data || []);
     } catch (error) {
       console.error('Error al cargar reproducción:', error);
       setEventos([]);

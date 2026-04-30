@@ -9,11 +9,15 @@ Write-Host "============================================================" -Foreg
 Write-Host "   INSTALACION COMPLETA - PROYECTO CAPRINO" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Este script instalara y configurara todo lo necesario." -ForegroundColor Yellow
-Write-Host "Duracion estimada: 10-20 minutos segun la velocidad de internet." -ForegroundColor Yellow
+Write-Host "Este script instalara y configurara todo lo necesario para" -ForegroundColor Yellow
+Write-Host "conectarse a Oracle Autonomous Database en la nube." -ForegroundColor Yellow
+Write-Host "Duracion estimada: 10-15 minutos segun la velocidad de internet." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "PREREQUISITO: Tener el wallet de Oracle Autonomous DB descargado" -ForegroundColor Cyan
+Write-Host "  Oracle Cloud Console -> ADB -> DB Connection -> Download Wallet" -ForegroundColor Gray
+Write-Host "  Extraer el ZIP en: C:\Caprino-Wallet" -ForegroundColor Gray
 Write-Host ""
 
-# FIX: $PSScriptRoot ya es el directorio del script — no aplicar Split-Path sobre el
 $scriptDir   = $PSScriptRoot
 $projectRoot = Split-Path -Parent $scriptDir
 
@@ -23,17 +27,18 @@ Write-Host ""
 
 # Lista de pasos en orden
 $pasos = @(
-    @{ num = "00b"; nombre = "Visual C++ Runtime (prerequisito PHP)";     archivo = "00b-INSTALAR-VCRUNTIME.ps1";            admin = $false },
-    @{ num = "00" ; nombre = "Instalar PHP 8.2";                          archivo = "00-INSTALAR-PHP-COMPATIBLE.ps1";         admin = $false },
-    @{ num = "00c"; nombre = "Instalar Node.js";                          archivo = "00c-INSTALAR-NODE.ps1";                  admin = $false },
-    @{ num = "01" ; nombre = "Verificar requisitos";                      archivo = "01-VERIFICAR-REQUISITOS.ps1";            admin = $false },
-    @{ num = "02" ; nombre = "Configurar variables Oracle (ORACLE_HOME)"; archivo = "02-CONFIGURAR-ORACLE-ENV.ps1";           admin = $true  },
-    @{ num = "02b"; nombre = "Crear usuario caprino_user en Oracle";      archivo = "02b-CREAR-USUARIO-ORACLE.ps1";           admin = $false },
-    @{ num = "03" ; nombre = "Instalar extension OCI8 para PHP";          archivo = "03-INSTALAR-OCI8.ps1";                   admin = $false },
-    @{ num = "03b"; nombre = "Instalar Composer";                         archivo = "03b-INSTALAR-COMPOSER.ps1";              admin = $false },
-    @{ num = "04" ; nombre = "Instalar dependencias backend";             archivo = "04-INSTALAR-DEPENDENCIAS-BACKEND.ps1";   admin = $false },
-    @{ num = "05" ; nombre = "Instalar dependencias frontend";            archivo = "05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1";  admin = $false },
-    @{ num = "09" ; nombre = "Configurar archivos .env";                  archivo = "09-CONFIGURAR-ENV.ps1";                  admin = $false }
+    @{ num = "00b"; nombre = "Visual C++ Runtime (prerequisito PHP)";       archivo = "00b-INSTALAR-VCRUNTIME.ps1";            admin = $false },
+    @{ num = "00" ; nombre = "Instalar PHP 8.2";                            archivo = "00-INSTALAR-PHP-COMPATIBLE.ps1";         admin = $false },
+    @{ num = "00c"; nombre = "Instalar Node.js";                            archivo = "00c-INSTALAR-NODE.ps1";                  admin = $false },
+    @{ num = "02-IC"; nombre = "Instalar Oracle Instant Client";            archivo = "02-INSTALAR-INSTANT-CLIENT.ps1";         admin = $false },
+    @{ num = "02" ; nombre = "Configurar wallet Oracle Autonomous DB";      archivo = "02-CONFIGURAR-ORACLE-ENV.ps1";           admin = $true  },
+    @{ num = "02b"; nombre = "Crear usuario y tablas en Oracle ADB";        archivo = "02b-CREAR-USUARIO-ORACLE.ps1";           admin = $false },
+    @{ num = "03" ; nombre = "Instalar extension OCI8 para PHP";            archivo = "03-INSTALAR-OCI8.ps1";                   admin = $false },
+    @{ num = "03b"; nombre = "Instalar Composer";                           archivo = "03b-INSTALAR-COMPOSER.ps1";              admin = $false },
+    @{ num = "04" ; nombre = "Instalar dependencias backend";               archivo = "04-INSTALAR-DEPENDENCIAS-BACKEND.ps1";   admin = $false },
+    @{ num = "05" ; nombre = "Instalar dependencias frontend";              archivo = "05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1";  admin = $false },
+    @{ num = "09" ; nombre = "Configurar archivos .env";                    archivo = "09-CONFIGURAR-ENV.ps1";                  admin = $false },
+    @{ num = "01" ; nombre = "Verificar requisitos (comprobacion final)";   archivo = "01-VERIFICAR-REQUISITOS.ps1";            admin = $false }
 )
 
 Write-Host "Pasos a ejecutar:" -ForegroundColor Cyan
@@ -71,7 +76,6 @@ foreach ($paso in $pasos) {
             Write-Host "Este paso requiere permisos de Administrador." -ForegroundColor Yellow
             Write-Host "Se abrira una ventana elevada. Espera a que termine antes de continuar." -ForegroundColor Yellow
             Write-Host ""
-            # FIX: usar -Verb RunAs para elevacion real, sin credenciales falsas
             $proc = Start-Process powershell.exe `
                 -ArgumentList "-ExecutionPolicy Bypass -File `"$ruta`"" `
                 -Verb RunAs `
@@ -106,10 +110,9 @@ Write-Host "   INSTALACION FINALIZADA" -ForegroundColor Cyan
 Write-Host "   Pasos exitosos: $ok   Fallos: $fallos" -ForegroundColor $(if ($fallos -eq 0) { "Green" } else { "Yellow" })
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Proximos pasos para iniciar el sistema:" -ForegroundColor Cyan
-Write-Host "  1. Ejecutar: 06-INICIAR-ORACLE.ps1  (como Administrador, una sola vez por sesion)" -ForegroundColor White
-Write-Host "  2. Abrir terminal 1 -> doble clic en: 07-INICIAR-BACKEND.bat" -ForegroundColor White
-Write-Host "  3. Abrir terminal 2 -> doble clic en: 08-INICIAR-FRONTEND.bat" -ForegroundColor White
+Write-Host "Para iniciar el sistema:" -ForegroundColor Cyan
+Write-Host "  1. Abrir terminal 1 -> doble clic en: 07-INICIAR-BACKEND.bat" -ForegroundColor White
+Write-Host "  2. Abrir terminal 2 -> doble clic en: 08-INICIAR-FRONTEND.bat" -ForegroundColor White
 Write-Host ""
 Write-Host "La aplicacion estara disponible en: http://localhost:5173" -ForegroundColor Green
 Write-Host "(con el backend corriendo en:        http://localhost:8000)" -ForegroundColor Gray

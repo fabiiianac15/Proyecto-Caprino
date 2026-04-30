@@ -1,11 +1,11 @@
 doctrine:
     dbal:
         driver: 'oci8'
-        dbname: '127.0.0.1:1521/XEPDB1'
+        dbname: '%env(DATABASE_TNS_NAME)%'
         user: '%env(DATABASE_USER)%'
         password: '%env(DATABASE_PASSWORD)%'
         charset: AL32UTF8
-        server_version: '21c'
+        server_version: '19c'
     orm:
         auto_generate_proxy_classes: false
         enable_lazy_ghost_objects: false
