@@ -1,4 +1,4 @@
-# 03b-INSTALAR-COMPOSER.ps1
+﻿# 03b-INSTALAR-COMPOSER.ps1
 
 Write-Host ""
 Write-Host "==== INSTALAR COMPOSER ==== " -ForegroundColor Cyan

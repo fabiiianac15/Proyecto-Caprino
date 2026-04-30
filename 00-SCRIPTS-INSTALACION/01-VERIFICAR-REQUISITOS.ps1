@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 01-VERIFICAR-REQUISITOS.ps1
 # Verifica que todos los componentes necesarios estan instalados
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "01-VERIFICAR-REQUISITOS.ps1"
@@ -25,11 +25,11 @@ if ($phpCmd) {
         $linea = (& php -v 2>$null).Split([Environment]::NewLine)[0]
         Write-Host "    [OK] $linea" -ForegroundColor Green
     } else {
-        Write-Host "    [ERROR] PHP $ver — se requiere 8.1 o superior" -ForegroundColor Red
+        Write-Host "    [ERROR] PHP $ver  -  se requiere 8.1 o superior" -ForegroundColor Red
         $todoOk = $false
     }
 } else {
-    Write-Host "    [ERROR] PHP no encontrado — ejecuta 00-INSTALAR-PHP-COMPATIBLE.ps1" -ForegroundColor Red
+    Write-Host "    [ERROR] PHP no encontrado  -  ejecuta 00-INSTALAR-PHP-COMPATIBLE.ps1" -ForegroundColor Red
     $todoOk = $false
 }
 Write-Host ""
@@ -41,7 +41,7 @@ if ($phpCmd) {
     if ($oci8) {
         Write-Host "    [OK] OCI8 cargado en PHP" -ForegroundColor Green
     } else {
-        Write-Host "    [AVISO] OCI8 no cargado — ejecuta 03-INSTALAR-OCI8.ps1" -ForegroundColor Yellow
+        Write-Host "    [AVISO] OCI8 no cargado  -  ejecuta 03-INSTALAR-OCI8.ps1" -ForegroundColor Yellow
     }
 } else {
     Write-Host "    [OMITIDO] PHP no disponible" -ForegroundColor Gray
@@ -61,9 +61,9 @@ if (-not $ociDll) {
     )
     $icDir = $icCandidatos | Where-Object { Test-Path "$_\oci.dll" } | Select-Object -First 1
     if ($icDir) {
-        Write-Host "    [AVISO] Instant Client en '$icDir' pero no esta en PATH — abre nueva terminal" -ForegroundColor Yellow
+        Write-Host "    [AVISO] Instant Client en '$icDir' pero no esta en PATH  -  abre nueva terminal" -ForegroundColor Yellow
     } else {
-        Write-Host "    [ERROR] Instant Client no encontrado — ejecuta 02-INSTALAR-INSTANT-CLIENT.ps1" -ForegroundColor Red
+        Write-Host "    [ERROR] Instant Client no encontrado  -  ejecuta 02-INSTALAR-INSTANT-CLIENT.ps1" -ForegroundColor Red
         $todoOk = $false
     }
 } else {
@@ -78,7 +78,7 @@ $sqlplusCmd = Get-Command sqlplus -ErrorAction SilentlyContinue
 if ($sqlplusCmd) {
     Write-Host "    [OK] sqlplus encontrado: $($sqlplusCmd.Source)" -ForegroundColor Green
 } else {
-    Write-Host "    [AVISO] sqlplus no encontrado — incluido en Instant Client SQL*Plus package" -ForegroundColor Yellow
+    Write-Host "    [AVISO] sqlplus no encontrado  -  incluido en Instant Client SQL*Plus package" -ForegroundColor Yellow
 }
 Write-Host ""
 
@@ -100,7 +100,7 @@ if ($tnsAdmin -and (Test-Path "$tnsAdmin\tnsnames.ora")) {
     Write-Host "    [ERROR] TNS_ADMIN=$tnsAdmin pero tnsnames.ora no encontrado" -ForegroundColor Red
     $todoOk = $false
 } else {
-    Write-Host "    [ERROR] TNS_ADMIN no configurado — ejecuta 02-CONFIGURAR-ORACLE-ENV.ps1" -ForegroundColor Red
+    Write-Host "    [ERROR] TNS_ADMIN no configurado  -  ejecuta 02-CONFIGURAR-ORACLE-ENV.ps1" -ForegroundColor Red
     $todoOk = $false
 }
 Write-Host ""
@@ -115,10 +115,10 @@ if ($nodeCmd) {
         $npmVer = & npm --version 2>$null
         Write-Host "    [OK] Node.js $nodeVer  /  npm $npmVer" -ForegroundColor Green
     } else {
-        Write-Host "    [AVISO] Node.js $nodeVer — se recomienda v18 o superior" -ForegroundColor Yellow
+        Write-Host "    [AVISO] Node.js $nodeVer  -  se recomienda v18 o superior" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "    [AVISO] Node.js no encontrado — ejecuta 00c-INSTALAR-NODE.ps1" -ForegroundColor Yellow
+    Write-Host "    [AVISO] Node.js no encontrado  -  ejecuta 00c-INSTALAR-NODE.ps1" -ForegroundColor Yellow
 }
 Write-Host ""
 
@@ -129,7 +129,7 @@ if ($compCmd) {
     $compVer = & composer --version 2>$null
     Write-Host "    [OK] $compVer" -ForegroundColor Green
 } else {
-    Write-Host "    [AVISO] Composer no encontrado — ejecuta 03b-INSTALAR-COMPOSER.ps1" -ForegroundColor Yellow
+    Write-Host "    [AVISO] Composer no encontrado  -  ejecuta 03b-INSTALAR-COMPOSER.ps1" -ForegroundColor Yellow
 }
 Write-Host ""
 
@@ -137,7 +137,7 @@ Write-Host ""
 Write-Host "[8] Puerto 8000 disponible para el backend..." -ForegroundColor Yellow
 $en8000 = netstat -an 2>$null | Select-String ":8000\s.*LISTEN"
 if ($en8000) {
-    Write-Host "    [AVISO] Puerto 8000 en uso — el backend podria no iniciar" -ForegroundColor Yellow
+    Write-Host "    [AVISO] Puerto 8000 en uso  -  el backend podria no iniciar" -ForegroundColor Yellow
 } else {
     Write-Host "    [OK] Puerto 8000 libre" -ForegroundColor Green
 }
@@ -147,7 +147,7 @@ Write-Host "============================================================" -Foreg
 if ($todoOk) {
     Write-Host "   RESULTADO: Todos los requisitos criticos estan OK" -ForegroundColor Green
 } else {
-    Write-Host "   RESULTADO: Faltan componentes — revisa los marcados en rojo" -ForegroundColor Yellow
+    Write-Host "   RESULTADO: Faltan componentes  -  revisa los marcados en rojo" -ForegroundColor Yellow
 }
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""

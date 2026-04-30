@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 08-INICIAR-FRONTEND.ps1
 # Inicia el servidor Vite del frontend en puerto 5173
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "08-INICIAR-FRONTEND.ps1"

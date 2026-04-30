@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 02b-CREAR-USUARIO-ORACLE.ps1
 # Crea el usuario caprino_user en Oracle Autonomous DB y crea las tablas
 # Requiere: Instant Client instalado + wallet configurado (TNS_ADMIN)
@@ -59,13 +59,28 @@ $adminPwd = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
     [Runtime.InteropServices.Marshal]::SecureStringToBSTR($adminPwdSecure)
 )
 
+# Funcion auxiliar: ejecutar SQL en sqlplus via archivo temporal (evita BOM en pipes)
+function Invoke-SqlPlus {
+    param([string]$ConnStr, [string]$Sql)
+    $tmpFile = [System.IO.Path]::ChangeExtension([System.IO.Path]::GetTempFileName(), ".sql")
+    [System.IO.File]::WriteAllText($tmpFile, $Sql, (New-Object System.Text.UTF8Encoding $false))
+    $out = & sqlplus -S $ConnStr "@`"$tmpFile`"" 2>&1
+    Remove-Item $tmpFile -Force -ErrorAction SilentlyContinue
+    return $out
+}
+
 # ── Verificar conexion ────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "Verificando conexion a Oracle Autonomous DB..." -ForegroundColor Yellow
-$testSql   = "SELECT 'CONEXION_OK' FROM DUAL;"
-$testOutput = $testSql | & sqlplus -S "ADMIN/$adminPwd@$tnsName" 2>&1
+Write-Host "  TNS_ADMIN = $env:TNS_ADMIN" -ForegroundColor Gray
+Write-Host "  Alias     = $tnsName" -ForegroundColor Gray
+
+$testOutput = Invoke-SqlPlus -ConnStr "ADMIN/`"$adminPwd`"@$tnsName" -Sql "SELECT 'CONEXION_OK' FROM DUAL;`r`nEXIT;"
 if ($testOutput -notmatch "CONEXION_OK") {
     Write-Host "[ERROR] No se pudo conectar al ADB." -ForegroundColor Red
+    Write-Host "Salida de sqlplus:" -ForegroundColor Yellow
+    $testOutput | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
+    Write-Host ""
     Write-Host "Verifica:" -ForegroundColor Yellow
     Write-Host "  1. La password del usuario ADMIN es correcta" -ForegroundColor Yellow
     Write-Host "  2. El wallet esta configurado (TNS_ADMIN=$env:TNS_ADMIN)" -ForegroundColor Yellow
@@ -80,7 +95,7 @@ Write-Host ""
 Write-Host "Paso 1/3: Creando usuario caprino_user..." -ForegroundColor Yellow
 
 # En ADB se usa CREATE USER normal (no SYS/sysdba).
-# IDENTIFIED EXTERNALLY AS 'CN=...' es para LDAP — aqui usamos password directa.
+# IDENTIFIED EXTERNALLY AS 'CN=...' es para LDAP  -  aqui usamos password directa.
 $caprino_password = "CaprinoPass2025!"
 $sqlCrearUsuario = @"
 -- Crear usuario de la aplicacion en ADB
@@ -102,8 +117,8 @@ SELECT 'USUARIO_CREADO' FROM DUAL;
 EXIT;
 "@
 
-$out1 = $sqlCrearUsuario | & sqlplus -S "ADMIN/$adminPwd@$tnsName" 2>&1
-# ORA-01920: el usuario ya existe — ignorar
+$out1 = Invoke-SqlPlus -ConnStr "ADMIN/`"$adminPwd`"@$tnsName" -Sql $sqlCrearUsuario
+# ORA-01920: el usuario ya existe  -  ignorar
 $errores1 = $out1 | Select-String "ORA-" | Where-Object { $_ -notmatch "ORA-01920" }
 if ($errores1) {
     Write-Host "  [AVISO] $($errores1 -join '; ')" -ForegroundColor Yellow
@@ -114,10 +129,12 @@ if ($errores1) {
 
 # Guardar password en .env
 if (Test-Path $backendEnvPath) {
-    $envContent = Get-Content $backendEnvPath -Raw
+    $utf8NoBom  = New-Object System.Text.UTF8Encoding $false
+    $envContent = [System.IO.File]::ReadAllText($backendEnvPath, (New-Object System.Text.UTF8Encoding $true))
+    if ($envContent.Length -gt 0 -and $envContent[0] -eq [char]0xFEFF) { $envContent = $envContent.Substring(1) }
     $envContent = $envContent -replace '(?m)^DATABASE_USER=.*',     'DATABASE_USER=caprino_user'
     $envContent = $envContent -replace '(?m)^DATABASE_PASSWORD=.*', "DATABASE_PASSWORD=$caprino_password"
-    Set-Content -Path $backendEnvPath -Value $envContent -Encoding UTF8
+    [System.IO.File]::WriteAllText($backendEnvPath, $envContent, $utf8NoBom)
     Write-Host "  [OK] Credenciales guardadas en backend\.env" -ForegroundColor Green
 }
 Write-Host ""
@@ -136,11 +153,11 @@ $scriptsSQL = @(
 foreach ($s in $scriptsSQL) {
     $rutaSql = Join-Path $dbScripts $s.archivo
     if (-not (Test-Path $rutaSql)) {
-        Write-Host "  [AVISO] No encontrado: $($s.archivo) — saltando" -ForegroundColor Yellow
+        Write-Host "  [AVISO] No encontrado: $($s.archivo)  -  saltando" -ForegroundColor Yellow
         continue
     }
     Write-Host "  Ejecutando: $($s.desc)..." -ForegroundColor Gray
-    $outSql = & sqlplus -S "caprino_user/$caprino_password@$tnsName" "@`"$rutaSql`"" 2>&1
+    $outSql = & sqlplus -S "caprino_user/`"$caprino_password`"@$tnsName" "@`"$rutaSql`"" 2>&1
     $errSql = $outSql | Select-String "ORA-" | Where-Object {
         $_ -notmatch "ORA-00955|ORA-01430|ORA-01442|ORA-02260|ORA-02261|ORA-02275|ORA-04043|ORA-00001"
     }
@@ -155,8 +172,7 @@ Write-Host ""
 
 # ── PASO 3: Verificar tablas creadas ─────────────────────────────────────────
 Write-Host "Paso 3/3: Verificando tablas..." -ForegroundColor Yellow
-$sqlVerif  = "SELECT COUNT(*) AS TOTAL_TABLAS FROM USER_TABLES; EXIT;"
-$outVerif  = $sqlVerif | & sqlplus -S "caprino_user/$caprino_password@$tnsName" 2>&1
+$outVerif = Invoke-SqlPlus -ConnStr "caprino_user/`"$caprino_password`"@$tnsName" -Sql "SELECT COUNT(*) AS TOTAL_TABLAS FROM USER_TABLES;`r`nEXIT;"
 $numTablas = ($outVerif | Select-String "^\s*\d+" | Select-Object -First 1) -replace "\s",""
 Write-Host "[OK] Tablas en caprino_user: $numTablas" -ForegroundColor Green
 

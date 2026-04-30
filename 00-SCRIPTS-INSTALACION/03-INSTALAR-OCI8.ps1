@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 03-INSTALAR-OCI8.ps1
 # Instala y habilita la extension OCI8 para PHP
 # Requiere: PHP instalado + Oracle Instant Client instalado y en PATH
@@ -40,7 +40,7 @@ if (-not $ociDll) {
     $icDir = $icCandidatos | Where-Object { Test-Path "$_\oci.dll" } | Select-Object -First 1
     if ($icDir) {
         Write-Host "[AVISO] Instant Client en '$icDir' pero no esta en PATH de esta sesion." -ForegroundColor Yellow
-        Write-Host "        OCI8 se instalara — abre una nueva terminal tras terminar." -ForegroundColor Yellow
+        Write-Host "        OCI8 se instalara  -  abre una nueva terminal tras terminar." -ForegroundColor Yellow
     } else {
         Write-Host "[ERROR] Oracle Instant Client no encontrado." -ForegroundColor Red
         Write-Host "  Ejecuta primero: 02-INSTALAR-INSTANT-CLIENT.ps1" -ForegroundColor Yellow
@@ -51,17 +51,18 @@ if (-not $ociDll) {
 }
 
 # ── Detectar version y tipo (TS/NTS) de PHP ──────────────────────────────────
-$phpVerFull = & php -r "echo PHP_VERSION;" 2>$null
-$phpMajMin  = ($phpVerFull -split "\." | Select-Object -First 2) -join ""
-$tsCheck    = & php -r "echo PHP_ZTS;" 2>$null
-$tsLabel    = if ($tsCheck -eq "1") { "ts" } else { "nts" }
+$phpVerFull   = & php -r "echo PHP_VERSION;" 2>$null
+$phpMajMin    = ($phpVerFull -split "\." | Select-Object -First 2) -join ""      # "82"
+$phpMajMinDot = ($phpVerFull -split "\." | Select-Object -First 2) -join "."    # "8.2"
+$tsCheck      = & php -r "echo PHP_ZTS;" 2>$null
+$tsLabel      = if ($tsCheck -eq "1") { "ts" } else { "nts" }
 Write-Host "[OK] PHP $phpVerFull ($tsLabel)" -ForegroundColor Green
 Write-Host ""
 
 # ── Verificar si OCI8 ya esta funcionando ────────────────────────────────────
 $oci8Cargado = (& php -m 2>$null) -match "^oci8$"
 if ($oci8Cargado) {
-    Write-Host "[OK] OCI8 ya esta cargado en PHP — no es necesario reinstalar" -ForegroundColor Green
+    Write-Host "[OK] OCI8 ya esta cargado en PHP  -  no es necesario reinstalar" -ForegroundColor Green
     Write-Host ""
     exit 0
 }
@@ -72,56 +73,56 @@ $dllDestino = Join-Path $extDir "php_oci8.dll"
 if (-not (Test-Path $dllDestino)) {
     Write-Host "Descargando php_oci8.dll para PHP $phpVerFull ($tsLabel)..." -ForegroundColor Yellow
 
-    $oci8Version    = "3.3.0"
-    $urlDll         = "https://windows.php.net/downloads/pecl/releases/oci8/$oci8Version/php_oci8-$oci8Version-$phpMajMin-$tsLabel-vc16-x64.dll"
-    $urlPecl        = "https://windows.php.net/downloads/pecl/releases/oci8/$oci8Version/php_oci8-$oci8Version-$phpMajMin-$tsLabel-vc16-x64.zip"
-    $descargaOk     = $false
+    # Probar varias versiones y formatos de nombre hasta encontrar una disponible
+    # windows.php.net usa "8.2" (con punto) y "vs16"; versiones anteriores usaban "82" y "vc16"
+    $versionesOci8 = @("3.3.0", "3.2.1", "3.2.0", "3.1.0")
+    $compiladores  = @("vs16", "vc16", "vs15", "vc15")
+    $phpFormatos   = @($phpMajMinDot, $phpMajMin)   # "8.2" y "82"
+    $descargaOk    = $false
 
-    # Intentar DLL directa
-    $tempDll = Join-Path $env:TEMP "php_oci8_download.dll"
-    try {
-        Write-Host "  Intentando DLL directa..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $urlDll -OutFile $tempDll -UseBasicParsing -ErrorAction Stop
-        if ((Get-Item $tempDll).Length -gt 100000) {
-            Copy-Item $tempDll $dllDestino -Force
-            $descargaOk = $true
-            Write-Host "  [OK] DLL descargada" -ForegroundColor Green
-        }
-    } catch {
-        Write-Host "  DLL directa no disponible, intentando ZIP..." -ForegroundColor Gray
-    }
+    foreach ($oci8Version in $versionesOci8) {
+        if ($descargaOk) { break }
+        foreach ($compilador in $compiladores) {
+            if ($descargaOk) { break }
+            foreach ($phpFmt in $phpFormatos) {
+                if ($descargaOk) { break }
 
-    # Intentar ZIP
-    if (-not $descargaOk) {
-        $tempZip = Join-Path $env:TEMP "php_oci8.zip"
-        $tempDir = Join-Path $env:TEMP "php_oci8_extract"
-        try {
-            Invoke-WebRequest -Uri $urlPecl -OutFile $tempZip -UseBasicParsing -ErrorAction Stop
-            New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
-            Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force
-            $dllEnZip = Get-ChildItem $tempDir -Filter "php_oci8*.dll" -Recurse | Select-Object -First 1
-            if ($dllEnZip) {
-                Copy-Item $dllEnZip.FullName $dllDestino -Force
-                $descargaOk = $true
-                Write-Host "  [OK] DLL extraida del ZIP" -ForegroundColor Green
+                $urlPecl = "https://windows.php.net/downloads/pecl/releases/oci8/$oci8Version/php_oci8-$oci8Version-$phpFmt-$tsLabel-$compilador-x64.zip"
+                Write-Host "  Probando OCI8 $oci8Version PHP$phpFmt $compilador..." -ForegroundColor Gray
+
+                $tempZip = Join-Path $env:TEMP "php_oci8.zip"
+                $tempDir = Join-Path $env:TEMP "php_oci8_extract"
+                try {
+                    Invoke-WebRequest -Uri $urlPecl -OutFile $tempZip -UseBasicParsing -ErrorAction Stop
+                    if ((Get-Item $tempZip).Length -gt 50000) {
+                        New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
+                        Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force
+                        $dllEnZip = Get-ChildItem $tempDir -Filter "php_oci8*.dll" -Recurse | Select-Object -First 1
+                        if ($dllEnZip) {
+                            Copy-Item $dllEnZip.FullName $dllDestino -Force
+                            $descargaOk = $true
+                            Write-Host "  [OK] DLL extraida: $($dllEnZip.Name)" -ForegroundColor Green
+                        }
+                    }
+                } catch { } finally {
+                    Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+                    Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+                }
             }
-        } catch {
-            Write-Host "  [AVISO] Descarga automatica fallida: $_" -ForegroundColor Yellow
-        } finally {
-            Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
-            Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
         }
+    }
+    if (-not $descargaOk) {
+        Write-Host "  [AVISO] No se encontro ninguna combinacion en windows.php.net" -ForegroundColor Gray
     }
 
     if (-not $descargaOk) {
         Write-Host "[ERROR] No se pudo obtener php_oci8.dll automaticamente." -ForegroundColor Red
         Write-Host "Descarga manual desde:" -ForegroundColor Yellow
         Write-Host "  https://windows.php.net/downloads/pecl/releases/oci8/" -ForegroundColor Yellow
-        Write-Host "Elige PHP $phpMajMin $tsLabel vc16 x64 y copia la DLL como:" -ForegroundColor Yellow
+        Write-Host "Elige PHP $phpMajMinDot $tsLabel vs16 x64 y copia la DLL como:" -ForegroundColor Yellow
         Write-Host "  $dllDestino" -ForegroundColor Gray
         exit 1
     }
-    Remove-Item $tempDll -Force -ErrorAction SilentlyContinue
 } else {
     Write-Host "[OK] php_oci8.dll ya existe en: $dllDestino" -ForegroundColor Green
 }
@@ -150,7 +151,7 @@ if ($iniContent -match '(?m)^;\s*extension_dir') {
     $iniContent = $iniContent -replace '(?m)^;\s*extension_dir\s*=\s*"ext"', 'extension_dir="ext"'
 }
 
-Set-Content -Path $iniFile -Value $iniContent -Encoding UTF8
+Set-Content -Path $iniFile -Value $iniContent -Encoding ASCII
 Write-Host "[OK] php.ini guardado" -ForegroundColor Green
 Write-Host ""
 

@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1
 # Instala dependencias Node.js del frontend con npm
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "05-INSTALAR-DEPENDENCIAS-FRONTEND.ps1"
@@ -47,7 +47,7 @@ $numVer  = [int]($nodeVer.TrimStart("v").Split(".")[0])
 Write-Host "[OK] Node.js $nodeVer / npm $npmVer" -ForegroundColor Green
 
 if ($numVer -lt 18) {
-    Write-Host "[AVISO] Node.js $nodeVer es menor a v18 — pueden ocurrir errores con Vite" -ForegroundColor Yellow
+    Write-Host "[AVISO] Node.js $nodeVer es menor a v18  -  pueden ocurrir errores con Vite" -ForegroundColor Yellow
 }
 
 Write-Host ""
@@ -58,7 +58,7 @@ Push-Location $frontendDir
 Write-Host "Instalando dependencias npm (esto puede tardar varios minutos)..." -ForegroundColor Yellow
 Write-Host ""
 
-# FIX: NO borrar package-lock.json — el lock garantiza que todos usan las mismas versiones
+# FIX: NO borrar package-lock.json  -  el lock garantiza que todos usan las mismas versiones
 # npm install respeta el lock si existe; lo crea si no existe
 npm install
 
@@ -78,7 +78,7 @@ Write-Host "Verificando Vite..." -ForegroundColor Yellow
 if (Test-Path "node_modules\.bin\vite") {
     Write-Host "[OK] Vite disponible en node_modules/.bin/vite" -ForegroundColor Green
 } else {
-    Write-Host "[AVISO] Vite no encontrado — verifica que esta en las dependencias del package.json" -ForegroundColor Yellow
+    Write-Host "[AVISO] Vite no encontrado  -  verifica que esta en las dependencias del package.json" -ForegroundColor Yellow
 }
 
 Pop-Location

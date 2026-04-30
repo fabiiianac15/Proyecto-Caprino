@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 00b-INSTALAR-VCRUNTIME.ps1
 # ============================================================================
 # Instalar Visual C++ 2015-2022 Runtime (prerequisito para PHP 8.2)
@@ -35,9 +35,16 @@ Write-Host "Instalando Visual C++ Runtime..." -ForegroundColor Yellow
 
 try {
     & $outputFile /install /quiet /norestart
-    Write-Host "OK: Instalación completada" -ForegroundColor Green
+    $vcExitCode = $LASTEXITCODE
+    # 0=exito, 1638=ya instalada otra version, 3010=exito (requiere reinicio)
+    if ($vcExitCode -eq 0 -or $vcExitCode -eq 1638 -or $vcExitCode -eq 3010) {
+        Write-Host "OK: Instalacion completada (codigo: $vcExitCode)" -ForegroundColor Green
+    } else {
+        Write-Host "AVISO: El instalador retorno codigo $vcExitCode" -ForegroundColor Yellow
+        Write-Host "       Puede ser normal si ya estaba instalada una version compatible." -ForegroundColor Gray
+    }
 } catch {
-    Write-Host "ERROR durante la instalación: $_" -ForegroundColor Red
+    Write-Host "ERROR durante la instalacion: $_" -ForegroundColor Red
     exit 1
 }
 
@@ -50,3 +57,4 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host "Ahora PHP 8.2 funcionara correctamente sin warnings" -ForegroundColor Green
 Write-Host ""
+exit 0

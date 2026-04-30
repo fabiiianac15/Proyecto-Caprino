@@ -1,0 +1,24 @@
+1.
+Verificando conexion a Oracle Autonomous DB...
+[ERROR] No se pudo conectar al ADB.
+Salida de sqlplus:
+  ERROR:
+  ORA-12154: TNS:could not resolve the connect identifier specified
+
+  
+  SP2-0306: Invalid option.
+  Usage: CONN[ECT] [{logon|/|proxy} [AS {SYSDBA|SYSOPER|SYSASM|SYSBACKUP|SYSDG|SYSKM|SYSRAC}] [edition=value]]
+  where <logon> ::= <username>[/<password>][@<connect_identifier>]
+        <proxy> ::= <proxyuser>[<username>][/<password>][@<connect_identifier>]
+  ERROR:
+  ORA-12560: TNS:protocol adapter error
+
+
+  SP2-0157: unable to CONNECT to ORACLE after 3 attempts, exiting SQL*Plus
+
+Verifica:
+  1. La password del usuario ADMIN es correcta
+  2. El wallet esta configurado (TNS_ADMIN=C:\Caprino-Wallet)
+  3. El alias 'caprinodb_high' existe en tnsnames.ora
+  4. Tienes conexion a internet
+[ERROR] El script termino con codigo 1

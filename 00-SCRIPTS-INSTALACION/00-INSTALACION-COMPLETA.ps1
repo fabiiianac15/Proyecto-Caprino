@@ -1,6 +1,6 @@
-# ============================================================================
+﻿# ============================================================================
 # 00-INSTALACION-COMPLETA.ps1
-# Script maestro — ejecuta todos los pasos de instalacion en orden
+# Script maestro  -  ejecuta todos los pasos de instalacion en orden
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "00-INSTALACION-COMPLETA.ps1"
 # ============================================================================
 
@@ -67,7 +67,7 @@ foreach ($paso in $pasos) {
     Write-Host "------------------------------------------------------------" -ForegroundColor Cyan
 
     if (-not (Test-Path $ruta)) {
-        Write-Host "[AVISO] Script no encontrado: $($paso.archivo) — saltando" -ForegroundColor Yellow
+        Write-Host "[AVISO] Script no encontrado: $($paso.archivo)  -  saltando" -ForegroundColor Yellow
         continue
     }
 

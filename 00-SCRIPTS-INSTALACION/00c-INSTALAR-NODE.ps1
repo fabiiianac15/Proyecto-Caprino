@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 00c-INSTALAR-NODE.ps1
 # Instala Node.js LTS si no esta disponible
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "00c-INSTALAR-NODE.ps1"

@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 02-INSTALAR-INSTANT-CLIENT.ps1
 # Descarga e instala Oracle Instant Client 21.x para Windows x64
 # Incluye: Basic (librerias OCI) + SQL*Plus (para conectarse al ADB por consola)
@@ -26,17 +26,35 @@ $urlSqlplus = "$urlBase/instantclient-sqlplus-windows.x64-$icVersion`dbru.zip"
 # ── Verificar si ya esta instalado ────────────────────────────────────────────
 if (Test-Path "$installDir\oci.dll") {
     Write-Host "[OK] Oracle Instant Client ya instalado en: $installDir" -ForegroundColor Green
-    Write-Host "     (usa -Force para reinstalar)" -ForegroundColor Gray
-    Write-Host ""
+    Write-Host "     Verificando que $installDir este en PATH..." -ForegroundColor Gray
 
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
-                [System.Environment]::GetEnvironmentVariable("Path","User")
+    # Asegurar que el directorio este en el PATH (puede haber fallado antes por permisos)
+    $machinePath  = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine)
+    $userPath     = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
+    $entradasM    = $machinePath -split ";" | Where-Object { $_ -ne "" }
+    $entradasU    = $userPath    -split ";" | Where-Object { $_ -ne "" }
+
+    if ($entradasM -notcontains $installDir -and $entradasU -notcontains $installDir) {
+        try {
+            $nuevoPath = ($entradasM + $installDir) -join ";"
+            [Environment]::SetEnvironmentVariable("Path", $nuevoPath, [EnvironmentVariableTarget]::Machine)
+            Write-Host "[OK] '$installDir' agregado al PATH del sistema" -ForegroundColor Green
+        } catch {
+            $nuevoPathU = ($entradasU + $installDir) -join ";"
+            [Environment]::SetEnvironmentVariable("Path", $nuevoPathU, [EnvironmentVariableTarget]::User)
+            Write-Host "[OK] '$installDir' agregado al PATH del usuario" -ForegroundColor Green
+        }
+    } else {
+        Write-Host "[OK] '$installDir' ya esta en PATH" -ForegroundColor Green
+    }
+
+    $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+                [Environment]::GetEnvironmentVariable("Path","User")
 
     if (Get-Command sqlplus -ErrorAction SilentlyContinue) {
         Write-Host "[OK] sqlplus disponible en PATH" -ForegroundColor Green
     } else {
-        Write-Host "[AVISO] Instant Client instalado pero no esta en PATH aun." -ForegroundColor Yellow
-        Write-Host "        Abre una nueva terminal para que surtan efecto los cambios." -ForegroundColor Yellow
+        Write-Host "[AVISO] Abre una nueva terminal para que el PATH actualizado surta efecto." -ForegroundColor Yellow
     }
     exit 0
 }
@@ -102,16 +120,30 @@ if (-not $okBasic) {
     exit 1
 }
 
-# ── Agregar al PATH del sistema ───────────────────────────────────────────────
-Write-Host "Configurando PATH del sistema..." -ForegroundColor Yellow
+# ── Agregar al PATH ───────────────────────────────────────────────────────────
+Write-Host "Configurando PATH..." -ForegroundColor Yellow
 
 $machinePath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::Machine)
 $entradas    = $machinePath -split ";" | Where-Object { $_ -ne "" }
 
 if ($entradas -notcontains $installDir) {
     $nuevoPath = ($entradas + $installDir) -join ";"
-    [Environment]::SetEnvironmentVariable("Path", $nuevoPath, [EnvironmentVariableTarget]::Machine)
-    Write-Host "[OK] '$installDir' agregado al PATH del sistema" -ForegroundColor Green
+    try {
+        [Environment]::SetEnvironmentVariable("Path", $nuevoPath, [EnvironmentVariableTarget]::Machine)
+        Write-Host "[OK] '$installDir' agregado al PATH del sistema" -ForegroundColor Green
+    } catch {
+        # Sin permisos de admin: agregar al PATH del usuario
+        Write-Host "[AVISO] Sin permisos admin para PATH de sistema. Agregando al PATH de usuario..." -ForegroundColor Yellow
+        $userPath    = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
+        $entradasU   = $userPath -split ";" | Where-Object { $_ -ne "" }
+        if ($entradasU -notcontains $installDir) {
+            $nuevoPathU = ($entradasU + $installDir) -join ";"
+            [Environment]::SetEnvironmentVariable("Path", $nuevoPathU, [EnvironmentVariableTarget]::User)
+            Write-Host "[OK] '$installDir' agregado al PATH del usuario" -ForegroundColor Green
+        } else {
+            Write-Host "[OK] '$installDir' ya estaba en el PATH del usuario" -ForegroundColor Green
+        }
+    }
 } else {
     Write-Host "[OK] '$installDir' ya estaba en el PATH" -ForegroundColor Green
 }
@@ -126,7 +158,7 @@ Write-Host ""
 Write-Host "Verificando instalacion..." -ForegroundColor Yellow
 
 if (Test-Path "$installDir\oci.dll") {
-    Write-Host "[OK] oci.dll encontrada — Instant Client listo" -ForegroundColor Green
+    Write-Host "[OK] oci.dll encontrada  -  Instant Client listo" -ForegroundColor Green
 } else {
     Write-Host "[ERROR] oci.dll no encontrada en $installDir" -ForegroundColor Red
     exit 1

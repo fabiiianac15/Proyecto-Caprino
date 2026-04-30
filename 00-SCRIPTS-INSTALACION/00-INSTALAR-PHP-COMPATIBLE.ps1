@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 00-INSTALAR-PHP-COMPATIBLE.ps1
 # Descarga, instala y configura PHP 8.2 para Proyecto Caprino
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "00-INSTALAR-PHP-COMPATIBLE.ps1"
@@ -50,7 +50,7 @@ if (Test-Path $phpExe) {
         Write-Host "[OK] PHP $currentVersion ya instalado en $InstallDir" -ForegroundColor Green
         $alreadyInstalled = $true
     } catch {
-        Write-Host "[AVISO] PHP encontrado pero no responde — se reinstalara" -ForegroundColor Yellow
+        Write-Host "[AVISO] PHP encontrado pero no responde  -  se reinstalara" -ForegroundColor Yellow
     }
 }
 
@@ -108,7 +108,7 @@ if (-not $alreadyInstalled -or $Force) {
 
     Write-Host "[OK] PHP extraido" -ForegroundColor Green
 } else {
-    Write-Host "PHP ya existe — saltando descarga (usa -Force para reinstalar)" -ForegroundColor Yellow
+    Write-Host "PHP ya existe  -  saltando descarga (usa -Force para reinstalar)" -ForegroundColor Yellow
 }
 
 Write-Host ""
@@ -150,7 +150,7 @@ if ($iniContent -match '(?m)^\s*;?\s*date\.timezone\s*=') {
     $iniContent += "`r`ndate.timezone=`"America/Bogota`"`r`n"
 }
 
-Set-Content -Path $iniPath -Value $iniContent -Encoding UTF8
+Set-Content -Path $iniPath -Value $iniContent -Encoding ASCII
 Write-Host "[OK] php.ini configurado (extension_dir, timezone=America/Bogota)" -ForegroundColor Green
 
 Write-Host ""
@@ -203,7 +203,7 @@ foreach ($ext in @("ctype", "iconv", "mbstring", "openssl")) {
 if ($modulos -contains "oci8") {
     Write-Host "[OK] OCI8 ya cargado" -ForegroundColor Green
 } else {
-    Write-Host "[INFO] OCI8 no cargado aun — ejecuta 02-CONFIGURAR-ORACLE-ENV.ps1 y 03-INSTALAR-OCI8.ps1" -ForegroundColor Cyan
+    Write-Host "[INFO] OCI8 no cargado aun  -  ejecuta 02-CONFIGURAR-ORACLE-ENV.ps1 y 03-INSTALAR-OCI8.ps1" -ForegroundColor Cyan
 }
 
 Write-Host ""

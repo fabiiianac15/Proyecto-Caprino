@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 09-CONFIGURAR-ENV.ps1
 # Configura los archivos .env para backend y frontend
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "09-CONFIGURAR-ENV.ps1"
@@ -36,7 +36,12 @@ if (-not (Test-Path $backendEnvPath)) {
 }
 
 try {
-    $envContent = Get-Content $backendEnvPath -Raw
+    # Usar ReadAllText para leer correctamente sin importar si hay BOM o no
+    $utf8NoBom  = New-Object System.Text.UTF8Encoding $false
+    $envContent = [System.IO.File]::ReadAllText($backendEnvPath, (New-Object System.Text.UTF8Encoding $true))
+    # Quitar caracter BOM (U+FEFF) si quedo en el string
+    $envContent = $envContent -replace "^\xEF\xBB\xBF", ""
+    if ($envContent[0] -eq [char]0xFEFF) { $envContent = $envContent.Substring(1) }
 
     # Generar APP_SECRET si tiene el valor por defecto
     if ($envContent -match 'APP_SECRET=cambiar_este_secreto') {
@@ -65,7 +70,7 @@ try {
         Write-Host "[OK] DATABASE_TNS_NAME = $tnsName" -ForegroundColor Green
     }
 
-    Set-Content -Path $backendEnvPath -Value $envContent -Encoding UTF8
+    [System.IO.File]::WriteAllText($backendEnvPath, $envContent, $utf8NoBom)
     Write-Host "[OK] backend\.env configurado" -ForegroundColor Green
 } catch {
     Write-Host "[ERROR] Error configurando backend\.env: $_" -ForegroundColor Red
@@ -86,7 +91,8 @@ VITE_APP_NAME=Sistema Caprino
 "@
 
 try {
-    Set-Content -Path $frontendEnvPath -Value $frontendEnvContent -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($frontendEnvPath, $frontendEnvContent, $utf8NoBom)
     Write-Host "[OK] frontend\.env.local configurado" -ForegroundColor Green
 } catch {
     Write-Host "[ERROR] Error configurando frontend\.env.local: $_" -ForegroundColor Red

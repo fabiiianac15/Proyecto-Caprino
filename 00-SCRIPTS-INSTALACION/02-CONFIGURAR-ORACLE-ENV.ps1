@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 02-CONFIGURAR-ORACLE-ENV.ps1
 # Configura el wallet de Oracle Autonomous DB y la variable TNS_ADMIN
 # Ejecutar como Administrador: powershell -ExecutionPolicy Bypass -File "02-CONFIGURAR-ORACLE-ENV.ps1"
@@ -102,12 +102,15 @@ Write-Host "[3/4] Actualizando sqlnet.ora..." -ForegroundColor Yellow
 $sqlnetPath = Join-Path $walletEncontrado "sqlnet.ora"
 $walletEscapado = $walletEncontrado -replace "\\", "\\"
 
+$walletFwd = $walletEncontrado -replace "\\", "/"   # Oracle prefiere forward slashes
 $sqlnetContent = @"
-WALLET_LOCATION = (SOURCE = (METHOD = file)(METHOD_DATA = (DIRECTORY="$walletEncontrado")))
+WALLET_LOCATION = (SOURCE = (METHOD = file)(METHOD_DATA = (DIRECTORY="$walletFwd")))
 SSL_SERVER_DN_MATCH=yes
+SQLNET.WALLET_OVERRIDE=TRUE
 "@
 
-Set-Content -Path $sqlnetPath -Value $sqlnetContent -Encoding ASCII
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($sqlnetPath, $sqlnetContent, $utf8NoBom)
 Write-Host "  [OK] sqlnet.ora actualizado con WALLET_LOCATION = $walletEncontrado" -ForegroundColor Green
 Write-Host ""
 
@@ -136,7 +139,7 @@ if ($tnsNames) {
     $defaultTns = $tnsNames | Where-Object { $_ -match "_high$" } | Select-Object -First 1
     if (-not $defaultTns) { $defaultTns = $tnsNames | Select-Object -First 1 }
 } else {
-    Write-Host "  (no se pudieron leer — verifica tnsnames.ora)" -ForegroundColor Yellow
+    Write-Host "  (no se pudieron leer  -  verifica tnsnames.ora)" -ForegroundColor Yellow
     $defaultTns = "caprinodb_high"
 }
 
@@ -150,17 +153,19 @@ Write-Host "Actualizando backend\.env con la ruta del wallet..." -ForegroundColo
 
 $backendEnvPath = Join-Path $projectRoot "backend-symfony\.env"
 if (Test-Path $backendEnvPath) {
-    $envContent = Get-Content $backendEnvPath -Raw
+    $utf8NoBom  = New-Object System.Text.UTF8Encoding $false
+    $envContent = [System.IO.File]::ReadAllText($backendEnvPath, (New-Object System.Text.UTF8Encoding $true))
+    if ($envContent.Length -gt 0 -and $envContent[0] -eq [char]0xFEFF) { $envContent = $envContent.Substring(1) }
     $walletEscapado2 = $walletEncontrado -replace "\\", "\\"
 
     $envContent = $envContent -replace '(?m)^DATABASE_WALLET_PATH=.*', "DATABASE_WALLET_PATH=$walletEncontrado"
     if ($defaultTns) {
         $envContent = $envContent -replace '(?m)^DATABASE_TNS_NAME=.*', "DATABASE_TNS_NAME=$defaultTns"
     }
-    Set-Content -Path $backendEnvPath -Value $envContent -Encoding UTF8
+    [System.IO.File]::WriteAllText($backendEnvPath, $envContent, $utf8NoBom)
     Write-Host "  [OK] .env actualizado (DATABASE_WALLET_PATH, DATABASE_TNS_NAME)" -ForegroundColor Green
 } else {
-    Write-Host "  [AVISO] backend\.env no encontrado — actualiza manualmente" -ForegroundColor Yellow
+    Write-Host "  [AVISO] backend\.env no encontrado  -  actualiza manualmente" -ForegroundColor Yellow
 }
 
 Write-Host ""

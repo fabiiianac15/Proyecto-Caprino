@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 07-INICIAR-BACKEND.ps1
 # Inicia el servidor PHP del backend en puerto 8000
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "07-INICIAR-BACKEND.ps1"
@@ -42,7 +42,7 @@ if (-not $phpCmd) {
 # Verificar que OCI8 este cargado (aviso, no bloquea)
 $oci8Ok = (& php -m 2>$null) -match "^oci8$"
 if (-not $oci8Ok) {
-    Write-Host "[AVISO] OCI8 no cargado en PHP — la conexion a Oracle fallara." -ForegroundColor Yellow
+    Write-Host "[AVISO] OCI8 no cargado en PHP  -  la conexion a Oracle fallara." -ForegroundColor Yellow
     Write-Host "        Ejecuta 03-INSTALAR-OCI8.ps1 si no lo has hecho." -ForegroundColor Yellow
     Write-Host ""
 }

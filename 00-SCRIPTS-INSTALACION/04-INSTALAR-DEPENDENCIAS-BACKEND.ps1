@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # 04-INSTALAR-DEPENDENCIAS-BACKEND.ps1
 # Instala dependencias PHP del backend con Composer
 # Ejecutar: powershell -ExecutionPolicy Bypass -File "04-INSTALAR-DEPENDENCIAS-BACKEND.ps1"
@@ -48,7 +48,7 @@ Write-Host "Instalando dependencias PHP (esto puede tardar varios minutos)..." -
 Write-Host "(OCI8 y otras extensiones se ignoran hasta que esten instaladas)" -ForegroundColor Gray
 Write-Host ""
 
-# FIX: NO borrar composer.lock — el lock garantiza que todos usan las mismas versiones
+# FIX: NO borrar composer.lock  -  el lock garantiza que todos usan las mismas versiones
 # Si el lock no existe composer lo crea; si existe, composer lo respeta
 composer install --ignore-platform-req=php --ignore-platform-req=ext-oci8 --ignore-platform-req=ext-sodium
 
@@ -68,7 +68,7 @@ Write-Host "Verificando autoload..." -ForegroundColor Yellow
 if (Test-Path "vendor/autoload.php") {
     Write-Host "[OK] vendor/autoload.php generado correctamente" -ForegroundColor Green
 } else {
-    Write-Host "[AVISO] vendor/autoload.php no encontrado — verifica errores de Composer" -ForegroundColor Yellow
+    Write-Host "[AVISO] vendor/autoload.php no encontrado  -  verifica errores de Composer" -ForegroundColor Yellow
 }
 
 Pop-Location
