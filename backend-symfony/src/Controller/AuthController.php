@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Service\AuditoriaService;
 use Doctrine\DBAL\Connection;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,7 +17,8 @@ class AuthController extends AbstractController
 {
     public function __construct(
         private Connection $connection,
-        private JWTTokenManagerInterface $jwtManager
+        private JWTTokenManagerInterface $jwtManager,
+        private AuditoriaService $auditoria,
     ) {}
 
     #[Route('/auth/register', name: 'api_auth_register', methods: ['POST'])]
@@ -67,6 +69,21 @@ class AuthController extends AbstractController
             'SELECT id_usuario FROM USUARIO WHERE email = :email',
             ['email' => $email]
         );
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'USUARIO',
+                operacion: 'CREAR',
+                idRegistro: $userId,
+                descripcion: "Registro de nuevo usuario: {$email}",
+                datosNuevos: [
+                    'nombre' => $nombre,
+                    'email'  => $email,
+                    'rol'    => $rol,
+                ],
+                idUsuario: null,
+            );
+        } catch (\Throwable) {}
 
         $userObj = new User();
         $userObj->setNombreCompleto($nombre);

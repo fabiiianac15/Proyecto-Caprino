@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Link } from 'react-router-dom';
-import { 
+import {
   LogOut,
   User,
   Activity,
@@ -8,7 +8,8 @@ import {
   Droplet,
   Heart,
   Users,
-  TrendingUp
+  TrendingUp,
+  Shield
 } from 'lucide-react';
 import { useAuth } from './contextos/AuthContext';
 
@@ -24,6 +25,7 @@ import ModuloSalud from './componentes/ModuloSalud';
 import ModuloPeso from './componentes/ModuloPeso';
 import ModuloGenealogia from './componentes/ModuloGenealogia';
 import ModuloReportes from './componentes/ModuloReportes';
+import ModuloAuditoria from './componentes/ModuloAuditoria';
 import Notificaciones from './componentes/Notificaciones';
 import PerfilUsuario from './componentes/PerfilUsuario';
 
@@ -44,24 +46,35 @@ function App() {
     gestantes: 0
   });
 
-  // Cargar indicadores del rebaño
+  // Cargar indicadores del rebaño desde /api/reportes/resumen
   useEffect(() => {
-    // TODO: Reemplazar con llamada real a la API
+    if (!estaAutenticado()) return;
+
     const cargarIndicadores = async () => {
-      // Simulación de datos - reemplazar con fetch real
-      setIndicadores({
-        totalAnimales: 0,
-        alertasPendientes: 0,
-        produccionHoy: 0,
-        gestantes: 0
-      });
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const base = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        const res = await fetch(`${base}/reportes/resumen`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const { data } = await res.json();
+        setIndicadores({
+          totalAnimales:     data.totalAnimales        ?? 0,
+          alertasPendientes: data.alertasPendientes    ?? 0,
+          produccionHoy:     data.produccionLitrosMes  ?? 0,
+          gestantes:         data.gestacionesPendientes ?? 0,
+        });
+      } catch {
+        // No interrumpir la UI si el fetch falla
+      }
     };
-    
+
     cargarIndicadores();
-    // Actualizar cada 5 minutos
     const intervalo = setInterval(cargarIndicadores, 300000);
     return () => clearInterval(intervalo);
-  }, []);
+  }, [usuario]);
 
   const formatearHora = (fecha) => {
     return fecha.toLocaleTimeString('es-ES', { 
@@ -111,7 +124,12 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen relative">
+      {/* Fondo fijo con imagen y overlay casi blanco */}
+      <div className="fixed inset-0 -z-10 pointer-events-none">
+        <img src="/img/AtrasCabra.jpeg" alt="" className="w-full h-full object-cover object-center" />
+        <div className="absolute inset-0 bg-white/90" />
+      </div>
       {/* Barra de navegación superior - Rediseñada */}
       <nav className="bg-gradient-to-r from-green-600 to-green-700 shadow-lg fixed w-full top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -177,8 +195,8 @@ function App() {
               >
                 <Droplet className="w-5 h-5 text-cyan-300 group-hover:scale-110 transition-transform" />
                 <div className="text-left">
-                  <p className="text-xs text-green-200">Producción</p>
-                  <p className="text-lg font-bold leading-none">{indicadores.produccionHoy} L</p>
+                  <p className="text-xs text-green-200">Prod. mes</p>
+                  <p className="text-lg font-bold leading-none">{Number(indicadores.produccionHoy).toFixed(1)} L</p>
                 </div>
               </button>
 
@@ -219,6 +237,17 @@ function App() {
                 </div>
               </button>
               
+              {usuario?.rol === 'administrador' && (
+                <button
+                  onClick={() => navigate('/auditoria')}
+                  className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg transition-colors text-white"
+                  title="Auditoría del sistema"
+                >
+                  <Shield className="w-5 h-5" />
+                  <span className="hidden sm:inline text-sm font-medium">Auditoría</span>
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   cerrarSesion();
@@ -281,7 +310,9 @@ function App() {
           <Route path="/genealogia" element={<RutaProtegida><ModuloGenealogia /></RutaProtegida>} />
           
           <Route path="/reportes" element={<RutaProtegida><ModuloReportes /></RutaProtegida>} />
-          
+
+          <Route path="/auditoria" element={<RutaProtegida><ModuloAuditoria /></RutaProtegida>} />
+
           <Route
             path="*"
             element={

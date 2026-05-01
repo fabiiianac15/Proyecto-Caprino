@@ -112,16 +112,31 @@ const animalService = {
   },
 
   /**
-   * Obtiene estadísticas del rebaño
-   * 
-   * @returns {Promise<Object>} Estadísticas
+   * Obtiene estadísticas del rebaño (usa el resumen general)
    */
   obtenerEstadisticas: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/animales/estadisticas`);
+      const response = await axios.get(`${API_BASE_URL}/api/reportes/resumen`);
       return response.data;
     } catch (error) {
       console.error('Error al obtener estadísticas:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Busca animales por filtros (sexo, estado, etc.)
+   * Alias de obtenerTodos para compatibilidad con componentes que llaman buscarAnimales(filtros)
+   */
+  buscarAnimales: async (filtros = {}) => {
+    try {
+      const params = new URLSearchParams(filtros).toString();
+      const response = await axios.get(`${API_BASE_URL}/api/animales?${params}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      return response.data.data || response.data;
+    } catch (error) {
+      console.error('Error al buscar animales:', error);
       throw error;
     }
   },

@@ -19,13 +19,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const tokenGuardado = localStorage.getItem('token');
     const usuarioGuardado = localStorage.getItem('usuario');
-    
-    if (tokenGuardado && usuarioGuardado) {
+
+    if (tokenGuardado) {
       setToken(tokenGuardado);
-      setUsuario(JSON.parse(usuarioGuardado));
-      
+      if (usuarioGuardado) {
+        setUsuario(JSON.parse(usuarioGuardado));
+      }
       if (!USE_MOCK_AUTH) {
-        // Verificar token con el servidor solo si no es mock
         verificarToken(tokenGuardado);
       } else {
         setCargando(false);
@@ -49,17 +49,16 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         setUsuario(data);
+        localStorage.setItem('usuario', JSON.stringify(data));
       } else {
-        // Token inválido o backend no disponible, limpiar sesión
-        console.warn('Token inválido o backend no disponible');
+        // Token inválido (401/403): limpiar sesión
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
         setToken(null);
         setUsuario(null);
       }
-    } catch (error) {
-      console.warn('Error verificando token (backend posiblemente no disponible):', error.message);
-      // No limpiar sesión en error de red, solo en respuesta 401
+    } catch {
+      // Error de red: mantener sesión con los datos cacheados, no desloguear
     } finally {
       setCargando(false);
     }
@@ -128,9 +127,7 @@ export const AuthProvider = ({ children }) => {
       if (meResponse.ok) {
         const userData = await meResponse.json();
         setUsuario(userData);
-        if (recordar) {
-          localStorage.setItem('usuario', JSON.stringify(userData));
-        }
+        localStorage.setItem('usuario', JSON.stringify(userData));
       }
 
       return { success: true };

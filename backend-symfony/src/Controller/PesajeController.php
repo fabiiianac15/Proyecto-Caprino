@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Service\AuditoriaService;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,7 +14,10 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/pesaje')]
 class PesajeController extends AbstractController
 {
-    public function __construct(private Connection $connection) {}
+    public function __construct(
+        private Connection $connection,
+        private AuditoriaService $auditoria,
+    ) {}
 
     #[Route('', name: 'api_pesaje_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
@@ -84,16 +88,53 @@ class PesajeController extends AbstractController
             ]
         );
 
+        $newId = (int) $this->connection->fetchOne(
+            'SELECT MAX(id_pesaje) FROM PESAJE WHERE id_animal = :id AND fecha_pesaje = TO_DATE(:f, \'YYYY-MM-DD\')',
+            ['id' => $idAnimal, 'f' => $fecha]
+        );
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'PESAJE',
+                operacion: 'CREAR',
+                idRegistro: $newId ?: null,
+                descripcion: "Registro de pesaje para animal ID {$idAnimal} - {$pesoKg} kg",
+                datosNuevos: [
+                    'idAnimal'         => $idAnimal,
+                    'fechaPesaje'      => $fecha,
+                    'pesoKg'           => $pesoKg,
+                    'condicionCorporal'=> $condicion,
+                    'metodoPesaje'     => $metodo,
+                    'observaciones'    => $obs,
+                ],
+            );
+        } catch (\Throwable) {}
+
         return $this->json(['success' => true, 'message' => 'Pesaje registrado'], Response::HTTP_CREATED);
     }
 
     #[Route('/{id}', name: 'api_pesaje_delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function delete(int $id): JsonResponse
     {
+        $oldRow = $this->connection->fetchAssociative(
+            'SELECT * FROM PESAJE WHERE id_pesaje = :id',
+            ['id' => $id]
+        );
+
         $this->connection->executeStatement(
             'DELETE FROM PESAJE WHERE id_pesaje = :id',
             ['id' => $id]
         );
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'PESAJE',
+                operacion: 'ELIMINAR',
+                idRegistro: $id,
+                descripcion: "Eliminación de registro de pesaje ID {$id}",
+                datosAnt: $oldRow ?: [],
+            );
+        } catch (\Throwable) {}
 
         return $this->json(['success' => true, 'message' => 'Pesaje eliminado']);
     }

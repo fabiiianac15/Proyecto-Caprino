@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Service\AuditoriaService;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -12,7 +13,10 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/genealogia')]
 class GenealogiaController extends AbstractController
 {
-    public function __construct(private Connection $connection) {}
+    public function __construct(
+        private Connection $connection,
+        private AuditoriaService $auditoria,
+    ) {}
 
     #[Route('/{id}', name: 'api_genealogia_show', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function show(int $id): JsonResponse
@@ -72,15 +76,51 @@ class GenealogiaController extends AbstractController
         );
 
         if ($count > 0) {
+            $oldRow = $this->connection->fetchAssociative(
+                'SELECT * FROM GENEALOGIA WHERE id_animal = :id',
+                ['id' => $idAnimal]
+            );
+
             $this->connection->executeStatement(
                 'UPDATE GENEALOGIA SET id_padre = :p, id_madre = :m, observaciones = NVL(:obs, observaciones) WHERE id_animal = :id',
                 ['p' => $idPadre, 'm' => $idMadre, 'obs' => $obs, 'id' => $idAnimal]
             );
+
+            try {
+                $this->auditoria->registrar(
+                    tabla: 'GENEALOGIA',
+                    operacion: 'ACTUALIZAR',
+                    idRegistro: (int) $idAnimal,
+                    descripcion: "Actualización de genealogía para animal ID {$idAnimal}",
+                    datosAnt: $oldRow ?: [],
+                    datosNuevos: [
+                        'idAnimal'     => $idAnimal,
+                        'idPadre'      => $idPadre,
+                        'idMadre'      => $idMadre,
+                        'observaciones'=> $obs,
+                    ],
+                );
+            } catch (\Throwable) {}
         } else {
             $this->connection->executeStatement(
                 'INSERT INTO GENEALOGIA (id_animal, id_padre, id_madre, observaciones) VALUES (:id, :p, :m, :obs)',
                 ['id' => $idAnimal, 'p' => $idPadre, 'm' => $idMadre, 'obs' => $obs]
             );
+
+            try {
+                $this->auditoria->registrar(
+                    tabla: 'GENEALOGIA',
+                    operacion: 'CREAR',
+                    idRegistro: (int) $idAnimal,
+                    descripcion: "Registro de genealogía para animal ID {$idAnimal}",
+                    datosNuevos: [
+                        'idAnimal'     => $idAnimal,
+                        'idPadre'      => $idPadre,
+                        'idMadre'      => $idMadre,
+                        'observaciones'=> $obs,
+                    ],
+                );
+            } catch (\Throwable) {}
         }
 
         return $this->json(['success' => true, 'message' => 'Genealogía actualizada']);

@@ -72,8 +72,8 @@ export const eliminarAnimal = async (idAnimal, motivo) => {
  * @param {number} generaciones - Número de generaciones hacia atrás (default: 3)
  * @returns {Promise<Object>} Árbol genealógico
  */
-export const obtenerGenealogiaAnimal = async (idAnimal, generaciones = 3) => {
-  return await apiHelpers.get(`/animales/${idAnimal}/genealogia`, { generaciones });
+export const obtenerGenealogiaAnimal = async (idAnimal) => {
+  return await apiHelpers.get(`/genealogia/${idAnimal}`);
 };
 
 /**

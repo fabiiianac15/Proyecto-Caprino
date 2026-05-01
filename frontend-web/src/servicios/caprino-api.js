@@ -90,7 +90,7 @@ const MOCK_RAZAS = [
 const handleResponse = async (response) => {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Error desconocido' }));
-    throw new Error(error.message || `HTTP Error: ${response.status}`);
+    throw new Error(error.error || error.message || error.detail || `HTTP Error: ${response.status}`);
   }
   return response.json();
 };
@@ -400,26 +400,30 @@ export const reproduccionAPI = {
     }
   },
 
-  // Create reproduction record
+  // Create reproduction record (monta/servicio)
   create: async (reproduccionData) => {
     if (USE_MOCK_DATA) {
       await mockDelay();
       return { ...reproduccionData, id: Date.now() };
     }
+    const response = await apiFetch(`${API_BASE_URL}/reproduccion`, {
+      method: 'POST',
+      body: JSON.stringify(reproduccionData),
+    });
+    return await handleResponse(response);
+  },
 
-    try {
-      const response = await apiFetch(`${API_BASE_URL}/reproduccion`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(reproduccionData),
-      });
-      return await handleResponse(response);
-    } catch (error) {
-      console.error('Error creating reproduction record:', error);
-      throw error;
+  // Update reproduction record (diagnóstico o parto)
+  update: async (id, datos) => {
+    if (USE_MOCK_DATA) {
+      await mockDelay();
+      return { success: true };
     }
+    const response = await apiFetch(`${API_BASE_URL}/reproduccion/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(datos),
+    });
+    return await handleResponse(response);
   },
 };
 

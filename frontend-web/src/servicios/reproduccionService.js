@@ -174,6 +174,23 @@ const reproduccionService = {
       throw error;
     }
   },
+
+  /**
+   * Obtiene servicios/reproduciones con resultado pendiente
+   * Usado por RegistroReproduccion para mostrar gestaciones en curso
+   */
+  obtenerServiciosPendientes: async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/reproduccion`, {
+        params: { resultado: 'pendiente' },
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      return response.data.data || response.data;
+    } catch (error) {
+      console.error('Error al obtener servicios pendientes:', error);
+      throw error;
+    }
+  },
 };
 
 export default reproduccionService;

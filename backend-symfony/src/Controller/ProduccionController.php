@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Service\AuditoriaService;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,7 +14,10 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/produccion')]
 class ProduccionController extends AbstractController
 {
-    public function __construct(private Connection $connection) {}
+    public function __construct(
+        private Connection $connection,
+        private AuditoriaService $auditoria,
+    ) {}
 
     #[Route('', name: 'api_produccion_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
@@ -96,16 +100,55 @@ class ProduccionController extends AbstractController
             ]
         );
 
+        $newId = (int) $this->connection->fetchOne(
+            'SELECT MAX(id_produccion) FROM PRODUCCION_LECHE WHERE id_animal = :id AND fecha_produccion = TO_DATE(:f, \'YYYY-MM-DD\')',
+            ['id' => $idAnimal, 'f' => $fecha]
+        );
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'PRODUCCION_LECHE',
+                operacion: 'CREAR',
+                idRegistro: $newId ?: null,
+                descripcion: "Registro de producción de leche para animal ID {$idAnimal} - {$litros} litros ({$turno})",
+                datosNuevos: [
+                    'idAnimal'        => $idAnimal,
+                    'fechaProduccion' => $fecha,
+                    'litros'          => $litros,
+                    'turno'           => $turno,
+                    'numeroLactancia' => $numLact,
+                    'diasLactancia'   => $diasLact,
+                    'grasaPorcentaje' => $grasa,
+                    'observaciones'   => $obs,
+                ],
+            );
+        } catch (\Throwable) {}
+
         return $this->json(['success' => true, 'message' => 'Producción registrada'], Response::HTTP_CREATED);
     }
 
     #[Route('/{id}', name: 'api_produccion_delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function delete(int $id): JsonResponse
     {
+        $oldRow = $this->connection->fetchAssociative(
+            'SELECT * FROM PRODUCCION_LECHE WHERE id_produccion = :id',
+            ['id' => $id]
+        );
+
         $this->connection->executeStatement(
             'DELETE FROM PRODUCCION_LECHE WHERE id_produccion = :id',
             ['id' => $id]
         );
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'PRODUCCION_LECHE',
+                operacion: 'ELIMINAR',
+                idRegistro: $id,
+                descripcion: "Eliminación de registro de producción de leche ID {$id}",
+                datosAnt: $oldRow ?: [],
+            );
+        } catch (\Throwable) {}
 
         return $this->json(['success' => true, 'message' => 'Registro de producción eliminado']);
     }

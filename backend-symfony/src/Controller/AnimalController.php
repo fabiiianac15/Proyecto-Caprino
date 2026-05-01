@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Service\AuditoriaService;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,7 +14,10 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/animales')]
 class AnimalController extends AbstractController
 {
-    public function __construct(private Connection $connection) {}
+    public function __construct(
+        private Connection $connection,
+        private AuditoriaService $auditoria,
+    ) {}
 
     #[Route('', name: 'api_animales_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
@@ -35,6 +39,8 @@ class AnimalController extends AbstractController
         if ($estado) {
             $sql .= ' AND a.estado = :estado';
             $params['estado'] = $estado;
+        } else {
+            $sql .= " AND a.estado != 'muerto'";
         }
 
         $sql .= ' ORDER BY a.codigo_identificacion';
@@ -90,15 +96,16 @@ class AnimalController extends AbstractController
     #[Route('', name: 'api_animales_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        $data       = json_decode($request->getContent(), true) ?? [];
-        $codigo     = $data['codigo'] ?? $data['codigo_identificacion'] ?? null;
-        $nombre     = $data['nombre'] ?? null;
-        $sexo       = $data['sexo']   ?? null;
-        $idRaza     = $data['idRaza'] ?? $data['id_raza'] ?? null;
-        $fechaNac   = $data['fechaNacimiento'] ?? $data['fecha_nacimiento'] ?? date('Y-m-d');
-        $color      = $data['colorPelaje'] ?? $data['color_pelaje'] ?? null;
-        $pesoNac    = $data['pesoNacimiento'] ?? $data['peso_nacimiento_kg'] ?? null;
-        $obs        = $data['observaciones'] ?? null;
+        $data     = json_decode($request->getContent(), true) ?? [];
+        $codigo   = $data['codigo'] ?? $data['codigo_identificacion'] ?? $data['codigoIdentificacion'] ?? $data['identificacion'] ?? null;
+        $nombre   = $data['nombre'] ?? null;
+        $sexo     = $data['sexo']   ?? null;
+        $idRaza   = $data['idRaza'] ?? $data['razaId'] ?? $data['id_raza'] ?? null;
+        $fechaNac = $data['fechaNacimiento'] ?? $data['fecha_nacimiento'] ?? date('Y-m-d');
+        $color    = $data['colorPelaje'] ?? $data['color_pelaje'] ?? null;
+        $pesoNac  = $data['pesoNacimiento'] ?? $data['peso_nacimiento_kg'] ?? null;
+        $obs      = $data['observaciones'] ?? null;
+        $fotoData = $data['fotoUrl'] ?? $data['foto_url'] ?? null;
 
         if (!$codigo || !$sexo || !$idRaza) {
             return $this->json(['error' => 'Campos requeridos: codigo, sexo, idRaza'], Response::HTTP_BAD_REQUEST);
@@ -108,12 +115,14 @@ class AnimalController extends AbstractController
             return $this->json(['error' => "sexo debe ser 'macho' o 'hembra'"], Response::HTTP_BAD_REQUEST);
         }
 
+        $fotoUrl = $this->guardarFoto($fotoData);
+
         $user = $this->getUser();
         $usuarioReg = $user instanceof User ? $user->getId() : 1;
 
         $this->connection->executeStatement(
-            "INSERT INTO ANIMAL (codigo_identificacion, nombre, fecha_nacimiento, sexo, id_raza, color_pelaje, peso_nacimiento_kg, estado, observaciones, usuario_registro)
-             VALUES (:codigo, :nombre, TO_DATE(:fec, 'YYYY-MM-DD'), :sexo, :raza, :color, :peso, 'activo', :obs, :ureg)",
+            "INSERT INTO ANIMAL (codigo_identificacion, nombre, fecha_nacimiento, sexo, id_raza, color_pelaje, peso_nacimiento_kg, estado, observaciones, foto_url, usuario_registro)
+             VALUES (:codigo, :nombre, TO_DATE(:fec, 'YYYY-MM-DD'), :sexo, :raza, :color, :peso, 'activo', :obs, :foto, :ureg)",
             [
                 'codigo' => $codigo,
                 'nombre' => $nombre,
@@ -123,6 +132,7 @@ class AnimalController extends AbstractController
                 'color'  => $color,
                 'peso'   => $pesoNac,
                 'obs'    => $obs,
+                'foto'   => $fotoUrl,
                 'ureg'   => $usuarioReg,
             ]
         );
@@ -132,55 +142,137 @@ class AnimalController extends AbstractController
             ['c' => $codigo]
         );
 
+        try {
+            $this->auditoria->registrar(
+                tabla: 'ANIMAL',
+                operacion: 'CREAR',
+                idRegistro: $newId,
+                descripcion: "Registro de animal {$codigo} - {$nombre}",
+                datosNuevos: [
+                    'codigo'         => $codigo,
+                    'nombre'         => $nombre,
+                    'fechaNacimiento'=> $fechaNac,
+                    'sexo'           => $sexo,
+                    'idRaza'         => $idRaza,
+                    'colorPelaje'    => $color,
+                    'pesoNacimiento' => $pesoNac,
+                    'observaciones'  => $obs,
+                ],
+            );
+        } catch (\Throwable) {}
+
         return $this->json([
             'success' => true,
             'message' => 'Animal creado correctamente',
-            'data'    => ['id' => $newId, 'codigo' => $codigo, 'nombre' => $nombre],
+            'data'    => ['id' => $newId, 'codigo' => $codigo, 'nombre' => $nombre, 'fotoUrl' => $fotoUrl],
         ], Response::HTTP_CREATED);
     }
 
     #[Route('/{id}', name: 'api_animales_update', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function update(int $id, Request $request): JsonResponse
     {
-        $data   = json_decode($request->getContent(), true) ?? [];
-        $nombre = $data['nombre'] ?? null;
-        $sexo   = $data['sexo']   ?? null;
-        $idRaza = $data['idRaza'] ?? $data['id_raza'] ?? null;
-        $color  = $data['colorPelaje'] ?? $data['color_pelaje'] ?? null;
-        $estado = $data['estado'] ?? null;
-        $obs    = $data['observaciones'] ?? null;
+        $data     = json_decode($request->getContent(), true) ?? [];
+        $nombre   = $data['nombre'] ?? null;
+        $sexo     = $data['sexo']   ?? null;
+        $idRaza   = $data['idRaza'] ?? $data['razaId'] ?? $data['id_raza'] ?? null;
+        $color    = $data['colorPelaje'] ?? $data['color_pelaje'] ?? null;
+        $estado   = $data['estado'] ?? null;
+        $obs      = $data['observaciones'] ?? null;
+        $fotoData = $data['fotoUrl'] ?? $data['foto_url'] ?? null;
 
-        $this->connection->executeStatement(
-            "UPDATE ANIMAL SET
-               nombre        = NVL(:nombre, nombre),
-               sexo          = NVL(:sexo, sexo),
-               id_raza       = NVL(:raza, id_raza),
-               color_pelaje  = NVL(:color, color_pelaje),
-               estado        = NVL(:estado, estado),
-               observaciones = NVL(:obs, observaciones)
-             WHERE id_animal = :id",
-            [
-                'nombre' => $nombre,
-                'sexo'   => $sexo,
-                'raza'   => $idRaza,
-                'color'  => $color,
-                'estado' => $estado,
-                'obs'    => $obs,
-                'id'     => $id,
-            ]
+        $oldRow = $this->connection->fetchAssociative(
+            'SELECT * FROM ANIMAL WHERE id_animal = :id',
+            ['id' => $id]
         );
 
-        return $this->json(['success' => true, 'message' => 'Animal actualizado']);
+        $sets  = "nombre = NVL(:nombre, nombre), sexo = NVL(:sexo, sexo), id_raza = NVL(:raza, id_raza),
+                  color_pelaje = NVL(:color, color_pelaje), estado = NVL(:estado, estado),
+                  observaciones = NVL(:obs, observaciones)";
+        $params = [
+            'nombre' => $nombre, 'sexo' => $sexo, 'raza' => $idRaza,
+            'color' => $color, 'estado' => $estado, 'obs' => $obs, 'id' => $id,
+        ];
+
+        // Actualizar foto solo si se envió una nueva imagen base64
+        $fotoUrl = null;
+        if ($fotoData && str_starts_with($fotoData, 'data:image')) {
+            $fotoUrl = $this->guardarFoto($fotoData);
+            $sets .= ', foto_url = :foto';
+            $params['foto'] = $fotoUrl;
+        }
+
+        $this->connection->executeStatement(
+            "UPDATE ANIMAL SET $sets WHERE id_animal = :id",
+            $params
+        );
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'ANIMAL',
+                operacion: 'ACTUALIZAR',
+                idRegistro: $id,
+                descripcion: "Actualización de animal ID {$id}",
+                datosAnt: $oldRow ?: [],
+                datosNuevos: $data,
+            );
+        } catch (\Throwable) {}
+
+        return $this->json(['success' => true, 'message' => 'Animal actualizado', 'fotoUrl' => $fotoUrl]);
     }
 
     #[Route('/{id}', name: 'api_animales_delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function delete(int $id): JsonResponse
     {
+        $oldRow = $this->connection->fetchAssociative(
+            'SELECT * FROM ANIMAL WHERE id_animal = :id',
+            ['id' => $id]
+        );
+
         $this->connection->executeStatement(
             "UPDATE ANIMAL SET estado = 'muerto', fecha_cambio_estado = CURRENT_TIMESTAMP WHERE id_animal = :id",
             ['id' => $id]
         );
 
+        try {
+            $codigo = $oldRow['CODIGO_IDENTIFICACION'] ?? '';
+            $nombre = $oldRow['NOMBRE'] ?? '';
+            $this->auditoria->registrar(
+                tabla: 'ANIMAL',
+                operacion: 'ELIMINAR',
+                idRegistro: $id,
+                descripcion: "Baja de animal {$codigo} - {$nombre}",
+                datosAnt: $oldRow ?: [],
+            );
+        } catch (\Throwable) {}
+
         return $this->json(['success' => true, 'message' => 'Animal dado de baja']);
+    }
+
+    private function guardarFoto(?string $fotoData): ?string
+    {
+        if (!$fotoData || !str_starts_with($fotoData, 'data:image')) {
+            return null;
+        }
+
+        // data:image/jpeg;base64,/9j/4AAQ...
+        if (!preg_match('/^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/i', $fotoData, $m)) {
+            return null;
+        }
+
+        $ext      = strtolower($m[1] === 'jpeg' ? 'jpg' : $m[1]);
+        $binData  = base64_decode($m[2]);
+        if ($binData === false) {
+            return null;
+        }
+
+        $dir      = $this->getParameter('kernel.project_dir') . '/public/uploads/animales';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+
+        $filename = uniqid('animal_', true) . '.' . $ext;
+        file_put_contents($dir . '/' . $filename, $binData);
+
+        return '/uploads/animales/' . $filename;
     }
 }

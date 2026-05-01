@@ -84,6 +84,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
   const [razasDisponibles, setRazasDisponibles] = useState([]);
   const inputFotoRef = useRef(null);
+  const mensajeRef = useRef(null);
 
   // Cargar razas desde la API
   useEffect(() => {
@@ -418,28 +419,26 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const validarFormulario = () => {
     const nuevosErrores = {};
 
-    if (!formData.codigo.trim()) {
-      nuevosErrores.codigo = 'El código es obligatorio';
-    }
-
-    if (!formData.nombre.trim()) {
-      nuevosErrores.nombre = 'El nombre es obligatorio';
-    }
-
-    if (!formData.sexo) {
-      nuevosErrores.sexo = 'El sexo es obligatorio';
-    }
-
-    if (!formData.raza) {
-      nuevosErrores.raza = 'La raza es obligatoria';
-    }
-
-    if (!formData.fechaNacimiento) {
-      nuevosErrores.fechaNacimiento = 'La fecha de nacimiento es obligatoria';
-    }
+    if (!formData.codigo.trim())      nuevosErrores.codigo = 'El código es obligatorio';
+    if (!formData.nombre.trim())      nuevosErrores.nombre = 'El nombre es obligatorio';
+    if (!formData.sexo)               nuevosErrores.sexo = 'Selecciona el sexo';
+    if (!formData.raza)               nuevosErrores.raza = 'Selecciona la raza';
+    if (!formData.fechaNacimiento)    nuevosErrores.fechaNacimiento = 'La fecha de nacimiento es obligatoria';
 
     setErrores(nuevosErrores);
-    return Object.keys(nuevosErrores).length === 0;
+
+    if (Object.keys(nuevosErrores).length > 0) {
+      const nombres = {
+        codigo: 'Código/ID', nombre: 'Nombre', sexo: 'Sexo',
+        raza: 'Raza', fechaNacimiento: 'Fecha de Nacimiento'
+      };
+      const faltantes = Object.keys(nuevosErrores).map(k => nombres[k]).join(', ');
+      setMensaje({ tipo: 'error', texto: `Completa los campos requeridos: ${faltantes}` });
+      setTimeout(() => mensajeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      return false;
+    }
+
+    return true;
   };
 
   /**
@@ -516,7 +515,8 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
       }, 1500);
     } catch (error) {
       console.error('=== REGISTRO CABRA - Error al guardar:', error);
-      setMensaje({ tipo: 'error', texto: 'Error al guardar: ' + (error.message || 'Intenta nuevamente.') });
+      setMensaje({ tipo: 'error', texto: error.message || 'Error al guardar. Intenta nuevamente.' });
+      setTimeout(() => mensajeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
     } finally {
       setGuardando(false);
     }
@@ -631,20 +631,22 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
           {/* Columna derecha - Formulario */}
           <div className="lg:col-span-2 space-y-6">
             {/* Mensaje de feedback */}
-            {mensaje.texto && (
-              <div className={`p-4 rounded-lg flex items-center space-x-2 ${
-                mensaje.tipo === 'success' 
-                  ? 'bg-green-50 text-green-800 border border-green-200' 
-                  : 'bg-red-50 text-red-800 border border-red-200'
-              }`}>
-                {mensaje.tipo === 'success' ? (
-                  <CheckCircle className="w-5 h-5" />
-                ) : (
-                  <AlertCircle className="w-5 h-5" />
-                )}
-                <span>{mensaje.texto}</span>
-              </div>
-            )}
+            <div ref={mensajeRef}>
+              {mensaje.texto && (
+                <div className={`p-4 rounded-lg flex items-start space-x-3 ${
+                  mensaje.tipo === 'success'
+                    ? 'bg-green-50 text-green-800 border border-green-200'
+                    : 'bg-red-50 text-red-800 border border-red-300'
+                }`}>
+                  {mensaje.tipo === 'success' ? (
+                    <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                  )}
+                  <span className="font-medium">{mensaje.texto}</span>
+                </div>
+              )}
+            </div>
 
             {/* Sección: Información Básica */}
             <div className="bg-white rounded-lg shadow-md p-6">
@@ -757,6 +759,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Propósito
+                    <span className="ml-2 text-xs text-amber-600 font-normal">(informativo, no se almacena)</span>
                   </label>
                   <SelectPersonalizado
                     valor={formData.proposito}
@@ -802,6 +805,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Fecha de Ingreso al Rebaño
+                    <span className="ml-2 text-xs text-amber-600 font-normal">(referencia, no se almacena)</span>
                   </label>
                   <input
                     type="date"
@@ -843,6 +847,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Peso Actual (kg)
+                    <span className="ml-2 text-xs text-amber-600 font-normal">(regístralo en Módulo Pesaje)</span>
                   </label>
                   <input
                     type="number"
@@ -860,10 +865,11 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
 
             {/* Sección: Genealogía */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+              <h3 className="text-xl font-semibold text-gray-800 mb-1 flex items-center">
                 <Tag className="w-5 h-5 mr-2 text-green-600" />
                 Genealogía
               </h3>
+              <p className="text-xs text-amber-600 mb-4">Los datos de padre/madre se registran en el Módulo de Genealogía tras guardar el animal.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Código del padre */}
@@ -923,6 +929,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Estado Reproductivo
+                      <span className="ml-2 text-xs text-amber-600 font-normal">(regístralo en Módulo Reproducción)</span>
                     </label>
                     <SelectPersonalizado
                       valor={formData.estadoReproductivo}

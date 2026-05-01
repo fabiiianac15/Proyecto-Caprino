@@ -1,697 +1,410 @@
-/**
- * Componente de Login y Registro
- * Diseño dividido: imagen izquierda, formulario derecha
- */
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Mail, 
-  Lock, 
-  User, 
-  UserCheck, 
-  Eye, 
-  EyeOff,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Shield,
-  Users
+import {
+  Mail, Lock, User, Eye, EyeOff,
+  CheckCircle, XCircle, AlertCircle, Shield, Users,
 } from 'lucide-react';
 import { useAuth } from '../contextos/AuthContext';
 import { validarEmail } from '../utilidades/validaciones';
 import SelectPersonalizado from './SelectPersonalizado';
+import ToastNotificacion, { useToast } from './ToastNotificacion';
+
+const INPUT_BASE = 'w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors';
+const INPUT_OK   = 'border-gray-200 bg-white focus:ring-green-500 focus:border-green-400';
+const INPUT_ERR  = 'border-red-300 bg-red-50 focus:ring-red-400 focus:border-red-400';
 
 const LoginRegistro = () => {
-  const [vistaActual, setVistaActual] = useState('login'); // 'login' o 'registro'
+  const [vistaActual, setVistaActual] = useState('login');
   const navigate = useNavigate();
   const { iniciarSesion, registrarse } = useAuth();
+  const { toasts, agregar: toast, quitar } = useToast();
 
-  // Estados para Login
-  const [loginForm, setLoginForm] = useState({
-    email: '',
-    password: '',
-    recordar: false
-  });
-
-  // Estados para Registro
-  const [registroForm, setRegistroForm] = useState({
-    codigo: '',
-    nombre: '',
-    email: '',
-    rol: '',
-    password: '',
-    confirmarPassword: ''
-  });
-
+  const [loginForm, setLoginForm] = useState({ email: '', password: '', recordar: false });
+  const [registroForm, setRegistroForm] = useState({ nombre: '', email: '', rol: '', password: '', confirmarPassword: '' });
   const [mostrarPassword, setMostrarPassword] = useState(false);
-  const [errores, setErrores] = useState({});
-  const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
+  const [errores, setErrores]   = useState({});
   const [cargando, setCargando] = useState(false);
 
-  /**
-   * Evalúa la fortaleza de la contraseña
-   */
-  const evaluarPassword = (password) => {
-    let fuerza = 0;
-    const requisitos = {
-      longitud: password.length >= 8,
-      mayuscula: /[A-Z]/.test(password),
-      minuscula: /[a-z]/.test(password),
-      numero: /[0-9]/.test(password),
-      especial: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+  const evaluarPassword = (pw) => {
+    const req = {
+      longitud:  pw.length >= 8,
+      mayuscula: /[A-Z]/.test(pw),
+      minuscula: /[a-z]/.test(pw),
+      numero:    /[0-9]/.test(pw),
+      especial:  /[!@#$%^&*(),.?":{}|<>]/.test(pw),
     };
-
-    Object.values(requisitos).forEach(cumple => {
-      if (cumple) fuerza++;
-    });
-
-    let nivel = 'débil';
-    let color = 'red';
-    if (fuerza >= 4) {
-      nivel = 'fuerte';
-      color = 'green';
-    } else if (fuerza >= 3) {
-      nivel = 'media';
-      color = 'yellow';
-    }
-
-    return { nivel, color, fuerza, requisitos };
+    const fuerza = Object.values(req).filter(Boolean).length;
+    return {
+      fuerza, req,
+      nivel: fuerza >= 4 ? 'fuerte' : fuerza >= 3 ? 'media' : 'débil',
+      color: fuerza >= 4 ? 'green' : fuerza >= 3 ? 'yellow' : 'red',
+    };
   };
+  const pwEval = evaluarPassword(registroForm.password);
 
-  const passwordEval = evaluarPassword(registroForm.password);
+  const cambioLogin    = (e) => { const { name, value, type, checked } = e.target; setLoginForm(p => ({ ...p, [name]: type === 'checkbox' ? checked : value })); setErrores(p => ({ ...p, [name]: null })); };
+  const cambioRegistro = (e) => { const { name, value } = e.target; setRegistroForm(p => ({ ...p, [name]: value })); setErrores(p => ({ ...p, [name]: null })); };
 
-  /**
-   * Maneja cambios en formulario de login
-   */
-  const manejarCambioLogin = (e) => {
-    const { name, value, type, checked } = e.target;
-    setLoginForm(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    
-    if (errores[name]) {
-      setErrores(prev => ({ ...prev, [name]: null }));
-    }
-  };
-
-  /**
-   * Maneja cambios en formulario de registro
-   */
-  const manejarCambioRegistro = (e) => {
-    const { name, value } = e.target;
-    
-    // DEBUG: Ver qué valores se están estableciendo
-    console.log('DEBUG manejarCambioRegistro:', { name, value });
-    
-    setRegistroForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    if (errores[name]) {
-      setErrores(prev => ({ ...prev, [name]: null }));
-    }
-  };
-
-  /**
-   * Valida formulario de login
-   */
+  /* ── Validaciones ── */
   const validarLogin = () => {
-    const nuevosErrores = {};
-
-    const validacionEmail = validarEmail(loginForm.email);
-    if (!validacionEmail.valido) {
-      nuevosErrores.email = validacionEmail.mensaje;
+    const err = {};
+    if (!validarEmail(loginForm.email).valido) err.email = 'Correo inválido';
+    if (!loginForm.password) err.password = 'La contraseña es requerida';
+    setErrores(err);
+    if (Object.keys(err).length) {
+      if (err.email && err.password) {
+        toast('warning', 'Campos requeridos', 'Ingresa tu correo y contraseña para continuar.');
+      } else if (err.email) {
+        toast('warning', 'Correo inválido', 'Ingresa un correo electrónico válido.');
+      } else {
+        toast('warning', 'Contraseña requerida', 'Debes ingresar tu contraseña.');
+      }
+      return false;
     }
-
-    if (!loginForm.password) {
-      nuevosErrores.password = 'La contraseña es requerida';
-    }
-
-    setErrores(nuevosErrores);
-    return Object.keys(nuevosErrores).length === 0;
+    return true;
   };
 
-  /**
-   * Valida formulario de registro
-   */
   const validarRegistro = () => {
-    const nuevosErrores = {};
+    const err = {};
+    if (!registroForm.nombre.trim()) err.nombre = 'El nombre es requerido';
+    if (!registroForm.rol)           err.rol    = 'Selecciona un rol';
+    if (!validarEmail(registroForm.email).valido) err.email = 'Correo inválido';
+    if (pwEval.fuerza < 3)           err.password = 'Contraseña muy débil';
+    if (registroForm.password !== registroForm.confirmarPassword) err.confirmarPassword = 'Las contraseñas no coinciden';
+    setErrores(err);
 
-    if (!registroForm.nombre.trim()) {
-      nuevosErrores.nombre = 'El nombre es requerido';
+    if (Object.keys(err).length) {
+      if (err.password === 'Contraseña muy débil') {
+        toast('warning', 'Contraseña insegura',
+          'Usa al menos 8 caracteres con mayúsculas, minúsculas y números.');
+      } else if (err.confirmarPassword) {
+        toast('warning', 'Contraseñas distintas',
+          'Las dos contraseñas que ingresaste no coinciden.');
+      } else if (err.email) {
+        toast('warning', 'Correo inválido',
+          'Ingresa un correo electrónico con formato válido.');
+      } else {
+        const campo = err.nombre ? 'nombre completo'
+          : err.rol ? 'rol'
+          : 'información';
+        toast('warning', 'Campo requerido',
+          `El campo "${campo}" es obligatorio para continuar.`);
+      }
+      return false;
     }
-
-    if (!registroForm.rol) {
-      nuevosErrores.rol = 'Debe seleccionar un rol';
-    }
-
-    const validacionEmail = validarEmail(registroForm.email);
-    if (!validacionEmail.valido) {
-      nuevosErrores.email = validacionEmail.mensaje;
-    }
-
-    if (passwordEval.fuerza < 3) {
-      nuevosErrores.password = 'La contraseña no cumple con los requisitos mínimos';
-    }
-
-    if (registroForm.password !== registroForm.confirmarPassword) {
-      nuevosErrores.confirmarPassword = 'Las contraseñas no coinciden';
-    }
-
-    setErrores(nuevosErrores);
-    return Object.keys(nuevosErrores).length === 0;
+    return true;
   };
 
-  /**
-   * Procesa el login
-   */
+  /* ── Handlers ── */
   const manejarLogin = async (e) => {
     e.preventDefault();
-    
-    if (!validarLogin()) {
-      return;
-    }
-
+    if (!validarLogin()) return;
     setCargando(true);
-    setMensaje({ tipo: '', texto: '' });
-    
-    const resultado = await iniciarSesion(
-      loginForm.email, 
-      loginForm.password, 
-      loginForm.recordar
-    );
-    
+    const res = await iniciarSesion(loginForm.email, loginForm.password, loginForm.recordar);
     setCargando(false);
-
-    if (resultado.success) {
-      setMensaje({ tipo: 'success', texto: 'Inicio de sesión exitoso' });
-      setTimeout(() => {
-        navigate('/');
-      }, 1000);
+    if (res.success) {
+      toast('success', '¡Bienvenido!', 'Sesión iniciada correctamente. Redirigiendo…', 2500);
+      setTimeout(() => navigate('/'), 900);
     } else {
-      setMensaje({ tipo: 'error', texto: resultado.error });
+      const esCredenciales = /credencial|contraseña|password|incorrect|invalid|wrong/i.test(res.error ?? '');
+      if (esCredenciales) {
+        toast('error', 'Credenciales incorrectas',
+          'El correo o la contraseña que ingresaste no son válidos.');
+      } else {
+        toast('error', 'Error al iniciar sesión', res.error ?? 'Ocurrió un error inesperado.');
+      }
     }
   };
 
-  /**
-   * Procesa el registro
-   */
   const manejarRegistro = async (e) => {
     e.preventDefault();
-    
-    if (!validarRegistro()) {
-      return;
-    }
-
+    if (!validarRegistro()) return;
     setCargando(true);
-    setMensaje({ tipo: '', texto: '' });
-    
-    const datosRegistro = {
+    const res = await registrarse({
       nombre_completo: registroForm.nombre.trim(),
       email: registroForm.email,
       password: registroForm.password,
-      rol: registroForm.rol
-    };
-
-    // DEBUG: Ver qué se está enviando
-    console.log('DEBUG manejarRegistro - Estado del form:', registroForm);
-    console.log('DEBUG manejarRegistro - Datos a enviar:', datosRegistro);
-
-    const resultado = await registrarse(datosRegistro);
-
-    if (resultado.success) {
-      setMensaje({ tipo: 'success', texto: 'Registro exitoso. Iniciando sesión...' });
-      
-      // Esperar 1 segundo para mostrar el mensaje de éxito
-      setTimeout(() => {
-        // Si registrarse ya guardó el token, redirigir directamente
-        setCargando(false);
-        navigate('/');
-      }, 1500);
+      rol: registroForm.rol,
+    });
+    if (res.success) {
+      toast('success', '¡Cuenta creada!', 'Tu cuenta fue registrada. Redirigiendo al sistema…', 3000);
+      setTimeout(() => { setCargando(false); navigate('/'); }, 1600);
     } else {
       setCargando(false);
-      setMensaje({ tipo: 'error', texto: resultado.error });
+      toast('error', 'Error en el registro', res.error ?? 'No se pudo crear la cuenta.');
     }
   };
 
+  const FEATURES = [
+    'Registro y seguimiento de cada animal',
+    'Control de reproducción y partos',
+    'Historial de salud y vacunación',
+    'Producción de leche y pesajes',
+  ];
+
   return (
-    <div className="min-h-screen flex relative">
-      {/* Fondo con imagen */}
-      <div 
-        className="absolute inset-0 bg-gradient-to-br from-green-50 via-blue-50 to-green-100"
-        style={{
-          backgroundImage: 'url(/img/AtrasCabra.jpeg)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          opacity: 0.6
-        }}
-      />
-      
-      {/* Lado izquierdo - Información */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12 relative z-10">
-        <div className="flex flex-col items-center justify-center space-y-8 w-full max-w-lg">
-          {/* Título arriba de la imagen */}
-          <div className="text-center">
-            <h2 className="text-4xl font-bold mb-3 text-green-800">Sistema de Gestión Caprina</h2>
-            <p className="text-lg text-green-700">
-              Control integral de producción, reproducción y salud de tu rebaño
-            </p>
+    <>
+      {/* ── Toasts ── */}
+      <ToastNotificacion toasts={toasts} onClose={quitar} />
+
+      <div className="min-h-screen flex">
+        {/* ── Panel izquierdo ── */}
+        <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 relative flex-col justify-between p-12 overflow-hidden">
+          <div className="absolute inset-0">
+            <img src="/img/AtrasCabra.jpeg" alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-br from-green-900/85 to-green-700/70" />
           </div>
-          
-          {/* Imagen redondeada */}
-          <div className="w-full flex justify-center">
-            <img 
-              src="/img/LogoCabra.jpg" 
-              alt="Granja Caprina" 
-              className="w-96 h-96 object-cover rounded-3xl shadow-2xl"
-            />
+
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-2">
+              <img src="/img/LogoCabra.jpg" alt="Logo" className="w-10 h-10 rounded-full object-cover ring-2 ring-white/40" />
+              <span className="text-white font-bold text-lg tracking-wide">Sistema Caprino</span>
+            </div>
+          </div>
+
+          <div className="relative z-10 space-y-6">
+            <div>
+              <h1 className="text-4xl font-bold text-white leading-tight mb-3">
+                Gestión integral<br />de tu rebaño
+              </h1>
+              <p className="text-green-100 text-base leading-relaxed">
+                Todo lo que necesitas para administrar tu granja caprina en un solo lugar.
+              </p>
+            </div>
+
+            <ul className="space-y-3">
+              {FEATURES.map(f => (
+                <li key={f} className="flex items-center gap-3">
+                  <span className="w-5 h-5 rounded-full bg-green-400/30 ring-1 ring-green-300 flex items-center justify-center shrink-0">
+                    <CheckCircle className="w-3 h-3 text-green-300" />
+                  </span>
+                  <span className="text-green-50 text-sm">{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="relative z-10">
+            <p className="text-green-200/60 text-xs">UFPSO · Proyecto Caprino</p>
           </div>
         </div>
-      </div>
 
-      {/* Lado derecho - Formulario */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative z-10">
-        <div className="w-full max-w-md">
-          
-          {/* Logo móvil */}
-          <div className="lg:hidden text-center mb-8">
-            <div className="text-6xl mb-2">🐐</div>
-            <h1 className="text-2xl font-bold text-gray-800">Sistema Caprino</h1>
-          </div>
+        {/* ── Panel derecho ── */}
+        <div className="flex-1 flex items-center justify-center bg-gray-50 px-6 py-12">
+          <div className="w-full max-w-md">
 
-          {/* Selector Login/Registro */}
-          <div className="flex mb-6 bg-white rounded-lg p-1 shadow-lg relative">
-            <button
-              onClick={() => setVistaActual('login')}
-              className={`flex-1 py-3 px-4 rounded-md font-medium transition-all duration-300 relative z-10 ${
-                vistaActual === 'login'
-                  ? 'text-white'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              Iniciar Sesión
-            </button>
-            <button
-              onClick={() => setVistaActual('registro')}
-              className={`flex-1 py-3 px-4 rounded-md font-medium transition-all duration-300 relative z-10 ${
-                vistaActual === 'registro'
-                  ? 'text-white'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              Registrarse
-            </button>
-            {/* Indicador deslizante */}
-            <div 
-              className={`absolute top-1 bottom-1 w-[calc(50%-0.25rem)] bg-green-600 rounded-md transition-all duration-300 ease-in-out shadow-md ${
-                vistaActual === 'login' ? 'left-1' : 'left-[calc(50%+0.25rem)]'
-              }`}
-            />
-          </div>
-
-          {/* Mensaje de feedback */}
-          {mensaje.texto && (
-            <div className={`mb-4 p-4 rounded-md ${
-              mensaje.tipo === 'success' 
-                ? 'bg-green-50 text-green-800 border border-green-200' 
-                : 'bg-red-50 text-red-800 border border-red-200'
-            }`}>
-              <div className="flex items-center">
-                <AlertCircle className="w-5 h-5 mr-2" />
-                {mensaje.texto}
-              </div>
+            {/* Logo móvil */}
+            <div className="lg:hidden flex items-center gap-3 justify-center mb-8">
+              <img src="/img/LogoCabra.jpg" alt="Logo" className="w-10 h-10 rounded-full object-cover" />
+              <span className="font-bold text-xl text-gray-800">Sistema Caprino</span>
             </div>
-          )}
 
-          {/* Formulario de Login */}
-          {vistaActual === 'login' && (
-            <form 
-              onSubmit={manejarLogin} 
-              className="bg-white rounded-lg shadow-lg p-8 animate-fadeIn"
-              style={{
-                animation: 'fadeIn 0.4s ease-in-out'
-              }}
-            >
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Iniciar Sesión</h2>
-              
-              {/* Email */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Correo Institucional
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={loginForm.email}
-                    onChange={manejarCambioLogin}
-                    placeholder="tu@ufpso.edu.co"
-                    className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      errores.email 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  />
-                </div>
-                {errores.email && (
-                  <p className="mt-1 text-sm text-red-600">{errores.email}</p>
-                )}
-              </div>
+            {/* Tab switcher */}
+            <div className="bg-white border border-gray-200 rounded-xl p-1 flex mb-6 shadow-sm">
+              {['login', 'registro'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => { setVistaActual(tab); setErrores({}); }}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all
+                    ${vistaActual === tab ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  {tab === 'login' ? 'Iniciar Sesión' : 'Registrarse'}
+                </button>
+              ))}
+            </div>
 
-              {/* Password */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type={mostrarPassword ? 'text' : 'password'}
-                    name="password"
-                    value={loginForm.password}
-                    onChange={manejarCambioLogin}
-                    placeholder="••••••••"
-                    className={`w-full pl-10 pr-12 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      errores.password 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setMostrarPassword(!mostrarPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {mostrarPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                {errores.password && (
-                  <p className="mt-1 text-sm text-red-600">{errores.password}</p>
-                )}
-              </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
 
-              {/* Recordar */}
-              <div className="flex items-center justify-between mb-6">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="recordar"
-                    checked={loginForm.recordar}
-                    onChange={manejarCambioLogin}
-                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-600">Recordarme</span>
-                </label>
-                <a href="#" className="text-sm text-green-600 hover:text-green-800">
-                  ¿Olvidaste tu contraseña?
-                </a>
-              </div>
+              {/* ── LOGIN ── */}
+              {vistaActual === 'login' && (
+                <form onSubmit={manejarLogin} className="space-y-5">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800">Bienvenido</h2>
+                    <p className="text-gray-500 text-sm mt-1">Ingresa tus credenciales para continuar</p>
+                  </div>
 
-              {/* Botón login */}
-              <button
-                type="submit"
-                disabled={cargando}
-                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
-              >
-                {cargando ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-              </button>
-
-              {/* Credenciales de prueba — remover en producción */}
-              {import.meta.env.DEV && (
-                <div className="mt-4 p-3 bg-green-50 rounded-md text-sm border border-green-200">
-                  <p className="font-medium text-green-900 mb-1">Credenciales de prueba:</p>
-                  <p className="text-green-700">Email: admin@caprino.com</p>
-                  <p className="text-green-700">Contraseña: Admin123!</p>
-                </div>
-              )}
-            </form>
-          )}
-
-          {/* Formulario de Registro */}
-          {vistaActual === 'registro' && (
-            <form 
-              onSubmit={manejarRegistro} 
-              className="bg-white rounded-lg shadow-lg p-8 animate-fadeIn"
-              style={{
-                animation: 'fadeIn 0.4s ease-in-out'
-              }}
-            >
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear Cuenta</h2>
-              
-              {/* Código */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Código <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="codigo"
-                  value={registroForm.codigo}
-                  onChange={manejarCambioRegistro}
-                  placeholder="00198 o 192168"
-                    className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                    errores.codigo 
-                      ? 'border-red-300 focus:ring-red-500' 
-                      : 'border-gray-300 focus:ring-green-500'
-                  }`}
-                />
-                {errores.codigo && (
-                  <p className="mt-1 text-sm text-red-600">{errores.codigo}</p>
-                )}
-              </div>
-
-              {/* Nombre completo */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre Completo <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={registroForm.nombre}
-                    onChange={manejarCambioRegistro}
-                    placeholder="Pedrito Pérez García"
-                    className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      errores.nombre 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  />
-                </div>
-                {errores.nombre && (
-                  <p className="mt-1 text-sm text-red-600">{errores.nombre}</p>
-                )}
-              </div>
-
-              {/* Email */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Correo Institucional <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="email"
-                    name="email"
-                    value={registroForm.email}
-                    onChange={manejarCambioRegistro}
-                    placeholder="tu@ufpso.edu.co"
-                    className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      errores.email 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  />
-                </div>
-                {errores.email && (
-                  <p className="mt-1 text-sm text-red-600">{errores.email}</p>
-                )}
-              </div>
-
-              {/* Rol */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rol <span className="text-red-500">*</span>
-                </label>
-                <SelectPersonalizado
-                  valor={registroForm.rol}
-                  onChange={(valor) => manejarCambioRegistro({ target: { name: 'rol', value: valor } })}
-                  opciones={[
-                    { 
-                      value: 'administrador_granja', 
-                      label: 'Administrador de Granja', 
-                      icono: <Shield />,
-                      colorFondo: 'bg-purple-100',
-                      colorIcono: 'text-purple-600'
-                    },
-                    { 
-                      value: 'pasante', 
-                      label: 'Pasante', 
-                      icono: <Users />,
-                      colorFondo: 'bg-blue-100',
-                      colorIcono: 'text-blue-600'
-                    }
-                  ]}
-                  placeholder="Seleccione un rol..."
-                  error={!!errores.rol}
-                  requerido
-                />
-                {errores.rol && (
-                  <p className="mt-1 text-sm text-red-600">{errores.rol}</p>
-                )}
-              </div>
-
-              {/* Password */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type={mostrarPassword ? 'text' : 'password'}
-                    name="password"
-                    value={registroForm.password}
-                    onChange={manejarCambioRegistro}
-                    placeholder="••••••••"
-                    className={`w-full pl-10 pr-12 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      errores.password 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setMostrarPassword(!mostrarPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {mostrarPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                
-                {/* Indicador de fortaleza */}
-                {registroForm.password && (
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-600">Fortaleza:</span>
-                      <span className={`text-xs font-medium ${
-                        passwordEval.color === 'green' ? 'text-green-600' :
-                        passwordEval.color === 'yellow' ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {passwordEval.nivel.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all ${
-                          passwordEval.color === 'green' ? 'bg-green-500' :
-                          passwordEval.color === 'yellow' ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${(passwordEval.fuerza / 5) * 100}%` }}
+                  <Campo label="Correo institucional" error={errores.email}>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="email" name="email" value={loginForm.email} onChange={cambioLogin}
+                        placeholder="tu@ufpso.edu.co"
+                        className={`${INPUT_BASE} pl-10 ${errores.email ? INPUT_ERR : INPUT_OK}`}
                       />
                     </div>
-                    
-                    {/* Requisitos */}
-                    <div className="mt-2 text-xs space-y-1">
-                      <div className="flex items-center">
-                        {passwordEval.requisitos.longitud ? 
-                          <CheckCircle className="w-3 h-3 text-green-500 mr-1" /> : 
-                          <XCircle className="w-3 h-3 text-gray-400 mr-1" />
-                        }
-                        <span className={passwordEval.requisitos.longitud ? 'text-green-600' : 'text-gray-500'}>
-                          Mínimo 8 caracteres
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        {passwordEval.requisitos.mayuscula ? 
-                          <CheckCircle className="w-3 h-3 text-green-500 mr-1" /> : 
-                          <XCircle className="w-3 h-3 text-gray-400 mr-1" />
-                        }
-                        <span className={passwordEval.requisitos.mayuscula ? 'text-green-600' : 'text-gray-500'}>
-                          Una letra mayúscula
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        {passwordEval.requisitos.minuscula ? 
-                          <CheckCircle className="w-3 h-3 text-green-500 mr-1" /> : 
-                          <XCircle className="w-3 h-3 text-gray-400 mr-1" />
-                        }
-                        <span className={passwordEval.requisitos.minuscula ? 'text-green-600' : 'text-gray-500'}>
-                          Una letra minúscula
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        {passwordEval.requisitos.numero ? 
-                          <CheckCircle className="w-3 h-3 text-green-500 mr-1" /> : 
-                          <XCircle className="w-3 h-3 text-gray-400 mr-1" />
-                        }
-                        <span className={passwordEval.requisitos.numero ? 'text-green-600' : 'text-gray-500'}>
-                          Un número
-                        </span>
-                      </div>
-                      <div className="flex items-center">
-                        {passwordEval.requisitos.especial ? 
-                          <CheckCircle className="w-3 h-3 text-green-500 mr-1" /> : 
-                          <XCircle className="w-3 h-3 text-gray-400 mr-1" />
-                        }
-                        <span className={passwordEval.requisitos.especial ? 'text-green-600' : 'text-gray-500'}>
-                          Un carácter especial (!@#$%^&*)
-                        </span>
-                      </div>
+                  </Campo>
+
+                  <Campo label="Contraseña" error={errores.password}>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type={mostrarPassword ? 'text' : 'password'} name="password" value={loginForm.password} onChange={cambioLogin}
+                        placeholder="••••••••"
+                        className={`${INPUT_BASE} pl-10 pr-10 ${errores.password ? INPUT_ERR : INPUT_OK}`}
+                      />
+                      <button
+                        type="button" onClick={() => setMostrarPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {mostrarPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
+                  </Campo>
+
+                  <div className="flex items-center text-sm">
+                    <label className="flex items-center gap-2 text-gray-600 cursor-pointer">
+                      <input
+                        type="checkbox" name="recordar" checked={loginForm.recordar} onChange={cambioLogin}
+                        className="w-4 h-4 rounded text-green-600 border-gray-300 focus:ring-green-500"
+                      />
+                      Recordarme
+                    </label>
                   </div>
-                )}
-                {errores.password && (
-                  <p className="mt-1 text-sm text-red-600">{errores.password}</p>
-                )}
-              </div>
 
-              {/* Confirmar password */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirmar Contraseña <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type={mostrarPassword ? 'text' : 'password'}
-                    name="confirmarPassword"
-                    value={registroForm.confirmarPassword}
-                    onChange={manejarCambioRegistro}
-                    placeholder="••••••••"
-                    className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      errores.confirmarPassword 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  />
-                </div>
-                {errores.confirmarPassword && (
-                  <p className="mt-1 text-sm text-red-600">{errores.confirmarPassword}</p>
-                )}
-              </div>
+                  <button
+                    type="submit" disabled={cargando}
+                    className="w-full py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+                  >
+                    {cargando && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                    {cargando ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                  </button>
 
-              {/* Botón registro */}
-              <button
-                type="submit"
-                disabled={cargando}
-                className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
-              >
-                {cargando ? 'Registrando...' : 'Crear Cuenta'}
-              </button>
-            </form>
-          )}
+                  {import.meta.env.DEV && (
+                    <div className="p-3 bg-green-50 rounded-lg text-xs border border-green-200 text-green-800">
+                      <p className="font-semibold mb-1">Credenciales de prueba</p>
+                      <p>admin@caprino.com · Admin123!</p>
+                    </div>
+                  )}
+                </form>
+              )}
+
+              {/* ── REGISTRO ── */}
+              {vistaActual === 'registro' && (
+                <form onSubmit={manejarRegistro} className="space-y-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800">Crear cuenta</h2>
+                    <p className="text-gray-500 text-sm mt-1">Completa los datos para registrarte</p>
+                  </div>
+
+                  <Campo label="Nombre completo" error={errores.nombre}>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text" name="nombre" value={registroForm.nombre} onChange={cambioRegistro}
+                        placeholder="Nombre Apellido"
+                        className={`${INPUT_BASE} pl-10 ${errores.nombre ? INPUT_ERR : INPUT_OK}`}
+                      />
+                    </div>
+                  </Campo>
+
+                  <Campo label="Correo institucional" error={errores.email}>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="email" name="email" value={registroForm.email} onChange={cambioRegistro}
+                        placeholder="tu@ufpso.edu.co"
+                        className={`${INPUT_BASE} pl-10 ${errores.email ? INPUT_ERR : INPUT_OK}`}
+                      />
+                    </div>
+                  </Campo>
+
+                  <Campo label="Rol" error={errores.rol}>
+                    <SelectPersonalizado
+                      valor={registroForm.rol}
+                      onChange={(v) => cambioRegistro({ target: { name: 'rol', value: v } })}
+                      opciones={[
+                        { value: 'administrador_granja', label: 'Administrador de Granja', icono: <Shield />, colorFondo: 'bg-purple-100', colorIcono: 'text-purple-600' },
+                        { value: 'pasante',              label: 'Pasante',                 icono: <Users />, colorFondo: 'bg-blue-100',   colorIcono: 'text-blue-600' },
+                      ]}
+                      placeholder="Selecciona un rol..."
+                      error={!!errores.rol}
+                      requerido
+                    />
+                  </Campo>
+
+                  <Campo label="Contraseña" error={errores.password}>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type={mostrarPassword ? 'text' : 'password'} name="password" value={registroForm.password} onChange={cambioRegistro}
+                        placeholder="••••••••"
+                        className={`${INPUT_BASE} pl-10 pr-10 ${errores.password ? INPUT_ERR : INPUT_OK}`}
+                      />
+                      <button
+                        type="button" onClick={() => setMostrarPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {mostrarPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {registroForm.password && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">Seguridad:</span>
+                          <span className={`text-xs font-semibold ${pwEval.color === 'green' ? 'text-green-600' : pwEval.color === 'yellow' ? 'text-yellow-600' : 'text-red-500'}`}>
+                            {pwEval.nivel.toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${pwEval.color === 'green' ? 'bg-green-500' : pwEval.color === 'yellow' ? 'bg-yellow-400' : 'bg-red-400'}`}
+                            style={{ width: `${(pwEval.fuerza / 5) * 100}%` }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 mt-2">
+                          {[['longitud', 'Mín. 8 caracteres'], ['mayuscula', 'Mayúscula'], ['minuscula', 'Minúscula'], ['numero', 'Número'], ['especial', 'Carácter especial']].map(([k, label]) => (
+                            <div key={k} className="flex items-center gap-1 text-xs">
+                              {pwEval.req[k]
+                                ? <CheckCircle className="w-3 h-3 text-green-500" />
+                                : <XCircle className="w-3 h-3 text-gray-300" />}
+                              <span className={pwEval.req[k] ? 'text-green-600' : 'text-gray-400'}>{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </Campo>
+
+                  <Campo label="Confirmar contraseña" error={errores.confirmarPassword}>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type={mostrarPassword ? 'text' : 'password'} name="confirmarPassword" value={registroForm.confirmarPassword} onChange={cambioRegistro}
+                        placeholder="••••••••"
+                        className={`${INPUT_BASE} pl-10 ${errores.confirmarPassword ? INPUT_ERR : INPUT_OK}`}
+                      />
+                    </div>
+                  </Campo>
+
+                  <button
+                    type="submit" disabled={cargando}
+                    className="w-full py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2 mt-2"
+                  >
+                    {cargando && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                    {cargando ? 'Registrando...' : 'Crear Cuenta'}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
+
+function Campo({ label, error, children }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+      {children}
+      {error && (
+        <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+          <AlertCircle className="w-3 h-3" />{error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default LoginRegistro;

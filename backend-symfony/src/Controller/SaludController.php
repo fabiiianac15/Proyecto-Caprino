@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Service\AuditoriaService;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,7 +14,10 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/salud')]
 class SaludController extends AbstractController
 {
-    public function __construct(private Connection $connection) {}
+    public function __construct(
+        private Connection $connection,
+        private AuditoriaService $auditoria,
+    ) {}
 
     #[Route('', name: 'api_salud_list', methods: ['GET'])]
     public function list(Request $request): JsonResponse
@@ -115,16 +119,56 @@ class SaludController extends AbstractController
             ]
         );
 
+        $newId = (int) $this->connection->fetchOne(
+            'SELECT MAX(id_registro) FROM SALUD WHERE id_animal = :id AND fecha_aplicacion = TO_DATE(:f, \'YYYY-MM-DD\')',
+            ['id' => $idAnimal, 'f' => $fecha]
+        );
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'SALUD',
+                operacion: 'CREAR',
+                idRegistro: $newId ?: null,
+                descripcion: "Registro de evento de salud ({$tipo}) para animal ID {$idAnimal}",
+                datosNuevos: [
+                    'idAnimal'              => $idAnimal,
+                    'tipoRegistro'          => $tipo,
+                    'fechaAplicacion'       => $fecha,
+                    'enfermedadDiagnostico' => $enfermedad,
+                    'medicamentoProducto'   => $medicamento,
+                    'dosis'                 => $dosis,
+                    'viaAdministracion'     => $via,
+                    'veterinario'           => $vet,
+                    'observaciones'         => $obs,
+                ],
+            );
+        } catch (\Throwable) {}
+
         return $this->json(['success' => true, 'message' => 'Evento de salud registrado'], Response::HTTP_CREATED);
     }
 
     #[Route('/{id}', name: 'api_salud_delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function delete(int $id): JsonResponse
     {
+        $oldRow = $this->connection->fetchAssociative(
+            'SELECT * FROM SALUD WHERE id_registro = :id',
+            ['id' => $id]
+        );
+
         $this->connection->executeStatement(
             'DELETE FROM SALUD WHERE id_registro = :id',
             ['id' => $id]
         );
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'SALUD',
+                operacion: 'ELIMINAR',
+                idRegistro: $id,
+                descripcion: "Eliminación de registro de salud ID {$id}",
+                datosAnt: $oldRow ?: [],
+            );
+        } catch (\Throwable) {}
 
         return $this->json(['success' => true, 'message' => 'Registro de salud eliminado']);
     }

@@ -1,327 +1,267 @@
-# 🐐 Sistema de Gestión Caprino
+# Sistema de Gestión Zootécnica Caprina
 
-Sistema web completo para la gestión integral de hatos caprinos, incluyendo registro de animales, genealogía, producción de leche, reproducción, salud y reportes.
-
-## 🚀 Stack Tecnológico
-
-- **Frontend**: React 18 + Vite + Tailwind CSS
-- **Backend**: PHP 8.2 + API Simple (sin Symfony)
-- **Base de datos**: Oracle Database 21c Express Edition
-- **Servidor**: PHP Built-in Server (puerto 8000)
+Sistema web integral para la gestión de hatos caprinos. Cubre el ciclo completo del animal: registro, genealogía, reproducción, salud, producción de leche, pesajes, auditoría y notificaciones.
 
 ---
 
-## 📚 DOCUMENTACIÓN Y SCRIPTS
+## Stack Tecnológico
 
-**TODO está organizado en 2 carpetas principales:**
-
-### 1. 📁 `00-SCRIPTS-INSTALACION/`
-Scripts ejecutables en **orden numérico**:
-```
-01-VERIFICAR-REQUISITOS.bat    ← Comienza aquí
-02-CONFIGURAR-ORACLE-ENV.bat
-03-INSTALAR-OCI8.ps1
-04-INSTALAR-DEPENDENCIAS-BACKEND.bat
-05-INSTALAR-DEPENDENCIAS-FRONTEND.bat
-06-INICIAR-ORACLE.ps1
-07-INICIAR-BACKEND.bat         ← Para trabajar diariamente
-08-INICIAR-FRONTEND.bat        ← Para trabajar diariamente
-```
-
-### 2. 📁 `00-DOCS-CONFIGURACION/`
-Documentación técnica:
-- **GUIA-RAPIDA.md** ← **Lee esto primero** ⭐
-- CONFIGURACION-COMPLETA.md (detalles técnicos)
-- PROBLEMA-GET-VS-POST.md (investigación del bug)
-- SOLUCION-RAPIDA-GET-VS-POST.md (soluciones)
+| Capa | Tecnología |
+|------|-----------|
+| Frontend | React 18 + Vite 5 + Tailwind CSS 3 |
+| Backend | Symfony 6.4 LTS + Doctrine ORM |
+| Autenticación | LexikJWT (HS256) |
+| Base de datos | Oracle Autonomous Database (cloud, wallet TNS) |
+| Gráficas | Recharts |
+| App móvil | Capacitor (en desarrollo) |
 
 ---
 
-## ⚡ INICIO RÁPIDO
+## Módulos Implementados
 
-### 📖 Lee primero:
-```
-📂 00-DOCS-CONFIGURACION/ → GUIA-RAPIDA.md
-```
-
-### 🚀 Flujo de instalación (PRIMERA VEZ):
-```powershell
-# Abre Explorer
-C:\Users\USUARIO\Downloads\Proyecto-Caprino\00-SCRIPTS-INSTALACION\
-
-# Ejecuta en orden:
-1. 01-VERIFICAR-REQUISITOS.bat
-2. 02-CONFIGURAR-ORACLE-ENV.bat (Como Administrador)
-3. 03-INSTALAR-OCI8.ps1
-4. 04-INSTALAR-DEPENDENCIAS-BACKEND.bat
-5. 05-INSTALAR-DEPENDENCIAS-FRONTEND.bat
-6. 06-INICIAR-ORACLE.ps1 (Como Administrador)
-```
-
-### 💻 Desarrollo DIARIO:
-```powershell
-# Terminal 1: Backend
-07-INICIAR-BACKEND.bat
-
-# Terminal 2: Frontend (en NUEVA terminal)
-08-INICIAR-FRONTEND.bat
-
-# Navegador:
-http://localhost:5173/
-```
+- **Animales** — CRUD completo con fotos y filtros avanzados
+- **Reproducción y Montas** — Ciclos reproductivos, servicios y partos
+- **Salud** — Vacunas, tratamientos y enfermedades
+- **Producción de Leche** — Registros por ordeño con indicadores físico-químicos
+- **Pesajes** — Control de peso periódico con tendencias
+- **Genealogía** — Árbol genealógico por animal
+- **Reportes** — Fichas por categoría (producción, salud, auditoría, financiero…)
+- **Notificaciones** — Centro de alertas por prioridad
+- **Auditoría** — Trazabilidad de acciones del sistema
+- **Perfil de usuario** — Edición de datos y cambio de contraseña
 
 ---
 
-## 📋 Requisitos Previos
+## Requisitos Previos
 
-- **PHP 8.2+** (con extensión OCI8 para Oracle)
-- **Composer** (gestor de dependencias PHP)
+- **PHP 8.1+** con extensión `oci8`
+- **Composer 2+**
 - **Node.js 18+** y npm
-- **Oracle 21c XE** (Express Edition)
-
----
----
-
-## 🆘 Problemas Comunes
-
-### "El registro no funciona (GET vs POST)"
-Lee: `00-DOCS-CONFIGURACION/SOLUCION-RAPIDA-GET-VS-POST.md`
-
-### "No puedo conectar a Oracle"
-Ejecuta: `00-SCRIPTS-INSTALACION/06-INICIAR-ORACLE.ps1`
-
-### Otros problemas
-Ve a: `00-DOCS-CONFIGURACION/CONFIGURACION-COMPLETA.md`
+- **Oracle Instant Client** (para la extensión OCI8)
+- **Wallet TNS** de Oracle Autonomous Database (carpeta `~/Caprino-Wallet`)
 
 ---
 
-## 📊 Contenido del Proyecto
+## Instalación
 
-```
-Proyecto-Caprino/
-├── 00-SCRIPTS-INSTALACION/      ← Scripts ejecutables
-│   ├── 01-08 *.bat/*.ps1        ← En orden numérico
-│   └── README.md
-│
-├── 00-DOCS-CONFIGURACION/       ← Documentación
-│   ├── GUIA-RAPIDA.md           ← ⭐ Lee primero
-│   ├── CONFIGURACION-COMPLETA.md
-│   └── ...más documentación
-│
-├── backend-symfony/              ← Backend PHP
-│   └── public/api.php           ← API principal
-│
-├── frontend-web/                ← Frontend React
-│   └── src/                     ← Código del navegador
-│
-├── base-de-datos/               ← Scripts SQL
-│
-└── README.md                    ← Este archivo
-```
-
----
-
-## 🔗 Enlaces Importantes
-
-- **Inicio**: `00-DOCS-CONFIGURACION/GUIA-RAPIDA.md`
-- **Scripts**: `00-SCRIPTS-INSTALACION/README.md`
-- **Técnico**: `00-DOCS-CONFIGURACION/CONFIGURACION-COMPLETA.md`
-- **API**: `backend-symfony/public/api.php`
-
----
-
-## ✅ Verificar Que Funciona
-
-1. **Backend**: http://localhost:8000/api/health
-2. **Frontend**: http://localhost:5173/
-3. **Base de datos**: Conecta correctamente
-
----
-
-**¿Listo?** Abre: `00-DOCS-CONFIGURACION/GUIA-RAPIDA.md` 🚀
-
-El script `Setup-Oracle.ps1` hace esto automáticamente, pero si lo haces manualmente:
-
-```powershell
-cd backend-symfony
-composer install
-```
-
-### 2. Configurar Base de Datos Oracle
-
-El script `Setup-Oracle.ps1` crea automáticamente lo siguiente:
-
-```sql
--- Usuario Oracle (crear una sola vez como admin)
-CREATE USER caprino_user IDENTIFIED BY CaprinoPass2025;
-GRANT CREATE SESSION TO caprino_user;
-GRANT RESOURCE TO caprino_user;
-GRANT UNLIMITED TABLESPACE TO caprino_user;
-GRANT CREATE TABLE TO caprino_user;
-GRANT CREATE SEQUENCE TO caprino_user;
-GRANT CREATE TRIGGER TO caprino_user;
-```
-
-### 3. Crear Tablas con Migraciones
-
-El script `Setup-Oracle.ps1` genera y ejecuta las migraciones automáticamente:
-
-```powershell
-# Manual (si lo prefieres):
-cd backend-symfony
-php bin/console make:migration
-php bin/console doctrine:migrations:migrate
-```
-
-### 4. Configurar Frontend
+### Linux (recomendado)
 
 ```bash
+cd 01-SCRIPTS-LINUX/
+
+# Primera instalación completa (instala PHP, Node, OCI8, Composer, etc.)
+bash 00-INSTALACION-COMPLETA.sh
+
+# O paso a paso:
+bash 01-VERIFICAR-REQUISITOS.sh
+bash 02-INSTALAR-INSTANT-CLIENT.sh
+bash 03-INSTALAR-OCI8.sh
+bash 03b-INSTALAR-COMPOSER.sh
+bash 04-INSTALAR-DEPENDENCIAS-BACKEND.sh
+bash 05-INSTALAR-DEPENDENCIAS-FRONTEND.sh
+```
+
+### Windows
+
+Abre PowerShell como administrador:
+
+```powershell
+cd 00-SCRIPTS-INSTALACION\
+
+# Instalación automática completa
+powershell -ExecutionPolicy Bypass -File "00-INSTALACION-COMPLETA.ps1"
+```
+
+El script instala: Visual C++ Runtime, PHP 8.2, Node.js, Composer, extensión OCI8, y todas las dependencias del proyecto.
+
+### Manual
+
+```bash
+# Backend
+cd backend-symfony
+composer install
+cp .env .env.local   # ajusta credenciales Oracle y JWT_SECRET
+
+# Frontend
 cd frontend-web
 npm install
 ```
 
-## ▶️ Iniciar el Proyecto
+---
 
-### Después de ejecutar Setup-Oracle.ps1:
+## Variables de Entorno
 
-**Terminal 1 - Backend Symfony:**
-```powershell
-cd backend-symfony
-php -S localhost:8000 -t public/
+Archivo `backend-symfony/.env.local`:
+
+```dotenv
+DATABASE_TNS_NAME=caprinodb_high          # nombre de servicio en tnsnames.ora
+DATABASE_USER=caprino_user
+DATABASE_PASSWORD=tu_password
+DATABASE_WALLET_PATH=/ruta/a/Caprino-Wallet
+JWT_SECRET=clave_secreta_larga
+APP_TIMEZONE=America/Bogota
 ```
 
-**Terminal 2 - Frontend React:**
+---
+
+## Ejecución en Desarrollo
+
+### Linux
+
 ```bash
+# Terminal 1 — Backend (puerto 8000)
+bash 01-SCRIPTS-LINUX/07-INICIAR-BACKEND.sh
+
+# Terminal 2 — Frontend (puerto 5173)
+bash 01-SCRIPTS-LINUX/08-INICIAR-FRONTEND.sh
+```
+
+### Manual
+
+```bash
+# Backend
+cd backend-symfony
+php -S localhost:8000 -t public/
+
+# Frontend
 cd frontend-web
 npm run dev
 ```
 
-## 🌐 Acceso
+**Acceso:**
+- Frontend: http://localhost:5173
+- API: http://localhost:8000/api
 
-- **Frontend**: http://localhost:3000 (ver puerto en terminal npm)
-- **Backend API**: http://localhost:8000
-- **API Platform Docs**: http://localhost:8000/api (si está configurado)
-
-### Credenciales por Defecto
-- **Email**: admin@caprino.local
-- **Password**: Admin123!
-
-## 📁 Estructura del Proyecto
-
-```
-Proyecto-Caprino/
-├── backend-symfony/
-│   ├── public/
-│   │   ├── api.php              # REST API
-│   │   └── uploads/animales/    # Fotos de animales
-│   ├── src/                     # Código Symfony (futuro)
-│   └── .env                     # Configuración BD
-│
-├── frontend-web/
-│   ├── src/
-│   │   ├── componentes/         # Componentes React
-│   │   ├── servicios/           # Clientes API
-│   │   └── contextos/           # Context API
-│   └── package.json
-│
-├── base-de-datos/
-│   ├── esquemas/                # DDL de tablas
-│   ├── procedimientos/          # Triggers y funciones
-│   └── vistas/                  # Vistas de reportes
-│
-└── documentacion/
-    ├── 01-arquitectura-del-sistema.md
-    └── 02-reglas-de-negocio-zootecnicas.md
-```
-
-## 🔑 Endpoints API
-
-### Autenticación
-- `POST /api/auth/register` - Registro de usuarios
-- `POST /api/auth/login` - Iniciar sesión
-- `GET /api/me` - Datos del usuario autenticado
-
-### Animales (CRUD Completo)
-- `GET /api/animales` - Listar animales (con filtros opcionales)
-- `POST /api/animales` - Crear animal con foto
-- `PUT /api/animales/{id}` - Actualizar animal
-- `DELETE /api/animales/{id}` - Eliminar animal
-
-### Catálogos
-- `GET /api/razas` - Listar razas de caprinos
-- `GET /api/usuarios` - Listar usuarios del sistema
-
-## 📸 Gestión de Fotos
-
-Las fotos de animales se guardan como **archivos en el servidor**:
-
-- **Ubicación**: `backend-symfony/public/uploads/animales/`
-- **Formato**: Las imágenes base64 se convierten a archivos JPG/PNG
-- **Base de datos**: Guarda solo la ruta relativa (`/uploads/animales/animal_xxx.jpg`)
-- **Ventajas**: Mejor rendimiento, fácil respaldo, sin límites de tamaño CLOB
-
-## 🐛 Troubleshooting
-
-### Error: "No se puede conectar a la base de datos"
-- Verificar que Oracle esté corriendo
-- Comprobar credenciales en archivo `.env`
-- Probar conectividad: `tnsping XEPDB1`
-
-### Error: "Call to undefined function oci_connect"
-- Instalar Oracle Instant Client
-- Habilitar extensión `oci8` en `php.ini`:
-  ```ini
-  extension=oci8_12c
-  ```
-- Reiniciar servidor PHP
-
-### Las fotos no se muestran
-- Verificar que exista: `backend-symfony/public/uploads/animales/`
-- Verificar permisos de escritura en la carpeta
-- Verificar que la columna `foto_url` sea VARCHAR2(500), no CLOB
-
-### Error CORS en el navegador
-- Verificar que el backend esté corriendo en puerto 8000
-- Verificar headers CORS en `api.php`
-
-## 📦 Características Implementadas
-
-- ✅ **Autenticación**: Login y registro de usuarios
-- ✅ **Gestión de Animales**: CRUD completo con fotos
-- ✅ **Filtros**: Búsqueda por código, nombre, sexo, raza, estado
-- ✅ **Catálogos**: Razas predefinidas
-- ✅ **Validaciones**: Campos requeridos y formato de datos
-- ✅ **UI/UX**: Diseño responsivo con Tailwind CSS
-- ✅ **Fotos**: Subida y visualización de imágenes
-
-## 🚧 Características Pendientes
-
-- [ ] Módulo de Pesaje (registro de peso periódico)
-- [ ] Módulo de Salud (vacunas, tratamientos, diagnósticos)
-- [ ] Módulo de Reproducción (ciclos, partos, servicios)
-- [ ] Módulo de Producción de Leche
-- [ ] Módulo de Genealogía (árbol genealógico)
-- [ ] Reportes y gráficas estadísticas
-- [ ] Notificaciones automáticas
-- [ ] Exportación a PDF/Excel
-- [ ] Aplicación móvil con Capacitor
-
-## 📝 Notas de Desarrollo
-
-- El archivo `api.php` es una API REST temporal
-- Las fotos se guardan como archivos (mejor práctica web)
-- CORS configurado para desarrollo local
-- Diseño mobile-first con Tailwind
-
-## 📄 Licencia
-
-Este proyecto es de uso privado para gestión de hatos caprinos.
-
-## 👨‍💻 Autor
-
-Sistema desarrollado para la gestión profesional de explotaciones caprinas.
+**Credenciales de prueba:**
+- Email: `admin@caprino.com`
+- Contraseña: `Admin123!`
 
 ---
 
-**Versión**: 1.0.0  
-**Última actualización**: Enero 2026
+## Estructura del Proyecto
+
+```
+Proyecto-Caprino/
+│
+├── backend-symfony/              # API REST — Symfony 6.4
+│   ├── src/
+│   │   ├── Controller/           # Endpoints (un controller por módulo)
+│   │   ├── Security/             # JWT authenticator
+│   │   └── Service/              # Lógica de negocio (auditoría, etc.)
+│   ├── config/
+│   │   └── packages/
+│   │       ├── lexik_jwt.yaml    # Configuración JWT
+│   │       └── security.yaml     # Firewall y roles
+│   ├── public/
+│   │   └── uploads/animales/     # Fotos de animales
+│   └── .env                      # Variables de entorno
+│
+├── frontend-web/                 # SPA — React 18 + Vite
+│   └── src/
+│       ├── componentes/          # Todos los módulos visuales
+│       ├── servicios/            # Clientes Axios por módulo
+│       ├── contextos/            # AuthContext (sesión JWT)
+│       └── utilidades/           # Validaciones, helpers
+│
+├── aplicacion-movil/             # App Capacitor (en desarrollo)
+│
+├── base-de-datos/
+│   ├── esquemas/                 # DDL de tablas Oracle
+│   ├── procedimientos/           # Triggers y funciones PL/SQL
+│   └── vistas/                   # Vistas para reportes
+│
+├── 01-SCRIPTS-LINUX/             # Scripts de instalación Linux/macOS
+├── 00-SCRIPTS-INSTALACION/       # Scripts de instalación Windows (PowerShell)
+├── 00-DOCS-CONFIGURACION/        # Documentación técnica detallada
+├── documentacion/                # Arquitectura y reglas de negocio
+│
+├── INICIO-RAPIDO.md              # Guía resumida de puesta en marcha
+└── README.md                     # Este archivo
+```
+
+---
+
+## Endpoints de la API
+
+### Autenticación
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `POST` | `/api/auth/login` | Iniciar sesión → devuelve JWT |
+| `POST` | `/api/auth/register` | Registrar nuevo usuario |
+| `GET`  | `/api/me` | Datos del usuario autenticado |
+
+### Animales
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET`    | `/api/animales` | Listar (acepta filtros por query) |
+| `POST`   | `/api/animales` | Crear con foto |
+| `PUT`    | `/api/animales/{id}` | Actualizar |
+| `DELETE` | `/api/animales/{id}` | Eliminar |
+
+### Módulos Productivos
+| Módulo | Prefijo |
+|--------|---------|
+| Salud | `/api/salud` |
+| Producción | `/api/produccion` |
+| Pesajes | `/api/pesajes` |
+| Reproducción | `/api/reproduccion` |
+| Genealogía | `/api/genealogia` |
+| Notificaciones | `/api/notificaciones` |
+| Auditoría | `/api/auditoria` |
+| Reportes | `/api/reportes` |
+| Perfil | `/api/perfil` |
+| Razas | `/api/razas` |
+
+> Todos los endpoints (salvo login y register) requieren el header:
+> `Authorization: Bearer <token>`
+
+---
+
+## Roles de Usuario
+
+| Rol | Permisos |
+|-----|----------|
+| `administrador_granja` | Acceso completo: CRUD, auditoría, reportes, gestión de usuarios |
+| `pasante` | Lectura y registro de datos productivos; sin acceso a auditoría ni eliminación |
+
+---
+
+## Troubleshooting
+
+**No se puede conectar a Oracle**
+```bash
+# Verificar que el wallet esté en la ruta configurada en .env
+ls ~/Caprino-Wallet/tnsnames.ora
+
+# Probar conectividad
+tnsping caprinodb_high
+```
+
+**`Call to undefined function oci_connect()`**
+```bash
+# Linux: verificar que la extensión esté activa
+php -m | grep oci8
+
+# Si falta, ejecutar:
+bash 01-SCRIPTS-LINUX/03-INSTALAR-OCI8.sh
+```
+
+**Error 401 en la API**
+- El token JWT expiró (duración: 1 h). Volver a iniciar sesión.
+- Verificar que `JWT_SECRET` en `.env` sea consistente.
+
+**Las fotos no se muestran**
+- Verificar permisos de escritura en `backend-symfony/public/uploads/animales/`
+- La columna `foto_url` debe ser `VARCHAR2(500)`.
+
+**CORS bloqueado en el navegador**
+- El backend solo acepta orígenes `localhost` / `127.0.0.1`.
+- Ajustar `CORS_ALLOW_ORIGIN` en `.env` si usas otro host.
+
+---
+
+## Información del Proyecto
+
+- **Institución**: UFPSO — Universidad Francisco de Paula Santander Ocaña
+- **Versión**: 1.1.0
+- **Última actualización**: Mayo 2026
