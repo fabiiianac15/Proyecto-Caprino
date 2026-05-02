@@ -12,12 +12,6 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * Entidad Salud - Registro sanitario del animal
- * 
- * Controla todos los eventos de salud: vacunas, desparasitaciones,
- * tratamientos médicos y enfermedades.
- */
 #[ORM\Entity(repositoryClass: SaludRepository::class)]
 #[ORM\Table(name: 'SALUD')]
 #[ApiResource(
@@ -28,174 +22,92 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     normalizationContext: ['groups' => ['salud:read']],
     denormalizationContext: ['groups' => ['salud:write']],
-    order: ['fechaEvento' => 'DESC']
+    order: ['fechaAplicacion' => 'DESC']
 )]
 class Salud
 {
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
-    #[ORM\Column(name: 'id_salud', type: Types::INTEGER)]
+    #[ORM\Column(name: 'id_registro', type: Types::INTEGER)]
     #[Groups(['salud:read'])]
     private ?int $id = null;
 
-    /**
-     * Animal al que pertenece el registro sanitario
-     */
     #[ORM\ManyToOne(targetEntity: Animal::class)]
     #[ORM\JoinColumn(name: 'id_animal', referencedColumnName: 'id_animal', nullable: false)]
     #[Assert\NotNull(message: 'El animal es obligatorio')]
     #[Groups(['salud:read', 'salud:write'])]
     private ?Animal $animal = null;
 
-    /**
-     * Tipo de evento sanitario
-     */
-    #[ORM\Column(name: 'tipo_evento', type: Types::STRING, length: 30)]
-    #[Assert\NotBlank(message: 'El tipo de evento es obligatorio')]
+    #[ORM\Column(name: 'tipo_registro', type: Types::STRING, length: 30)]
+    #[Assert\NotBlank(message: 'El tipo de registro es obligatorio')]
     #[Assert\Choice(
-        choices: ['Vacunación', 'Desparasitación', 'Tratamiento', 'Enfermedad', 'Cirugía', 'Revisión'],
-        message: 'Tipo de evento no válido'
+        choices: ['vacuna', 'tratamiento', 'diagnostico', 'cirugia', 'desparasitacion'],
+        message: 'Tipo inválido. Valores: vacuna, tratamiento, diagnostico, cirugia, desparasitacion'
     )]
     #[Groups(['salud:read', 'salud:write'])]
-    private ?string $tipoEvento = null;
+    private ?string $tipoRegistro = null;
 
-    /**
-     * Fecha del evento sanitario
-     */
-    #[ORM\Column(name: 'fecha_evento', type: Types::DATE_MUTABLE)]
-    #[Assert\NotBlank(message: 'La fecha del evento es obligatoria')]
-    #[Assert\LessThanOrEqual('today', message: 'La fecha del evento no puede ser futura')]
+    #[ORM\Column(name: 'fecha_aplicacion', type: Types::DATE_MUTABLE)]
+    #[Assert\NotBlank(message: 'La fecha de aplicación es obligatoria')]
+    #[Assert\LessThanOrEqual('today', message: 'La fecha no puede ser futura')]
     #[Groups(['salud:read', 'salud:write'])]
-    private ?\DateTimeInterface $fechaEvento = null;
+    private ?\DateTimeInterface $fechaAplicacion = null;
 
-    /**
-     * Descripción del evento (vacuna aplicada, enfermedad diagnosticada, etc.)
-     */
-    #[ORM\Column(type: Types::STRING, length: 200)]
-    #[Assert\NotBlank(message: 'La descripción es obligatoria')]
+    #[ORM\Column(name: 'enfermedad_diagnostico', type: Types::STRING, length: 200, nullable: true)]
     #[Assert\Length(max: 200)]
     #[Groups(['salud:read', 'salud:write'])]
-    private ?string $descripcion = null;
+    private ?string $enfermedadDiagnostico = null;
 
-    /**
-     * Producto utilizado (nombre de vacuna, antiparasitario, medicamento)
-     */
-    #[ORM\Column(type: Types::STRING, length: 150, nullable: true)]
-    #[Assert\Length(max: 150)]
+    #[ORM\Column(name: 'medicamento_producto', type: Types::STRING, length: 200, nullable: true)]
+    #[Assert\Length(max: 200)]
     #[Groups(['salud:read', 'salud:write'])]
-    private ?string $producto = null;
+    private ?string $medicamentoProducto = null;
 
-    /**
-     * Dosis aplicada
-     */
-    #[ORM\Column(type: Types::STRING, length: 50, nullable: true)]
-    #[Assert\Length(max: 50)]
+    #[ORM\Column(name: 'dosis', type: Types::STRING, length: 100, nullable: true)]
+    #[Assert\Length(max: 100)]
     #[Groups(['salud:read', 'salud:write'])]
     private ?string $dosis = null;
 
-    /**
-     * Vía de administración
-     */
     #[ORM\Column(name: 'via_administracion', type: Types::STRING, length: 50, nullable: true)]
     #[Assert\Choice(
-        choices: ['Oral', 'Intramuscular', 'Subcutánea', 'Intravenosa', 'Tópica', 'Intranasal'],
-        message: 'Vía de administración no válida'
+        choices: ['oral', 'intramuscular', 'subcutanea', 'intravenosa', 'topica'],
+        message: 'Vía inválida. Valores: oral, intramuscular, subcutanea, intravenosa, topica'
     )]
     #[Groups(['salud:read', 'salud:write'])]
     private ?string $viaAdministracion = null;
 
-    /**
-     * Veterinario o técnico responsable
-     */
-    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    #[ORM\Column(name: 'lote_producto', type: Types::STRING, length: 100, nullable: true)]
     #[Assert\Length(max: 100)]
     #[Groups(['salud:read', 'salud:write'])]
-    private ?string $responsable = null;
+    private ?string $loteProducto = null;
 
-    /**
-     * Fecha de próxima aplicación o revisión
-     */
-    #[ORM\Column(name: 'fecha_proxima', type: Types::DATE_MUTABLE, nullable: true)]
+    #[ORM\Column(name: 'fecha_proxima_aplicacion', type: Types::DATE_MUTABLE, nullable: true)]
     #[Groups(['salud:read', 'salud:write'])]
-    private ?\DateTimeInterface $fechaProxima = null;
+    private ?\DateTimeInterface $fechaProximaAplicacion = null;
 
-    /**
-     * Días de retiro (para carne o leche) después del tratamiento
-     */
-    #[ORM\Column(name: 'dias_retiro', type: Types::INTEGER, nullable: true)]
-    #[Assert\Range(
-        min: 0,
-        max: 180,
-        notInRangeMessage: 'Los días de retiro deben estar entre {{ min }} y {{ max }}'
-    )]
+    #[ORM\Column(name: 'dias_retiro_leche', type: Types::INTEGER, nullable: true)]
+    #[Assert\Range(min: 0, max: 365)]
     #[Groups(['salud:read', 'salud:write'])]
-    private ?int $diasRetiro = null;
+    private ?int $diasRetiroLeche = null;
 
-    /**
-     * Costo del tratamiento o servicio veterinario
-     */
-    #[ORM\Column(type: Types::FLOAT, nullable: true)]
-    #[Assert\PositiveOrZero(message: 'El costo no puede ser negativo')]
+    #[ORM\Column(name: 'dias_retiro_carne', type: Types::INTEGER, nullable: true)]
+    #[Assert\Range(min: 0, max: 365)]
     #[Groups(['salud:read', 'salud:write'])]
-    private ?float $costo = null;
+    private ?int $diasRetiroCarne = null;
 
-    /**
-     * Diagnóstico clínico (para enfermedades)
-     */
-    #[ORM\Column(type: Types::STRING, length: 300, nullable: true)]
-    #[Assert\Length(max: 300)]
+    #[ORM\Column(name: 'veterinario', type: Types::STRING, length: 200, nullable: true)]
+    #[Assert\Length(max: 200)]
     #[Groups(['salud:read', 'salud:write'])]
-    private ?string $diagnostico = null;
+    private ?string $veterinario = null;
 
-    /**
-     * Síntomas observados
-     */
-    #[ORM\Column(type: Types::STRING, length: 500, nullable: true)]
-    #[Assert\Length(max: 500)]
-    #[Groups(['salud:read', 'salud:write'])]
-    private ?string $sintomas = null;
-
-    /**
-     * Temperatura corporal (°C)
-     */
-    #[ORM\Column(name: 'temperatura_corporal', type: Types::FLOAT, nullable: true)]
-    #[Assert\Range(
-        min: 35.0,
-        max: 42.0,
-        notInRangeMessage: 'La temperatura debe estar entre {{ min }}°C y {{ max }}°C'
-    )]
-    #[Groups(['salud:read', 'salud:write'])]
-    private ?float $temperaturaCorporal = null;
-
-    /**
-     * Observaciones adicionales
-     */
-    #[ORM\Column(type: Types::STRING, length: 500, nullable: true)]
-    #[Assert\Length(max: 500)]
+    #[ORM\Column(name: 'observaciones', type: Types::TEXT, nullable: true)]
     #[Groups(['salud:read', 'salud:write'])]
     private ?string $observaciones = null;
 
-    /**
-     * Estado del animal después del tratamiento
-     */
-    #[ORM\Column(name: 'estado_resultado', type: Types::STRING, length: 50, nullable: true)]
-    #[Assert\Choice(
-        choices: ['Recuperado', 'En tratamiento', 'Crónico', 'Fallecido', 'Descartado'],
-        message: 'Estado no válido'
-    )]
-    #[Groups(['salud:read', 'salud:write'])]
-    private ?string $estadoResultado = null;
-
-    /**
-     * ID del usuario que registró el evento
-     */
     #[ORM\Column(name: 'usuario_registro', type: Types::INTEGER)]
     #[Groups(['salud:read'])]
     private ?int $usuarioRegistro = null;
 
-    /**
-     * Fecha de registro en el sistema
-     */
     #[ORM\Column(name: 'fecha_registro', type: Types::DATETIME_MUTABLE)]
     #[Groups(['salud:read'])]
     private ?\DateTimeInterface $fechaRegistro = null;
@@ -204,8 +116,6 @@ class Salud
     {
         $this->fechaRegistro = new \DateTime();
     }
-
-    // Getters y Setters
 
     public function getId(): ?int
     {
@@ -223,47 +133,47 @@ class Salud
         return $this;
     }
 
-    public function getTipoEvento(): ?string
+    public function getTipoRegistro(): ?string
     {
-        return $this->tipoEvento;
+        return $this->tipoRegistro;
     }
 
-    public function setTipoEvento(string $tipoEvento): self
+    public function setTipoRegistro(string $tipoRegistro): self
     {
-        $this->tipoEvento = $tipoEvento;
+        $this->tipoRegistro = $tipoRegistro;
         return $this;
     }
 
-    public function getFechaEvento(): ?\DateTimeInterface
+    public function getFechaAplicacion(): ?\DateTimeInterface
     {
-        return $this->fechaEvento;
+        return $this->fechaAplicacion;
     }
 
-    public function setFechaEvento(\DateTimeInterface $fechaEvento): self
+    public function setFechaAplicacion(\DateTimeInterface $fechaAplicacion): self
     {
-        $this->fechaEvento = $fechaEvento;
+        $this->fechaAplicacion = $fechaAplicacion;
         return $this;
     }
 
-    public function getDescripcion(): ?string
+    public function getEnfermedadDiagnostico(): ?string
     {
-        return $this->descripcion;
+        return $this->enfermedadDiagnostico;
     }
 
-    public function setDescripcion(string $descripcion): self
+    public function setEnfermedadDiagnostico(?string $enfermedadDiagnostico): self
     {
-        $this->descripcion = $descripcion;
+        $this->enfermedadDiagnostico = $enfermedadDiagnostico;
         return $this;
     }
 
-    public function getProducto(): ?string
+    public function getMedicamentoProducto(): ?string
     {
-        return $this->producto;
+        return $this->medicamentoProducto;
     }
 
-    public function setProducto(?string $producto): self
+    public function setMedicamentoProducto(?string $medicamentoProducto): self
     {
-        $this->producto = $producto;
+        $this->medicamentoProducto = $medicamentoProducto;
         return $this;
     }
 
@@ -289,80 +199,58 @@ class Salud
         return $this;
     }
 
-    public function getResponsable(): ?string
+    public function getLoteProducto(): ?string
     {
-        return $this->responsable;
+        return $this->loteProducto;
     }
 
-    public function setResponsable(?string $responsable): self
+    public function setLoteProducto(?string $loteProducto): self
     {
-        $this->responsable = $responsable;
+        $this->loteProducto = $loteProducto;
         return $this;
     }
 
-    public function getFechaProxima(): ?\DateTimeInterface
+    public function getFechaProximaAplicacion(): ?\DateTimeInterface
     {
-        return $this->fechaProxima;
+        return $this->fechaProximaAplicacion;
     }
 
-    public function setFechaProxima(?\DateTimeInterface $fechaProxima): self
+    public function setFechaProximaAplicacion(?\DateTimeInterface $fechaProximaAplicacion): self
     {
-        $this->fechaProxima = $fechaProxima;
+        $this->fechaProximaAplicacion = $fechaProximaAplicacion;
         return $this;
     }
 
-    public function getDiasRetiro(): ?int
+    public function getDiasRetiroLeche(): ?int
     {
-        return $this->diasRetiro;
+        return $this->diasRetiroLeche;
     }
 
-    public function setDiasRetiro(?int $diasRetiro): self
+    public function setDiasRetiroLeche(?int $diasRetiroLeche): self
     {
-        $this->diasRetiro = $diasRetiro;
+        $this->diasRetiroLeche = $diasRetiroLeche;
         return $this;
     }
 
-    public function getCosto(): ?float
+    public function getDiasRetiroCarne(): ?int
     {
-        return $this->costo;
+        return $this->diasRetiroCarne;
     }
 
-    public function setCosto(?float $costo): self
+    public function setDiasRetiroCarne(?int $diasRetiroCarne): self
     {
-        $this->costo = $costo;
+        $this->diasRetiroCarne = $diasRetiroCarne;
         return $this;
     }
 
-    public function getDiagnostico(): ?string
+    public function getVeterinario(): ?string
     {
-        return $this->diagnostico;
+        return $this->veterinario;
     }
 
-    public function setDiagnostico(?string $diagnostico): self
+    public function setVeterinario(?string $veterinario): self
     {
-        $this->diagnostico = $diagnostico;
-        return $this;
-    }
-
-    public function getSintomas(): ?string
-    {
-        return $this->sintomas;
-    }
-
-    public function setSintomas(?string $sintomas): self
-    {
-        $this->sintomas = $sintomas;
-        return $this;
-    }
-
-    public function getTemperaturaCorporal(): ?float
-    {
-        return $this->temperaturaCorporal;
-    }
-
-    public function setTemperaturaCorporal(?float $temperaturaCorporal): self
-    {
-        $this->temperaturaCorporal = $temperaturaCorporal;
+        $this->veterinario = $veterinario;
         return $this;
     }
 
@@ -374,17 +262,6 @@ class Salud
     public function setObservaciones(?string $observaciones): self
     {
         $this->observaciones = $observaciones;
-        return $this;
-    }
-
-    public function getEstadoResultado(): ?string
-    {
-        return $this->estadoResultado;
-    }
-
-    public function setEstadoResultado(?string $estadoResultado): self
-    {
-        $this->estadoResultado = $estadoResultado;
         return $this;
     }
 
@@ -410,80 +287,28 @@ class Salud
         return $this;
     }
 
-    /**
-     * Determina si la temperatura corporal está en rango normal
-     * Normal: 38.5°C - 40.0°C para caprinos
-     * 
-     * @return bool true si está en rango normal
-     */
-    public function tieneTemperaturaNormal(): bool
-    {
-        if ($this->temperaturaCorporal === null) {
-            return true; // No medida
-        }
-
-        return $this->temperaturaCorporal >= 38.5 && $this->temperaturaCorporal <= 40.0;
-    }
-
-    /**
-     * Determina si el evento requiere seguimiento
-     * 
-     * @return bool true si tiene fecha próxima programada
-     */
-    public function requiereSeguimiento(): bool
-    {
-        return $this->fechaProxima !== null;
-    }
-
-    /**
-     * Calcula los días restantes hasta el próximo evento
-     * 
-     * @return int|null Días hasta fecha_proxima, negativo si ya pasó
-     */
     public function getDiasHastaProximoEvento(): ?int
     {
-        if ($this->fechaProxima === null) {
+        if ($this->fechaProximaAplicacion === null) {
             return null;
         }
-
         $hoy = new \DateTime();
-        $intervalo = $hoy->diff($this->fechaProxima);
-        
+        $intervalo = $hoy->diff($this->fechaProximaAplicacion);
         return $intervalo->invert ? -$intervalo->days : $intervalo->days;
     }
 
-    /**
-     * Determina si el animal está en período de retiro
-     * 
-     * @return bool true si aún está en período de retiro
-     */
     public function estaEnRetiro(): bool
     {
-        if ($this->diasRetiro === null || $this->diasRetiro === 0) {
+        $maxDias = max($this->diasRetiroLeche ?? 0, $this->diasRetiroCarne ?? 0);
+        if ($maxDias === 0 || $this->fechaAplicacion === null) {
             return false;
         }
-
-        $fechaFinRetiro = (clone $this->fechaEvento)->modify("+{$this->diasRetiro} days");
-        $hoy = new \DateTime();
-        
-        return $hoy <= $fechaFinRetiro;
+        $fechaFin = (clone $this->fechaAplicacion)->modify("+{$maxDias} days");
+        return new \DateTime() <= $fechaFin;
     }
 
-    /**
-     * Calcula los días restantes de retiro
-     * 
-     * @return int Días restantes, 0 si ya terminó el retiro
-     */
-    public function getDiasRetiroRestantes(): int
+    public function requiereSeguimiento(): bool
     {
-        if (!$this->estaEnRetiro()) {
-            return 0;
-        }
-
-        $fechaFinRetiro = (clone $this->fechaEvento)->modify("+{$this->diasRetiro} days");
-        $hoy = new \DateTime();
-        $intervalo = $hoy->diff($fechaFinRetiro);
-        
-        return $intervalo->days;
+        return $this->fechaProximaAplicacion !== null;
     }
 }

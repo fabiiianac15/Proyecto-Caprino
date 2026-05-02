@@ -46,12 +46,12 @@ class NotificacionService
         foreach ($partosProximos as $reproduccion) {
             $diasRestantes = $reproduccion->getFechaPartoEstimada()
                 ->diff(new \DateTime())->days;
-            
+
             $alertas[] = [
                 'tipo' => 'parto_proximo',
                 'prioridad' => $diasRestantes <= 7 ? 'alta' : 'media',
                 'animal_id' => $reproduccion->getHembra()->getId(),
-                'identificacion' => $reproduccion->getHembra()->getIdentificacion(),
+                'identificacion' => $reproduccion->getHembra()->getCodigoIdentificacion(),
                 'nombre' => $reproduccion->getHembra()->getNombre(),
                 'fecha_estimada' => $reproduccion->getFechaPartoEstimada()->format('Y-m-d'),
                 'dias_restantes' => $diasRestantes,
@@ -80,7 +80,7 @@ class NotificacionService
                 'tipo' => 'diagnostico_pendiente',
                 'prioridad' => $diasDesdeServicio > 30 ? 'alta' : 'media',
                 'animal_id' => $reproduccion->getHembra()->getId(),
-                'identificacion' => $reproduccion->getHembra()->getIdentificacion(),
+                'identificacion' => $reproduccion->getHembra()->getCodigoIdentificacion(),
                 'nombre' => $reproduccion->getHembra()->getNombre(),
                 'fecha_servicio' => $reproduccion->getFechaServicio()->format('Y-m-d'),
                 'dias_desde_servicio' => $diasDesdeServicio,
@@ -141,17 +141,18 @@ class NotificacionService
             $diasRestantes = $evento->getDiasHastaProximoEvento();
             
             if ($diasRestantes !== null && $diasRestantes <= 15) {
+                $descripcion = $evento->getEnfermedadDiagnostico() ?? $evento->getMedicamentoProducto() ?? $evento->getTipoRegistro();
                 $alertas[] = [
                     'tipo' => 'seguimiento_sanitario',
                     'prioridad' => $diasRestantes <= 7 ? 'alta' : 'media',
                     'animal_id' => $evento->getAnimal()->getId(),
-                    'identificacion' => $evento->getAnimal()->getIdentificacion(),
+                    'identificacion' => $evento->getAnimal()->getCodigoIdentificacion(),
                     'nombre' => $evento->getAnimal()->getNombre(),
-                    'tipo_evento' => $evento->getTipoEvento(),
-                    'descripcion' => $evento->getDescripcion(),
-                    'fecha_proxima' => $evento->getFechaProxima()->format('Y-m-d'),
+                    'tipo_evento' => $evento->getTipoRegistro(),
+                    'descripcion' => $descripcion,
+                    'fecha_proxima' => $evento->getFechaProximaAplicacion()->format('Y-m-d'),
                     'dias_restantes' => $diasRestantes,
-                    'mensaje' => "{$evento->getTipoEvento()} en {$diasRestantes} días: {$evento->getDescripcion()}"
+                    'mensaje' => "{$evento->getTipoRegistro()} en {$diasRestantes} días: {$descripcion}"
                 ];
             }
         }

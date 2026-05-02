@@ -74,9 +74,9 @@ class IntervaloReproductivoValidator extends ConstraintValidator
 
         // Si el evento anterior fue un servicio sin parto registrado
         $diasDesdeServicio = $eventoAnterior->getFechaServicio()->diff($fechaServicioActual)->days;
-        
-        // Si fue negativo o pendiente, debe esperar al menos para confirmar
-        if ($eventoAnterior->getResultadoDiagnostico() !== 'Positivo' && 
+
+        // Si no fue exitoso, debe esperar al menos para confirmar
+        if ($eventoAnterior->getResultado() !== 'exitoso' &&
             $diasDesdeServicio < $constraint->diasMinimosDespuesServicio) {
             
             $this->context->buildViolation($constraint->message)

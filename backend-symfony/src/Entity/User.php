@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -13,23 +14,40 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
-    #[ORM\Column(name: 'ID_USUARIO', type: 'integer')]
+    #[ORM\Column(name: 'ID_USUARIO', type: Types::INTEGER)]
     private ?int $id = null;
 
-    #[ORM\Column(name: 'NOMBRE_COMPLETO', type: 'string', length: 150)]
+    #[ORM\Column(name: 'NOMBRE_COMPLETO', type: Types::STRING, length: 200)]
     private ?string $nombreCompleto = null;
 
-    #[ORM\Column(name: 'EMAIL', type: 'string', length: 180, unique: true)]
+    #[ORM\Column(name: 'EMAIL', type: Types::STRING, length: 200, unique: true)]
     private ?string $email = null;
 
-    #[ORM\Column(name: 'PASSWORD_HASH', type: 'string')]
+    #[ORM\Column(name: 'PASSWORD_HASH', type: Types::STRING, length: 255)]
     private ?string $password = null;
 
-    #[ORM\Column(name: 'ROL', type: 'string', length: 30)]
+    #[ORM\Column(name: 'ROL', type: Types::STRING, length: 30)]
     private string $rol = 'tecnico';
 
-    #[ORM\Column(name: 'ESTADO', type: 'string', length: 20)]
+    #[ORM\Column(name: 'TELEFONO', type: Types::STRING, length: 20, nullable: true)]
+    private ?string $telefono = null;
+
+    #[ORM\Column(name: 'ESTADO', type: Types::STRING, length: 20)]
     private string $estado = 'activo';
+
+    #[ORM\Column(name: 'ULTIMO_ACCESO', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $ultimoAcceso = null;
+
+    #[ORM\Column(name: 'FECHA_CREACION', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $fechaCreacion = null;
+
+    #[ORM\Column(name: 'FECHA_MODIFICACION', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $fechaModificacion = null;
+
+    public function __construct()
+    {
+        $this->fechaCreacion = new \DateTime();
+    }
 
     public function getId(): ?int
     {
@@ -66,9 +84,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getRoles(): array
     {
         $roles = ['ROLE_USER'];
-        if ($this->rol === 'administrador') {
-            $roles[] = 'ROLE_ADMIN';
-        }
+        match ($this->rol) {
+            'administrador' => $roles[] = 'ROLE_ADMIN',
+            'zootecnista'   => $roles[] = 'ROLE_ZOOTECNISTA',
+            'veterinario'   => $roles[] = 'ROLE_VETERINARIO',
+            'tecnico'       => $roles[] = 'ROLE_TECNICO',
+            default         => null,
+        };
         return array_unique($roles);
     }
 
@@ -94,6 +116,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    public function getTelefono(): ?string
+    {
+        return $this->telefono;
+    }
+
+    public function setTelefono(?string $telefono): self
+    {
+        $this->telefono = $telefono;
+        return $this;
+    }
+
     public function getEstado(): string
     {
         return $this->estado;
@@ -102,6 +135,39 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setEstado(string $estado): self
     {
         $this->estado = $estado;
+        return $this;
+    }
+
+    public function getUltimoAcceso(): ?\DateTimeInterface
+    {
+        return $this->ultimoAcceso;
+    }
+
+    public function setUltimoAcceso(?\DateTimeInterface $ultimoAcceso): self
+    {
+        $this->ultimoAcceso = $ultimoAcceso;
+        return $this;
+    }
+
+    public function getFechaCreacion(): ?\DateTimeInterface
+    {
+        return $this->fechaCreacion;
+    }
+
+    public function setFechaCreacion(?\DateTimeInterface $fechaCreacion): self
+    {
+        $this->fechaCreacion = $fechaCreacion;
+        return $this;
+    }
+
+    public function getFechaModificacion(): ?\DateTimeInterface
+    {
+        return $this->fechaModificacion;
+    }
+
+    public function setFechaModificacion(?\DateTimeInterface $fechaModificacion): self
+    {
+        $this->fechaModificacion = $fechaModificacion;
         return $this;
     }
 

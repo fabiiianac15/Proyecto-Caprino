@@ -342,7 +342,7 @@ class GenealogiaRepository extends ServiceEntityRepository
         if ($genealogia->getPadre()) {
             $arbol['padre'] = [
                 'animal_id' => $genealogia->getPadre()->getId(),
-                'identificacion' => $genealogia->getPadre()->getIdentificacion(),
+                'identificacion' => $genealogia->getPadre()->getCodigoIdentificacion(),
                 'nombre' => $genealogia->getPadre()->getNombre(),
                 'ancestros' => $this->construirArbolGenealogico(
                     $genealogia->getPadre()->getId(), 
@@ -354,7 +354,7 @@ class GenealogiaRepository extends ServiceEntityRepository
         if ($genealogia->getMadre()) {
             $arbol['madre'] = [
                 'animal_id' => $genealogia->getMadre()->getId(),
-                'identificacion' => $genealogia->getMadre()->getIdentificacion(),
+                'identificacion' => $genealogia->getMadre()->getCodigoIdentificacion(),
                 'nombre' => $genealogia->getMadre()->getNombre(),
                 'ancestros' => $this->construirArbolGenealogico(
                     $genealogia->getMadre()->getId(), 

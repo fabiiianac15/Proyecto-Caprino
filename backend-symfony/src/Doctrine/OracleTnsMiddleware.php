@@ -7,12 +7,15 @@ use Doctrine\DBAL\Driver\Middleware;
 use Doctrine\DBAL\Driver\Middleware\AbstractDriverMiddleware;
 
 /**
- * Middleware que corrige los parámetros de conexión Oracle TNS.
+ * Middleware Oracle: corrige la conexión TNS y establece formatos NLS.
  *
- * DoctrineBundle inyecta host=localhost y port=1521 como defaults,
- * lo que hace que EasyConnectString construya un descriptor TCP en lugar
- * de usar el alias TNS del wallet. Este middleware reemplaza esos defaults
- * con el connectstring del tnsnames.ora.
+ * 1. TNS fix: DoctrineBundle inyecta host=localhost por defecto, lo que hace
+ *    que OCI8 construya un descriptor TCP en lugar de usar el alias del wallet.
+ *    Se reemplaza por el connectstring del tnsnames.ora.
+ *
+ * 2. NLS fix: Oracle devuelve fechas/timestamps en formato regional (ej.
+ *    "30-APR-26 08.39.05.604257 PM") que Doctrine no puede parsear. Se fuerza
+ *    el formato ISO en cada sesión para que DateTimeType funcione sin tipos custom.
  */
 class OracleTnsMiddleware implements Middleware
 {
@@ -21,14 +24,20 @@ class OracleTnsMiddleware implements Middleware
         return new class($driver) extends AbstractDriverMiddleware {
             public function connect(array $params): Driver\Connection
             {
-                // Si el driver es OCI8 y hay un dbname pero el host fue inyectado
-                // por DoctrineBundle como default, usar el dbname como connectstring TNS
                 if (isset($params['dbname']) && ($params['host'] ?? '') === 'localhost') {
                     $params['connectstring'] = $params['dbname'];
                     unset($params['host'], $params['port']);
                 }
 
-                return parent::connect($params);
+                $conn = parent::connect($params);
+
+                // Forzar formatos ISO para que Doctrine\DBAL\Types\DateTimeType
+                // pueda convertir los valores sin lanzar ConversionException.
+                $conn->prepare("ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD'")->execute();
+                $conn->prepare("ALTER SESSION SET NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS'")->execute();
+                $conn->prepare("ALTER SESSION SET NLS_TIMESTAMP_TZ_FORMAT = 'YYYY-MM-DD HH24:MI:SS TZH:TZM'")->execute();
+
+                return $conn;
             }
         };
     }

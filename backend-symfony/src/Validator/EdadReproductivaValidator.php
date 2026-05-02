@@ -40,7 +40,7 @@ class EdadReproductivaValidator extends ConstraintValidator
         if ($value->getSexo() === 'Hembra') {
             if ($edadMeses < $constraint->edadMinimaHembrasMeses) {
                 $this->context->buildViolation($constraint->messageMuyJoven)
-                    ->setParameter('{{ identificacion }}', $value->getIdentificacion())
+                    ->setParameter('{{ identificacion }}', $value->getCodigoIdentificacion())
                     ->setParameter('{{ edadMinima }}', (string) $constraint->edadMinimaHembrasMeses)
                     ->setParameter('{{ edadActual }}', (string) $edadMeses)
                     ->addViolation();
@@ -50,7 +50,7 @@ class EdadReproductivaValidator extends ConstraintValidator
             // Validar edad máxima recomendada
             if ($edadAnios > $constraint->edadMaximaHembrasAnios) {
                 $this->context->buildViolation($constraint->messageMuyViejo)
-                    ->setParameter('{{ identificacion }}', $value->getIdentificacion())
+                    ->setParameter('{{ identificacion }}', $value->getCodigoIdentificacion())
                     ->setParameter('{{ edadMaxima }}', (string) $constraint->edadMaximaHembrasAnios)
                     ->setParameter('{{ edadActual }}', (string) $edadAnios)
                     ->addViolation();
@@ -58,7 +58,7 @@ class EdadReproductivaValidator extends ConstraintValidator
         } elseif ($value->getSexo() === 'Macho') {
             if ($edadMeses < $constraint->edadMinimaMachosMeses) {
                 $this->context->buildViolation($constraint->messageMuyJoven)
-                    ->setParameter('{{ identificacion }}', $value->getIdentificacion())
+                    ->setParameter('{{ identificacion }}', $value->getCodigoIdentificacion())
                     ->setParameter('{{ edadMinima }}', (string) $constraint->edadMinimaMachosMeses)
                     ->setParameter('{{ edadActual }}', (string) $edadMeses)
                     ->addViolation();
@@ -68,7 +68,7 @@ class EdadReproductivaValidator extends ConstraintValidator
             // Validar edad máxima recomendada
             if ($edadAnios > $constraint->edadMaximaMachosAnios) {
                 $this->context->buildViolation($constraint->messageMuyViejo)
-                    ->setParameter('{{ identificacion }}', $value->getIdentificacion())
+                    ->setParameter('{{ identificacion }}', $value->getCodigoIdentificacion())
                     ->setParameter('{{ edadMaxima }}', (string) $constraint->edadMaximaMachosAnios)
                     ->setParameter('{{ edadActual }}', (string) $edadAnios)
                     ->addViolation();
