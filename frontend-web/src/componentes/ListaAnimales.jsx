@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search, Filter, Edit, Trash2, Eye, Plus, Download,
   AlertCircle, User, Tag, Calendar, Weight, AlertTriangle, X, Edit2, RefreshCw
 } from 'lucide-react';
 import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 
-const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
-
 const ListaAnimales = ({ onEditar, onNuevo }) => {
+  const navigate = useNavigate();
   const [animales, setAnimales]   = useState([]);
   const [cargando, setCargando]   = useState(false);
   const [error, setError]         = useState(null);
@@ -182,7 +182,8 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
           {animales.map(animal => <TarjetaAnimal key={animal.id} animal={animal} calcularEdad={calcularEdad}
             onEditar={() => onEditar(animal)}
             onVer={() => setModalDetalles({ mostrar: true, animal })}
-            onEliminar={() => setModalEliminar({ mostrar: true, animal })} />)}
+            onEliminar={() => setModalEliminar({ mostrar: true, animal })}
+            onPesaje={() => navigate('/peso', { state: { animalId: animal.id } })} />)}
         </div>
       )}
 
@@ -231,7 +232,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
             {/* Foto */}
             <div className="h-52 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl overflow-hidden mb-5 border border-gray-100">
               {modalDetalles.animal.fotoUrl ? (
-                <img src={`${BASE_URL}${modalDetalles.animal.fotoUrl}`} alt={modalDetalles.animal.nombre}
+                <img src={modalDetalles.animal.fotoUrl} alt={modalDetalles.animal.nombre}
                   className="w-full h-full object-cover"
                   onError={e => { e.target.style.display = 'none'; }} />
               ) : (
@@ -281,15 +282,13 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
 };
 
 // ── Tarjeta de animal ─────────────────────────────────────────────────────────
-function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar }) {
-  const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000';
-
+function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar, onPesaje }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
       {/* Foto */}
       <div className="h-44 bg-gradient-to-br from-green-50 to-emerald-50 relative overflow-hidden">
         {animal.fotoUrl ? (
-          <img src={`${BASE_URL}${animal.fotoUrl}`} alt={animal.nombre}
+          <img src={animal.fotoUrl} alt={animal.nombre}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             onError={e => { e.target.style.display = 'none'; }} />
         ) : (
@@ -330,6 +329,10 @@ function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar }) {
           <button onClick={onVer}
             className="flex-1 py-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors text-xs font-medium flex items-center justify-center gap-1">
             <Eye className="w-3.5 h-3.5" /> Ver
+          </button>
+          <button onClick={onPesaje}
+            className="py-1.5 px-2.5 bg-violet-50 text-violet-500 hover:bg-violet-100 rounded-lg transition-colors" title="Registrar pesaje">
+            <Weight className="w-3.5 h-3.5" />
           </button>
           <button onClick={onEliminar}
             className="py-1.5 px-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors">

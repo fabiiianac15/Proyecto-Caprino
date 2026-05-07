@@ -20,6 +20,12 @@ export default defineConfig({
     port: 5173,
     host: true,
     open: true,
+    proxy: {
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',

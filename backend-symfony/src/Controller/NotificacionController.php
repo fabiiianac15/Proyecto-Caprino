@@ -24,7 +24,7 @@ class NotificacionController extends AbstractController
                     'El animal ' || a.nombre || ' (' || a.codigo_identificacion || ') tiene aplicación programada para el ' ||
                     TO_CHAR(s.fecha_proxima_aplicacion, 'DD/MM/YYYY') as mensaje,
                     TO_CHAR(s.fecha_proxima_aplicacion, 'YYYY-MM-DD') as fecha_alerta,
-                    a.id_animal, 'media' as urgencia
+                    a.id_animal, a.codigo_identificacion, a.nombre as nombre_animal, 'media' as urgencia
              FROM SALUD s JOIN ANIMAL a ON s.id_animal = a.id_animal
              WHERE s.fecha_proxima_aplicacion BETWEEN SYSDATE AND SYSDATE + 15
              ORDER BY s.fecha_proxima_aplicacion"
@@ -36,6 +36,8 @@ class NotificacionController extends AbstractController
                 'mensaje'     => $row['MENSAJE'],
                 'fechaAlerta' => $row['FECHA_ALERTA'],
                 'idAnimal'    => (int) $row['ID_ANIMAL'],
+                'codigoAnimal'=> $row['CODIGO_IDENTIFICACION'],
+                'nombreAnimal'=> $row['NOMBRE_ANIMAL'],
                 'urgencia'    => $row['URGENCIA'],
             ];
         }
@@ -47,7 +49,7 @@ class NotificacionController extends AbstractController
                     'La cabra ' || a.nombre || ' (' || a.codigo_identificacion || ') tiene parto estimado para el ' ||
                     TO_CHAR(r.fecha_parto_estimada, 'DD/MM/YYYY') as mensaje,
                     TO_CHAR(r.fecha_parto_estimada, 'YYYY-MM-DD') as fecha_alerta,
-                    a.id_animal, 'alta' as urgencia
+                    a.id_animal, a.codigo_identificacion, a.nombre as nombre_animal, 'alta' as urgencia
              FROM REPRODUCCION r JOIN ANIMAL a ON r.id_hembra = a.id_animal
              WHERE r.fecha_parto_estimada BETWEEN SYSDATE AND SYSDATE + 15
                AND r.resultado = 'pendiente'
@@ -60,6 +62,8 @@ class NotificacionController extends AbstractController
                 'mensaje'     => $row['MENSAJE'],
                 'fechaAlerta' => $row['FECHA_ALERTA'],
                 'idAnimal'    => (int) $row['ID_ANIMAL'],
+                'codigoAnimal'=> $row['CODIGO_IDENTIFICACION'],
+                'nombreAnimal'=> $row['NOMBRE_ANIMAL'],
                 'urgencia'    => $row['URGENCIA'],
             ];
         }
@@ -71,7 +75,7 @@ class NotificacionController extends AbstractController
                     'El animal ' || a.nombre || ' tenía aplicación el ' ||
                     TO_CHAR(s.fecha_proxima_aplicacion, 'DD/MM/YYYY') || ' sin registrar' as mensaje,
                     TO_CHAR(s.fecha_proxima_aplicacion, 'YYYY-MM-DD') as fecha_alerta,
-                    a.id_animal, 'alta' as urgencia
+                    a.id_animal, a.codigo_identificacion, a.nombre as nombre_animal, 'alta' as urgencia
              FROM SALUD s JOIN ANIMAL a ON s.id_animal = a.id_animal
              WHERE s.fecha_proxima_aplicacion < SYSDATE
                AND NOT EXISTS (
@@ -89,6 +93,8 @@ class NotificacionController extends AbstractController
                 'mensaje'     => $row['MENSAJE'],
                 'fechaAlerta' => $row['FECHA_ALERTA'],
                 'idAnimal'    => (int) $row['ID_ANIMAL'],
+                'codigoAnimal'=> $row['CODIGO_IDENTIFICACION'],
+                'nombreAnimal'=> $row['NOMBRE_ANIMAL'],
                 'urgencia'    => $row['URGENCIA'],
             ];
         }

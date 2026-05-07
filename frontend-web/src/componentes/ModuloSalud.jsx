@@ -6,7 +6,8 @@ import {
   ArrowLeft, RefreshCw
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
-import { saludAPI } from '../servicios/caprino-api';
+import SelectAnimal from './SelectAnimal';
+import { saludAPI, animalesAPI } from '../servicios/caprino-api';
 
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white';
 const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
@@ -26,7 +27,28 @@ const ModuloSalud = () => {
     setCargando(true);
     try {
       const datos = await saludAPI.getAll();
-      setEventos(datos.data || []);
+      const raw = datos.data || [];
+      const transformados = raw.map(r => ({
+        id: r.id,
+        idAnimal: r.idAnimal,
+        tipo: r.tipoRegistro === 'diagnostico' ? 'enfermedad' : r.tipoRegistro,
+        animal: { codigo: r.codigoAnimal, nombre: r.nombreAnimal },
+        nombreVacuna: r.tipoRegistro === 'vacuna' ? (r.enfermedadDiagnostico || r.medicamentoProducto) : null,
+        fechaAplicacion: r.fechaAplicacion,
+        lote: r.lote || null,
+        laboratorio: null,
+        proximaDosis: r.fechaProximaAplicacion,
+        nombreEnfermedad: r.tipoRegistro === 'diagnostico' ? r.enfermedadDiagnostico : null,
+        fechaDeteccion: r.tipoRegistro === 'diagnostico' ? r.fechaAplicacion : null,
+        medicamento: r.medicamentoProducto,
+        dosis: r.dosis,
+        frecuencia: null,
+        viaAdministracion: r.viaAdministracion,
+        veterinarioResponsable: r.veterinario,
+        observaciones: r.observaciones,
+        estado: null,
+      }));
+      setEventos(transformados);
     } catch { setEventos([]); } finally { setCargando(false); }
   };
 
@@ -261,7 +283,7 @@ const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
   const opcionesViaAdministracion = [
     { value: 'subcutanea', label: 'Subcutánea', icono: <Zap />, colorFondo: 'bg-blue-100', colorIcono: 'text-blue-600' },
     { value: 'intramuscular', label: 'Intramuscular', icono: <Activity />, colorFondo: 'bg-red-100', colorIcono: 'text-red-600' },
-    { value: 'intranasal', label: 'Intranasal', icono: <Wind />, colorFondo: 'bg-cyan-100', colorIcono: 'text-cyan-600' },
+    { value: 'intravenosa', label: 'Intravenosa', icono: <Wind />, colorFondo: 'bg-cyan-100', colorIcono: 'text-cyan-600' },
     { value: 'oral', label: 'Oral', icono: <Smile />, colorFondo: 'bg-green-100', colorIcono: 'text-green-600' },
   ];
   const opcionesGravedad = [
@@ -270,8 +292,16 @@ const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
     { value: 'grave', label: 'Grave', icono: <AlertTriangle />, colorFondo: 'bg-red-100', colorIcono: 'text-red-600' },
   ];
 
+  const [animales, setAnimales] = useState([]);
+  const [busquedaAnimal, setBusquedaAnimal] = useState('');
+  const [errorGuardar, setErrorGuardar] = useState('');
+
+  useEffect(() => {
+    animalesAPI.getAll().then(r => setAnimales(r.data || [])).catch(() => setAnimales([]));
+  }, []);
+
   const [formData, setFormData] = useState({
-    animalId: eventoEditar?.animal?.codigo || '',
+    animalId: eventoEditar?.idAnimal || '',
     observaciones: eventoEditar?.observaciones || '',
     nombreVacuna: eventoEditar?.nombreVacuna || '',
     fechaAplicacion: eventoEditar?.fechaAplicacion || new Date().toISOString().split('T')[0],
@@ -307,10 +337,69 @@ const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
 
   const manejarEnvio = async (e) => {
     e.preventDefault();
+    setErrorGuardar('');
+    if (!formData.animalId) { setErrorGuardar('Debes seleccionar un animal.'); return; }
     setGuardando(true);
-    await new Promise(r => setTimeout(r, 800));
-    onGuardar(formData);
-    setGuardando(false);
+    try {
+      const tipoMap = { vacuna: 'vacuna', enfermedad: 'diagnostico', tratamiento: 'tratamiento' };
+      let payload = {
+        idAnimal: formData.animalId,
+        tipoRegistro: tipoMap[tipo] || tipo,
+        observaciones: formData.observaciones || null,
+        veterinario: formData.veterinarioResponsable || null,
+      };
+      if (tipo === 'vacuna') {
+        const extraObs = formData.laboratorio ? `Laboratorio: ${formData.laboratorio}. ` : '';
+        payload = {
+          ...payload,
+          fechaAplicacion: formData.fechaAplicacion,
+          enfermedadDiagnostico: formData.nombreVacuna,
+          medicamentoProducto: formData.nombreVacuna,
+          dosis: formData.dosis,
+          viaAdministracion: formData.viaAdministracion,
+          loteProducto: formData.lote || null,
+          fechaProximaAplicacion: formData.proximaDosis || null,
+          observaciones: (extraObs + (formData.observaciones || '')).trim() || null,
+        };
+      } else if (tipo === 'enfermedad') {
+        const extraObs = [
+          formData.sintomas ? `Síntomas: ${formData.sintomas}` : '',
+          formData.diagnostico ? `Diagnóstico: ${formData.diagnostico}` : '',
+          formData.gravedad ? `Gravedad: ${formData.gravedad}` : '',
+          formData.contagiosa ? 'Contagiosa: Sí' : '',
+          formData.aislamiento ? 'Requiere aislamiento' : '',
+          formData.observaciones || '',
+        ].filter(Boolean).join('. ');
+        payload = {
+          ...payload,
+          fechaAplicacion: formData.fechaDeteccion,
+          enfermedadDiagnostico: formData.nombreEnfermedad,
+          observaciones: extraObs || null,
+        };
+      } else if (tipo === 'tratamiento') {
+        const extraObs = [
+          formData.frecuencia ? `Frecuencia: ${formData.frecuencia}` : '',
+          formData.resultadoTratamiento ? `Resultado: ${formData.resultadoTratamiento}` : '',
+          formData.observaciones || '',
+        ].filter(Boolean).join('. ');
+        payload = {
+          ...payload,
+          fechaAplicacion: formData.fechaInicio,
+          enfermedadDiagnostico: formData.motivoTratamiento,
+          medicamentoProducto: formData.medicamento,
+          dosis: formData.dosisTratamiento,
+          viaAdministracion: formData.viaAdministracionTratamiento,
+          fechaProximaAplicacion: formData.fechaFin || null,
+          observaciones: extraObs || null,
+        };
+      }
+      await saludAPI.create(payload);
+      onGuardar();
+    } catch (err) {
+      setErrorGuardar(err.message || 'Error al guardar. Verifica los datos e intenta de nuevo.');
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const colorHeader = tipo === 'vacuna' ? 'bg-blue-500' : tipo === 'enfermedad' ? 'bg-red-500' : 'bg-emerald-500';
@@ -343,9 +432,15 @@ const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
               <User className="w-4 h-4 text-gray-500" /> Información del Animal
             </h3>
             <div>
-              <label className={lbl}>Código del Animal <span className="text-red-500">*</span></label>
-              <input type="text" name="animalId" value={formData.animalId} onChange={manejarCambio}
-                placeholder="Ej: CAB-001" className={`${inp} ${colorFocus}`} required />
+              <label className={lbl}>Animal <span className="text-red-500">*</span></label>
+              <SelectAnimal
+                animales={animales}
+                value={formData.animalId}
+                onChange={id => setFormData(prev => ({ ...prev, animalId: id }))}
+                busqueda={busquedaAnimal}
+                onBusqueda={setBusquedaAnimal}
+                colorFocus={colorFocus}
+              />
             </div>
           </div>
 
@@ -518,6 +613,14 @@ const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
             <textarea name="observaciones" value={formData.observaciones} onChange={manejarCambio} rows="3"
               placeholder="Notas adicionales..." className={`${inp} focus:ring-blue-500 resize-none`} />
           </div>
+
+          {/* Error */}
+          {errorGuardar && (
+            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-700">{errorGuardar}</p>
+            </div>
+          )}
 
           {/* Botones */}
           <div className="flex gap-3 pt-2">

@@ -27,7 +27,7 @@ class SaludController extends AbstractController
                        a.codigo_identificacion, s.tipo_registro, s.fecha_aplicacion,
                        s.enfermedad_diagnostico, s.medicamento_producto, s.dosis,
                        s.via_administracion, s.veterinario, s.fecha_proxima_aplicacion,
-                       s.dias_retiro_leche, s.observaciones
+                       s.dias_retiro_leche, s.observaciones, s.lote_producto
                 FROM SALUD s JOIN ANIMAL a ON s.id_animal = a.id_animal";
         $params = [];
 
@@ -55,6 +55,7 @@ class SaludController extends AbstractController
             'fechaProximaAplicacion'=> $row['FECHA_PROXIMA_APLICACION'],
             'diasRetiroLeche'       => $row['DIAS_RETIRO_LECHE'] !== null ? (int) $row['DIAS_RETIRO_LECHE'] : null,
             'observaciones'         => $row['OBSERVACIONES'],
+            'lote'                  => $row['LOTE_PRODUCTO'],
         ], $rows);
 
         return $this->json(['data' => $data]);
@@ -80,6 +81,11 @@ class SaludController extends AbstractController
 
         if (!$idAnimal || !$tipo) {
             return $this->json(['error' => 'Campos requeridos: idAnimal, tipoRegistro'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // 'enfermedad' viene del frontend y se almacena como 'diagnostico'
+        if ($tipo === 'enfermedad') {
+            $tipo = 'diagnostico';
         }
 
         $tiposValidos = ['vacuna', 'tratamiento', 'diagnostico', 'cirugia', 'desparasitacion'];

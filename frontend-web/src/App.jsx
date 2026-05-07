@@ -46,6 +46,10 @@ function App() {
     gestantes: 0
   });
 
+  // Helpers compartidos con Notificaciones.jsx para filtrar alertas leídas
+  const leerLeidas = () => { try { return new Set(JSON.parse(localStorage.getItem('notif_leidas_v1')) || []); } catch { return new Set(); } };
+  const idNotif = (n) => `${n.tipo}|${n.codigoAnimal || ''}|${n.fechaAlerta || ''}|${n.titulo || ''}`;
+
   // Cargar indicadores del rebaño desde /api/reportes/resumen
   useEffect(() => {
     if (!estaAutenticado()) return;
@@ -55,17 +59,29 @@ function App() {
       if (!token) return;
       try {
         const base = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-        const res = await fetch(`${base}/reportes/resumen`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) return;
-        const { data } = await res.json();
-        setIndicadores({
-          totalAnimales:     data.totalAnimales        ?? 0,
-          alertasPendientes: data.alertasPendientes    ?? 0,
-          produccionHoy:     data.produccionLitrosMes  ?? 0,
-          gestantes:         data.gestacionesPendientes ?? 0,
-        });
+        const [resumen, resNotif] = await Promise.allSettled([
+          fetch(`${base}/reportes/resumen`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${base}/notificaciones`,   { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+
+        let totalAnimales = 0, produccionHoy = 0, gestantes = 0, alertasPendientes = 0;
+
+        if (resumen.status === 'fulfilled' && resumen.value.ok) {
+          const { data } = await resumen.value.json();
+          totalAnimales  = data.totalAnimales         ?? 0;
+          produccionHoy  = data.produccionLitrosMes   ?? 0;
+          gestantes      = data.gestacionesPendientes ?? 0;
+          alertasPendientes = data.alertasPendientes  ?? 0;
+        }
+
+        // Recalcular badge descontando alertas ya marcadas como leídas
+        if (resNotif.status === 'fulfilled' && resNotif.value.ok) {
+          const notifData = await resNotif.value.json();
+          const leidas = leerLeidas();
+          alertasPendientes = (notifData.data || []).filter(n => !leidas.has(idNotif(n))).length;
+        }
+
+        setIndicadores({ totalAnimales, alertasPendientes, produccionHoy, gestantes });
       } catch {
         // No interrumpir la UI si el fetch falla
       }
@@ -73,7 +89,13 @@ function App() {
 
     cargarIndicadores();
     const intervalo = setInterval(cargarIndicadores, 300000);
-    return () => clearInterval(intervalo);
+
+    // Recalcular badge inmediatamente cuando el usuario marca una alerta como leída
+    window.addEventListener('notif-leidas-changed', cargarIndicadores);
+    return () => {
+      clearInterval(intervalo);
+      window.removeEventListener('notif-leidas-changed', cargarIndicadores);
+    };
   }, [usuario]);
 
   const formatearHora = (fecha) => {

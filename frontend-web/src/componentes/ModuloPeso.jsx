@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Weight, Plus, Search, Eye, Edit, AlertCircle,
   TrendingUp, TrendingDown, Minus, User, X, Activity,
@@ -7,14 +8,20 @@ import {
   Ruler, Zap, Calendar, RefreshCw
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
-import { pesajeAPI } from '../servicios/caprino-api';
+import SelectAnimal from './SelectAnimal';
+import { pesajeAPI, animalesAPI } from '../servicios/caprino-api';
 
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white';
 const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
 
 const ModuloPeso = () => {
-  const [vistaActual, setVistaActual] = useState('lista');
-  const [registroEditar, setRegistroEditar] = useState(null);
+  const location = useLocation();
+  const [vistaActual, setVistaActual] = useState(() =>
+    location.state?.animalId ? 'registro' : 'lista'
+  );
+  const [registroEditar, setRegistroEditar] = useState(() =>
+    location.state?.animalId ? { idAnimal: location.state.animalId } : null
+  );
   const [registroDetalle, setRegistroDetalle] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [registros, setRegistros] = useState([]);
@@ -26,7 +33,22 @@ const ModuloPeso = () => {
     setCargando(true);
     try {
       const datos = await pesajeAPI.getAll();
-      setRegistros(datos.data || []);
+      const raw = datos.data || [];
+      const transformados = raw.map(r => ({
+        id: r.id,
+        idAnimal: r.idAnimal,
+        animal: { codigo: r.codigoAnimal, nombre: r.nombreAnimal },
+        fechaPesaje: r.fechaPesaje,
+        pesoActual: r.pesoKg,
+        pesoAnterior: null,
+        variacionPeso: null,
+        tipoPesaje: 'periodico',
+        condicionCorporal: r.condicionCorporal,
+        gananciaPromedioDiaria: r.gananciaDiariaKg,
+        metodoPesaje: r.metodoPesaje,
+        observaciones: r.observaciones,
+      }));
+      setRegistros(transformados);
     } catch { setRegistros([]); } finally { setCargando(false); }
   };
 
@@ -209,6 +231,13 @@ const ModuloPeso = () => {
   );
 };
 
+const Section = ({ color, icon, title, children }) => (
+  <div className={`rounded-xl border p-5 ${color}`}>
+    <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">{icon}{title}</h3>
+    {children}
+  </div>
+);
+
 const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
   const opcionesTipoPesaje = [
     { value: 'periodico', label: 'Pesaje Periódico', icono: <Clock />, colorFondo: 'bg-blue-100', colorIcono: 'text-blue-600' },
@@ -242,8 +271,16 @@ const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
     { value: 'intermedio', label: 'Intermedio', icono: <Meh />, colorFondo: 'bg-blue-100', colorIcono: 'text-blue-600' },
   ];
 
+  const [animales, setAnimales] = useState([]);
+  const [busquedaAnimal, setBusquedaAnimal] = useState('');
+  const [errorGuardar, setErrorGuardar] = useState('');
+
+  useEffect(() => {
+    animalesAPI.getAll().then(r => setAnimales(r.data || [])).catch(() => setAnimales([]));
+  }, []);
+
   const [formData, setFormData] = useState({
-    animalId: registroEditar?.animal?.codigo || '',
+    animalId: registroEditar?.idAnimal || '',
     fechaPesaje: registroEditar?.fechaPesaje || new Date().toISOString().split('T')[0],
     horaPesaje: registroEditar?.horaPesaje || '',
     tipoPesaje: registroEditar?.tipoPesaje || 'periodico',
@@ -295,21 +332,35 @@ const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
 
   const manejarEnvio = async (e) => {
     e.preventDefault();
+    setErrorGuardar('');
     if (!validarFormulario()) return;
+    if (!formData.animalId) { setErrorGuardar('Debes seleccionar un animal.'); return; }
     setGuardando(true);
-    await new Promise(r => setTimeout(r, 800));
-    onGuardar(formData);
-    setGuardando(false);
+    try {
+      const extraObs = [
+        formData.tipoPesaje ? `Tipo: ${formData.tipoPesaje}` : '',
+        formData.responsablePesaje ? `Responsable: ${formData.responsablePesaje}` : '',
+        formData.estadoNutricional && formData.estadoNutricional !== 'normal' ? `Estado nutricional: ${formData.estadoNutricional}` : '',
+        formData.estadoSalud && formData.estadoSalud !== 'sano' ? `Estado salud: ${formData.estadoSalud}` : '',
+        formData.ayunas ? 'En ayunas' : '',
+        formData.observaciones || '',
+      ].filter(Boolean).join('. ');
+      const payload = {
+        idAnimal: formData.animalId,
+        fechaPesaje: formData.fechaPesaje,
+        pesoKg: parseFloat(formData.pesoActual),
+        condicionCorporal: formData.condicionCorporal ? parseFloat(formData.condicionCorporal) : null,
+        metodoPesaje: formData.metodoPesaje || null,
+        observaciones: extraObs || null,
+      };
+      await pesajeAPI.create(payload);
+      onGuardar();
+    } catch (err) {
+      setErrorGuardar(err.message || 'Error al guardar. Verifica los datos e intenta de nuevo.');
+    } finally {
+      setGuardando(false);
+    }
   };
-
-  const Section = ({ color, icon, title, children }) => (
-    <div className={`rounded-xl border p-5 ${color}`}>
-      <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">{icon}{title}</h3>
-      {children}
-    </div>
-  );
-
-  const colorTend = (v) => v > 0 ? 'text-emerald-600' : v < 0 ? 'text-red-600' : 'text-gray-600';
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -327,8 +378,14 @@ const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Animal <span className="text-red-500">*</span></label>
-                <input type="text" name="animalId" value={formData.animalId} onChange={manejarCambio}
-                  placeholder="Código del animal" className={`${inp} ${errores.animalId ? 'border-red-400' : ''}`} required />
+                <SelectAnimal
+                  animales={animales}
+                  value={formData.animalId}
+                  onChange={id => setFormData(prev => ({ ...prev, animalId: id }))}
+                  busqueda={busquedaAnimal}
+                  onBusqueda={setBusquedaAnimal}
+                  colorFocus="focus:ring-violet-500"
+                />
                 {errores.animalId && <p className="text-red-500 text-xs mt-1">{errores.animalId}</p>}
               </div>
               <div>
@@ -473,6 +530,13 @@ const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
             <textarea name="observaciones" value={formData.observaciones} onChange={manejarCambio} rows="3"
               placeholder="Notas adicionales sobre el pesaje..." className={`${inp} resize-none`} />
           </div>
+
+          {errorGuardar && (
+            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-700">{errorGuardar}</p>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onCancelar}

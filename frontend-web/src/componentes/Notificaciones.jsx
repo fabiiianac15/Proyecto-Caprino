@@ -1,10 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Bell, AlertTriangle, Calendar, Syringe, Clock,
   Heart, Activity, Droplet, AlertCircle, CheckCircle,
   XCircle, Eye, X, Filter, TrendingUp, Thermometer,
   Baby, Pill, FileText, ChevronRight, RefreshCw
 } from 'lucide-react';
+import { notificacionesAPI } from '../servicios/caprino-api';
+
+const tipoUIMap = { vacuna: 'vacuna_proxima', parto: 'parto_proximo', vencido: 'vacuna_vencida' };
+const categoriaMap = { vacuna: 'salud', parto: 'reproduccion', vencido: 'salud' };
+
+const LS_KEY = 'notif_leidas_v1';
+const leerLeidas = () => { try { return new Set(JSON.parse(localStorage.getItem(LS_KEY)) || []); } catch { return new Set(); } };
+const guardarLeidas = (set) => { try { localStorage.setItem(LS_KEY, JSON.stringify([...set])); } catch {} };
+const idNotif = (n) => `${n.tipo}|${n.codigoAnimal || ''}|${n.fechaAlerta || ''}|${n.titulo || ''}`;
 
 const Notificaciones = () => {
   const [notificaciones, setNotificaciones] = useState([]);
@@ -12,6 +21,38 @@ const Notificaciones = () => {
   const [filtroPrioridad, setFiltroPrioridad] = useState('todas');
   const [notificacionDetalle, setNotificacionDetalle] = useState(null);
   const [cargando, setCargando] = useState(false);
+
+  const cargarNotificaciones = useCallback(async () => {
+    setCargando(true);
+    try {
+      const datos = await notificacionesAPI.getAll();
+      const leidas = leerLeidas();
+      const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+      const transformadas = (datos.data || [])
+        .filter(n => !leidas.has(idNotif(n)))
+        .map((n) => {
+          const fechaAlerta = n.fechaAlerta ? new Date(n.fechaAlerta) : null;
+          const diasRestantes = fechaAlerta ? Math.ceil((fechaAlerta - hoy) / 86400000) : undefined;
+          return {
+            id: idNotif(n),
+            tipo: tipoUIMap[n.tipo] || n.tipo,
+            titulo: n.titulo,
+            mensaje: n.mensaje,
+            prioridad: n.urgencia || 'media',
+            categoria: categoriaMap[n.tipo] || 'salud',
+            animal: n.codigoAnimal || null,
+            nombreAnimal: n.nombreAnimal || null,
+            fecha: fechaAlerta
+              ? fechaAlerta.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
+              : null,
+            diasRestantes,
+          };
+        });
+      setNotificaciones(transformadas);
+    } catch { setNotificaciones([]); } finally { setCargando(false); }
+  }, []);
+
+  useEffect(() => { cargarNotificaciones(); }, [cargarNotificaciones]);
 
   const categorias = [
     { id: 'todas', nombre: 'Todas', icono: Bell },
@@ -50,8 +91,20 @@ const Notificaciones = () => {
     baja: notificaciones.filter(n => n.prioridad === 'baja').length,
   };
 
-  const marcarComoLeida = (id) => console.log('Marcar leída:', id);
-  const marcarTodasLeidas = () => console.log('Marcar todas leídas');
+  const marcarComoLeida = (id) => {
+    const leidas = leerLeidas();
+    leidas.add(id);
+    guardarLeidas(leidas);
+    setNotificaciones(prev => prev.filter(n => n.id !== id));
+    window.dispatchEvent(new Event('notif-leidas-changed'));
+  };
+  const marcarTodasLeidas = () => {
+    const leidas = leerLeidas();
+    notificaciones.forEach(n => leidas.add(n.id));
+    guardarLeidas(leidas);
+    setNotificaciones([]);
+    window.dispatchEvent(new Event('notif-leidas-changed'));
+  };
 
   if (notificacionDetalle) {
     return (
@@ -88,7 +141,7 @@ const Notificaciones = () => {
               className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm">
               <CheckCircle className="w-4 h-4" /> Marcar Todo Leído
             </button>
-            <button onClick={() => setCargando(l => !l)} className="px-3 py-2 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors">
+            <button onClick={cargarNotificaciones} className="px-3 py-2 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors">
               <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
             </button>
           </div>

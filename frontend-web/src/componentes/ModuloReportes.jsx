@@ -7,6 +7,12 @@ import {
   ArrowRight, X, RefreshCw, Loader2, ChevronUp
 } from 'lucide-react';
 import api from '../servicios/api';
+import {
+  BarChart as RBarChart, Bar, LineChart as RLineChart, Line, AreaChart, Area,
+  PieChart as RPieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 // ─── Catálogo de categorías y reportes ───────────────────────────────────────
 
@@ -469,6 +475,456 @@ const esBadgeCol = (header) => {
   return !!map[header];
 };
 
+// ─── Constantes y helpers de gráficas ────────────────────────────────────────
+
+const COLORES_GRAFICO = ['#06b6d4','#8b5cf6','#ec4899','#10b981','#f59e0b','#ef4444','#3b82f6','#f97316'];
+
+const colorHex = {
+  cyan: '#06b6d4', pink: '#ec4899', red: '#ef4444', violet: '#8b5cf6',
+  orange: '#f97316', teal: '#14b8a6', slate: '#64748b', emerald: '#10b981',
+};
+
+const TooltipChart = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 text-sm">
+      {label && <p className="font-semibold text-gray-700 mb-2">{label}</p>}
+      {payload.map((p, i) => (
+        <p key={i} className="flex items-center gap-2" style={{ color: p.color }}>
+          <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.color }} />
+          {p.name}: <strong>{typeof p.value === 'number' ? Number(p.value).toLocaleString('es-CO', { maximumFractionDigits: 2 }) : p.value}</strong>
+        </p>
+      ))}
+    </div>
+  );
+};
+
+const SinDatosChart = ({ msg = 'No hay datos suficientes para generar la gráfica' }) => (
+  <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-400">
+    <BarChart3 className="w-10 h-10 text-gray-200" />
+    <p className="text-sm">{msg}</p>
+  </div>
+);
+
+const GraficoReporte = ({ group, datos, colorCat }) => {
+  if (!datos) return null;
+  const color = colorHex[colorCat] ?? '#6366f1';
+
+  switch (group) {
+
+    case 'prd-mensual': {
+      const data = (datos.data ?? []).map(r => ({
+        mes: r.mes ?? '',
+        'Total Litros': r.totalLitros ?? 0,
+        'Promedio': r.promedioLitros ?? 0,
+      }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Producción mensual de leche</p>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <defs>
+                <linearGradient id="gradLit" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={color} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={color} stopOpacity={0.03} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+              <Area type="monotone" dataKey="Total Litros" stroke={color} fill="url(#gradLit)" strokeWidth={2} />
+              <Line type="monotone" dataKey="Promedio" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'prd-ranking': {
+      const data = (datos.data ?? []).slice(0, 10).map(r => ({
+        nombre: (r.nombre ?? r.codigo ?? '').slice(0, 16),
+        'Total Litros': r.totalLitros ?? 0,
+        'Prom./Día': r.promedioDia ?? 0,
+      }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Top 10 animales por producción</p>
+          <ResponsiveContainer width="100%" height={320}>
+            <RBarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="nombre" width={120} tick={{ fontSize: 11 }} />
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+              <Bar dataKey="Total Litros" fill={color}    radius={[0,4,4,0]} />
+              <Bar dataKey="Prom./Día"    fill="#94a3b8"  radius={[0,4,4,0]} />
+            </RBarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'prd-diaria': {
+      const byFecha = {};
+      (datos.data ?? []).forEach(r => {
+        const f = r.fecha ?? '?';
+        byFecha[f] = (byFecha[f] ?? 0) + (r.litros ?? 0);
+      });
+      const data = Object.entries(byFecha).map(([fecha, Litros]) => ({ fecha, Litros }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Producción diaria (litros totales)</p>
+          <ResponsiveContainer width="100%" height={300}>
+            <RBarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 35 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="fecha" tick={{ fontSize: 10, angle: -35, textAnchor: 'end' }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <RTooltip content={<TooltipChart />} />
+              <Bar dataKey="Litros" fill={color} radius={[4,4,0,0]} />
+            </RBarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'rep-mensual': {
+      const data = (datos.mensual ?? []).map(r => ({
+        mes: r.mes ?? '',
+        Exitosos:   r.exitosos   ?? 0,
+        Pendientes: r.pendientes ?? 0,
+        Abortos:    r.abortos    ?? 0,
+      }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Servicios reproductivos por mes</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <RBarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+              <Bar dataKey="Exitosos"   stackId="a" fill="#10b981" />
+              <Bar dataKey="Pendientes" stackId="a" fill="#3b82f6" />
+              <Bar dataKey="Abortos"    stackId="a" fill="#ef4444" radius={[4,4,0,0]} />
+            </RBarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'rep-detalle': {
+      const counts = {};
+      (datos.detalle ?? []).forEach(r => { const k = r.resultado ?? 'desconocido'; counts[k] = (counts[k] ?? 0) + 1; });
+      const data = Object.entries(counts).map(([name, value]) => ({ name, value }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Distribución de servicios por resultado</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <RPieChart>
+              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                {data.map((_, i) => <Cell key={i} fill={COLORES_GRAFICO[i % COLORES_GRAFICO.length]} />)}
+              </Pie>
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+            </RPieChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'rep-partos': {
+      const counts = { alta: 0, media: 0, baja: 0 };
+      (datos.proximos ?? []).forEach(r => { const u = r.urgencia ?? 'baja'; counts[u] = (counts[u] ?? 0) + 1; });
+      const data = [
+        { name: 'Alta urgencia',  value: counts.alta  },
+        { name: 'Media urgencia', value: counts.media },
+        { name: 'Baja urgencia',  value: counts.baja  },
+      ].filter(d => d.value > 0);
+      if (!data.length) return <SinDatosChart msg="No hay partos próximos registrados" />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Partos próximos por urgencia</p>
+          <ResponsiveContainer width="100%" height={260}>
+            <RPieChart>
+              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90}
+                label={({ name, value }) => `${name}: ${value}`}>
+                {[<Cell key={0} fill="#ef4444" />, <Cell key={1} fill="#f59e0b" />, <Cell key={2} fill="#10b981" />]}
+              </Pie>
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+            </RPieChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'rep-machos': {
+      const data = (datos.data ?? []).slice(0, 10).map(r => ({
+        nombre: (r.nombre ?? r.codigo ?? '').slice(0, 12),
+        Servicios: r.servicios ?? 0,
+        Exitosos:  r.exitosos  ?? 0,
+      }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Desempeño de machos reproductores</p>
+          <ResponsiveContainer width="100%" height={300}>
+            <RBarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="nombre" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+              <Bar dataKey="Servicios" fill={color}    radius={[4,4,0,0]} />
+              <Bar dataKey="Exitosos"  fill="#10b981"  radius={[4,4,0,0]} />
+            </RBarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'sal-vacunas':
+    case 'sal-trat': {
+      const arr = group === 'sal-vacunas' ? (datos.vacunas ?? []) : (datos.tratamientos ?? []);
+      const counts = {};
+      arr.forEach(r => { const k = r.estadoVacuna ?? r.tipo ?? 'otro'; counts[k] = (counts[k] ?? 0) + 1; });
+      const data = Object.entries(counts).map(([name, value]) => ({ name, value }));
+      if (!data.length) return <SinDatosChart />;
+      const titulo = group === 'sal-vacunas' ? 'Estado de vacunas' : 'Tratamientos por tipo';
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{titulo}</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <RPieChart>
+              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={95}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                {data.map((_, i) => <Cell key={i} fill={COLORES_GRAFICO[i % COLORES_GRAFICO.length]} />)}
+              </Pie>
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+            </RPieChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'sal-enf': {
+      const data = (datos.frecuentes ?? []).map(r => ({
+        enfermedad: (r.enfermedad ?? '').slice(0, 22),
+        Casos:     r.casos            ?? 0,
+        Afectados: r.animalesAfectados ?? 0,
+      }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Enfermedades más frecuentes</p>
+          <ResponsiveContainer width="100%" height={300}>
+            <RBarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="enfermedad" width={145} tick={{ fontSize: 11 }} />
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+              <Bar dataKey="Casos"     fill="#ef4444" radius={[0,4,4,0]} />
+              <Bar dataKey="Afectados" fill="#f97316" radius={[0,4,4,0]} />
+            </RBarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'pes-detalle': {
+      const byFecha = {};
+      (datos.detalle ?? []).forEach(r => {
+        const f = r.fechaPesaje ?? '?';
+        if (!byFecha[f]) byFecha[f] = { sum: 0, n: 0 };
+        byFecha[f].sum += r.pesoKg ?? 0;
+        byFecha[f].n   += 1;
+      });
+      const data = Object.entries(byFecha)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([fecha, { sum, n }]) => ({ fecha, 'Peso Prom. (kg)': +(sum / n).toFixed(2) }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Evolución del peso promedio del rebaño</p>
+          <ResponsiveContainer width="100%" height={300}>
+            <RLineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 35 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="fecha" tick={{ fontSize: 10, angle: -35, textAnchor: 'end' }} />
+              <YAxis tick={{ fontSize: 11 }} unit=" kg" />
+              <RTooltip content={<TooltipChart />} />
+              <Line type="monotone" dataKey="Peso Prom. (kg)" stroke={color} strokeWidth={2.5} dot={{ r: 4, fill: color }} />
+            </RLineChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'pes-animal': {
+      const data = (datos.porAnimal ?? []).slice(0, 15).map(r => ({
+        nombre: (r.nombre ?? r.codigo ?? '').slice(0, 12),
+        Mínimo:   r.pesoMin      ?? 0,
+        Promedio: r.pesoPromedio ?? 0,
+        Máximo:   r.pesoMax      ?? 0,
+      }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Peso por animal (kg)</p>
+          <ResponsiveContainer width="100%" height={320}>
+            <RBarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="nombre" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} unit=" kg" />
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+              <Bar dataKey="Mínimo"   fill="#94a3b8" radius={[4,4,0,0]} />
+              <Bar dataKey="Promedio" fill={color}   radius={[4,4,0,0]} />
+              <Bar dataKey="Máximo"   fill="#1e293b" radius={[4,4,0,0]} />
+            </RBarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'inv-piramide': {
+      const byRango = {};
+      (datos.pirEdades ?? []).forEach(r => {
+        const rg = r.rangoEdad ?? '?';
+        if (!byRango[rg]) byRango[rg] = { rango: rg, hembra: 0, macho: 0 };
+        const sx = (r.sexo ?? '').toLowerCase();
+        if (sx === 'hembra') byRango[rg].hembra += r.total ?? 0;
+        else                  byRango[rg].macho  += r.total ?? 0;
+      });
+      const data = Object.values(byRango);
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Pirámide de edades del rebaño</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <RBarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="rango" width={100} tick={{ fontSize: 11 }} />
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+              <Bar dataKey="hembra" name="Hembras" fill="#ec4899" radius={[0,4,4,0]} />
+              <Bar dataKey="macho"  name="Machos"  fill="#3b82f6" radius={[0,4,4,0]} />
+            </RBarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'inv-razas': {
+      const byRaza = {};
+      (datos.porRazaSexo ?? []).forEach(r => {
+        const rz = r.raza ?? '?';
+        byRaza[rz] = (byRaza[rz] ?? 0) + (r.total ?? 0);
+      });
+      const data = Object.entries(byRaza).map(([name, value]) => ({ name, value }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Distribución del rebaño por raza</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <RPieChart>
+              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={95}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                {data.map((_, i) => <Cell key={i} fill={COLORES_GRAFICO[i % COLORES_GRAFICO.length]} />)}
+              </Pie>
+              <RTooltip content={<TooltipChart />} />
+              <Legend />
+            </RPieChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    case 'inv-censo': {
+      const r = datos.resumen ?? {};
+      const dataSexo = [
+        { name: 'Hembras', value: r.hembras ?? 0 },
+        { name: 'Machos',  value: r.machos  ?? 0 },
+      ].filter(d => d.value > 0);
+      const dataEstado = [
+        { name: 'Activos',   value: r.activos ?? 0 },
+        { name: 'Baja/Otro', value: Math.max(0, (r.total ?? 0) - (r.activos ?? 0)) },
+      ].filter(d => d.value > 0);
+      if (!dataSexo.length && !dataEstado.length) return <SinDatosChart />;
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {dataSexo.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 text-center">Por sexo</p>
+              <ResponsiveContainer width="100%" height={220}>
+                <RPieChart>
+                  <Pie data={dataSexo} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}
+                    label={({ name, value }) => `${name}: ${value}`}>
+                    <Cell fill="#ec4899" /><Cell fill="#3b82f6" />
+                  </Pie>
+                  <RTooltip content={<TooltipChart />} />
+                  <Legend />
+                </RPieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {dataEstado.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 text-center">Por estado</p>
+              <ResponsiveContainer width="100%" height={220}>
+                <RPieChart>
+                  <Pie data={dataEstado} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}
+                    label={({ name, value }) => `${name}: ${value}`}>
+                    <Cell fill="#10b981" /><Cell fill="#94a3b8" />
+                  </Pie>
+                  <RTooltip content={<TooltipChart />} />
+                  <Legend />
+                </RPieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    case 'aud': {
+      const data = (datos.porTabla ?? []).map(t => ({
+        tabla: t.tabla ?? '?',
+        Total: t.total ?? 0,
+      }));
+      if (!data.length) return <SinDatosChart />;
+      return (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Actividad por módulo del sistema</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <RBarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 35 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="tabla" tick={{ fontSize: 10, angle: -35, textAnchor: 'end' }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <RTooltip content={<TooltipChart />} />
+              <Bar dataKey="Total" fill={color} radius={[4,4,0,0]} />
+            </RBarChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    default:
+      return <SinDatosChart msg="Visualización gráfica no disponible para este reporte" />;
+  }
+};
+
 // ─── Módulo principal (grilla de categorías) ──────────────────────────────────
 
 const ModuloReportes = () => {
@@ -829,12 +1285,20 @@ const VisualizadorReporte = ({ reporte, categoria, filtros, onCerrar }) => {
                 </div>
               )}
 
-              {/* Tabla de datos */}
-              {(vistaActual === 'visualizacion' || vistaActual === 'datos') && headers.length > 0 && (
+              {/* Vista: Gráfica */}
+              {vistaActual === 'visualizacion' && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Visualización Gráfica</h3>
+                  <GraficoReporte group={group} datos={datos} colorCat={categoria.color} />
+                </div>
+              )}
+
+              {/* Vista: Tabla de datos */}
+              {vistaActual === 'datos' && headers.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                      {vistaActual === 'datos' ? 'Datos Completos' : 'Detalle'}
+                      Datos Completos
                     </h3>
                     {filas.length > 0 && (
                       <span className="text-xs text-gray-400">

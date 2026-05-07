@@ -7,7 +7,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
-import { produccionAPI } from '../servicios/caprino-api';
+import SelectAnimal from './SelectAnimal';
+import { produccionAPI, animalesAPI } from '../servicios/caprino-api';
 
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white';
 const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
@@ -26,7 +27,25 @@ const ModuloProduccion = () => {
     setCargando(true);
     try {
       const datos = await produccionAPI.getAll();
-      setRegistros(datos.data || []);
+      const raw = datos.data || [];
+      const turnoNumero = { 'mañana': 1, 'manana': 1, 'tarde': 2, 'noche': 3, 'total_dia': 1 };
+      const transformados = raw.map(r => ({
+        id: r.id,
+        idAnimal: r.idAnimal,
+        hembra: { codigo: r.codigoAnimal, nombre: r.nombreAnimal },
+        fecha: r.fechaProduccion,
+        cantidadLitros: r.litros,
+        turno: r.turno,
+        numeroOrdenio: turnoNumero[r.turno] || 1,
+        calidadLeche: null,
+        porcentajeGrasa: r.grasaPorcentaje,
+        porcentajeProteina: null,
+        porcentajeLactosa: null,
+        temperatura: null,
+        ph: null,
+        observaciones: r.observaciones,
+      }));
+      setRegistros(transformados);
     } catch { setRegistros([]); } finally { setCargando(false); }
   };
 
@@ -222,8 +241,16 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
     { value: 'deficientes', label: 'Deficientes', icono: <TrendingDown />, colorFondo: 'bg-red-100', colorIcono: 'text-red-600' },
   ];
 
+  const [animales, setAnimales] = useState([]);
+  const [busquedaAnimal, setBusquedaAnimal] = useState('');
+  const [errorGuardar, setErrorGuardar] = useState('');
+
+  useEffect(() => {
+    animalesAPI.getAll().then(r => setAnimales(r.data || [])).catch(() => setAnimales([]));
+  }, []);
+
   const [formData, setFormData] = useState({
-    hembraId: registroEditar?.hembra?.codigo || '',
+    hembraId: registroEditar?.idAnimal || '',
     fecha: registroEditar?.fecha || new Date().toISOString().split('T')[0],
     numeroOrdenio: registroEditar?.numeroOrdenio || 1,
     horaOrdenio: registroEditar?.horaOrdenio || '',
@@ -265,12 +292,40 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
 
   const manejarEnvio = async (e) => {
     e.preventDefault();
+    setErrorGuardar('');
     if (!validarFormulario()) return;
+    if (!formData.hembraId) { setErrorGuardar('Debes seleccionar una hembra.'); return; }
     setGuardando(true);
     try {
-      await produccionAPI.create(formData);
-      onGuardar(formData);
-    } catch { alert('Error al guardar el registro'); } finally { setGuardando(false); }
+      const turnoMap = { '1': 'mañana', '2': 'tarde', '3': 'noche' };
+      const extraObs = [
+        formData.calidadLeche ? `Calidad: ${formData.calidadLeche}` : '',
+        formData.porcentajeProteina ? `Proteína: ${formData.porcentajeProteina}%` : '',
+        formData.porcentajeLactosa ? `Lactosa: ${formData.porcentajeLactosa}%` : '',
+        formData.temperatura ? `Temperatura: ${formData.temperatura}°C` : '',
+        formData.ph ? `pH: ${formData.ph}` : '',
+        formData.densidad ? `Densidad: ${formData.densidad} g/ml` : '',
+        formData.recuentoCelulas ? `Células somáticas: ${formData.recuentoCelulas}/ml` : '',
+        formData.presenciaAntibioticos ? 'ANTIBIÓTICOS DETECTADOS' : '',
+        formData.estadoAnimal && formData.estadoAnimal !== 'normal' ? `Estado animal: ${formData.estadoAnimal}` : '',
+        formData.condicionesOrdenio && formData.condicionesOrdenio !== 'optimas' ? `Condiciones ordeño: ${formData.condicionesOrdenio}` : '',
+        formData.observaciones || '',
+      ].filter(Boolean).join('. ');
+      const payload = {
+        idAnimal: formData.hembraId,
+        fechaProduccion: formData.fecha,
+        litros: parseFloat(formData.cantidadLitros),
+        turno: turnoMap[String(formData.numeroOrdenio)] || 'total_dia',
+        grasaPorcentaje: formData.porcentajeGrasa ? parseFloat(formData.porcentajeGrasa) : null,
+        observaciones: extraObs || null,
+      };
+      await produccionAPI.create(payload);
+      onGuardar();
+    } catch (err) {
+      setErrorGuardar(err.message || 'Error al guardar. Verifica los datos e intenta de nuevo.');
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const Section = ({ color, icon, title, children }) => (
@@ -299,8 +354,14 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Hembra Productora <span className="text-red-500">*</span></label>
-                <input type="text" name="hembraId" value={formData.hembraId} onChange={manejarCambio}
-                  placeholder="Código de la hembra" className={`${inp} ${errores.hembraId ? 'border-red-400' : ''}`} required />
+                <SelectAnimal
+                  animales={animales.filter(a => !a.sexo || a.sexo.toLowerCase() === 'hembra')}
+                  value={formData.hembraId}
+                  onChange={id => setFormData(prev => ({ ...prev, hembraId: id }))}
+                  busqueda={busquedaAnimal}
+                  onBusqueda={setBusquedaAnimal}
+                  colorFocus="focus:ring-cyan-500"
+                />
                 {errores.hembraId && <p className="text-red-500 text-xs mt-1">{errores.hembraId}</p>}
               </div>
               <div>
@@ -420,6 +481,13 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
             <textarea name="observaciones" value={formData.observaciones} onChange={manejarCambio} rows="3"
               placeholder="Notas adicionales sobre la producción, comportamiento del animal..." className={`${inp} resize-none`} />
           </div>
+
+          {errorGuardar && (
+            <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+              <p className="text-sm text-red-700">{errorGuardar}</p>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onCancelar}

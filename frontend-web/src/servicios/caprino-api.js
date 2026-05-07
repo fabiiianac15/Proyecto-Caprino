@@ -521,6 +521,21 @@ export const pesajeAPI = {
   },
 };
 
+// ==================== NOTIFICACIONES API ====================
+
+export const notificacionesAPI = {
+  getAll: async () => {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/notificaciones`);
+      const data = await handleResponse(response);
+      return { data: data.data || [], total: data.total || 0 };
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      throw error;
+    }
+  },
+};
+
 // Export configuration
 export const API_CONFIG = {
   baseUrl: API_BASE_URL,
