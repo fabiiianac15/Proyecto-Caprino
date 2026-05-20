@@ -622,83 +622,118 @@ const FormFamacha = ({ animal, onGuardar, onCancelar }) => {
   };
 
   const inp2 = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent bg-white';
-  const lbl2 = 'block text-sm font-medium text-gray-600 mb-1.5';
+  const lbl2 = 'block text-sm font-semibold text-gray-700 mb-1.5';
 
   return (
-    <form onSubmit={enviar} className="space-y-5">
-      {/* Selector de puntuación visual */}
+    <form onSubmit={enviar} className="p-6 space-y-6">
+
+      {/* ── Selector de puntuación ── */}
       <div>
-        <label className={lbl2}>Puntuación FAMACHA <span className="text-red-500">*</span></label>
-        <p className="text-xs text-gray-400 mb-3">Observa el color de la conjuntiva ocular del animal y selecciona el que más se asemeje.</p>
-        <div className="grid grid-cols-5 gap-2">
+        <label className={lbl2}>
+          Puntuación FAMACHA <span className="text-red-500">*</span>
+        </label>
+        <p className="text-xs text-gray-400 mb-4">
+          Observa el color de la conjuntiva ocular y selecciona el que más se asemeje.
+        </p>
+        <div className="grid grid-cols-5 gap-3">
           {FAMACHA_INFO.map(f => (
             <button key={f.score} type="button" onClick={() => seleccionarScore(f.score)}
-              className={`relative rounded-xl border-2 p-2.5 transition-all cursor-pointer ${
+              className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all duration-150 ${
                 form.puntuacion === f.score
-                  ? 'border-orange-500 bg-orange-50 shadow-md scale-105'
-                  : 'border-gray-200 bg-white hover:border-orange-300 hover:shadow-sm'}`}>
-              <div className={`w-full h-9 rounded-lg ${f.bg} mb-2 flex items-center justify-center border border-black/10 shadow-inner`}>
+                  ? 'border-orange-500 shadow-lg scale-[1.06] bg-orange-50'
+                  : 'border-gray-200 bg-white hover:border-orange-300 hover:shadow-md hover:scale-[1.02]'
+              }`}>
+              <div className={`w-full h-12 rounded-xl ${f.bg} flex items-center justify-center shadow-sm border border-black/8`}>
                 {form.puntuacion === f.score
-                  ? <Check className={`w-5 h-5 drop-shadow ${f.score >= 4 ? 'text-gray-700' : 'text-white'}`} />
-                  : null}
+                  ? <Check className={`w-5 h-5 drop-shadow-sm ${f.score >= 4 ? 'text-gray-800' : 'text-white'}`} />
+                  : <span className={`text-lg font-black ${f.text} opacity-40`}>{f.score}</span>}
               </div>
-              <p className="text-xs font-black text-gray-800 text-center leading-none">{f.score}</p>
-              <p className="text-[10px] text-gray-500 text-center leading-tight mt-0.5">{f.label}</p>
+              <div className="text-center">
+                <p className="text-sm font-black text-gray-800 leading-none">{f.score}</p>
+                <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{f.label}</p>
+              </div>
             </button>
           ))}
         </div>
+
         {info && (
-          <div className={`mt-3 px-4 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold ${nivelBadge(info.nivel)}`}>
+          <div className={`mt-4 px-4 py-3 rounded-xl flex items-center gap-2.5 text-sm ${nivelBadge(info.nivel)}`}>
             <ShieldAlert className="w-4 h-4 shrink-0" />
-            Score {info.score} · {info.label} → <span className="font-bold">{info.accion}</span>
+            <span>
+              <span className="font-bold">Score {info.score} · {info.label}</span>
+              <span className="mx-1.5 opacity-50">—</span>
+              {info.accion}
+            </span>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* ── Fecha y ojo ── */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={lbl2}>Fecha de evaluación</label>
           <input type="date" value={form.fechaEvaluacion} max={hoy}
-            onChange={e => setForm(p => ({ ...p, fechaEvaluacion: e.target.value }))} className={inp2} />
+            onChange={e => setForm(p => ({ ...p, fechaEvaluacion: e.target.value }))}
+            className={inp2} />
         </div>
         <div>
           <label className={lbl2}>Ojo evaluado</label>
-          <select value={form.ojoEvaluado} onChange={e => setForm(p => ({ ...p, ojoEvaluado: e.target.value }))} className={inp2}>
+          <select value={form.ojoEvaluado}
+            onChange={e => setForm(p => ({ ...p, ojoEvaluado: e.target.value }))}
+            className={inp2}>
             <option value="ambos">Ambos ojos</option>
             <option value="derecho">Ojo derecho</option>
             <option value="izquierdo">Ojo izquierdo</option>
           </select>
         </div>
+      </div>
+
+      {/* ── Próxima evaluación y tratamiento ── */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={lbl2}>Próxima evaluación sugerida</label>
           <input type="date" value={form.proximaEvaluacion}
-            onChange={e => setForm(p => ({ ...p, proximaEvaluacion: e.target.value }))} className={inp2} />
+            onChange={e => setForm(p => ({ ...p, proximaEvaluacion: e.target.value }))}
+            className={inp2} />
         </div>
-        <div className="flex items-end pb-1">
-          <label className="flex items-center gap-2.5 text-sm text-gray-700 cursor-pointer">
+        <div className="flex flex-col justify-end">
+          <label className={`${lbl2} opacity-0 select-none`}>placeholder</label>
+          <label className={`flex items-center gap-3 cursor-pointer select-none px-4 py-2.5 rounded-lg border-2 transition-all ${
+            form.tratamientoAplicado
+              ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+          }`}>
             <input type="checkbox" checked={form.tratamientoAplicado}
               onChange={e => setForm(p => ({ ...p, tratamientoAplicado: e.target.checked }))}
-              className="w-4 h-4 text-orange-500 rounded" />
-            <span>¿Se aplicó tratamiento?</span>
+              className="w-4 h-4 accent-emerald-500 rounded" />
+            <span className="text-sm font-medium">¿Se aplicó tratamiento?</span>
           </label>
         </div>
       </div>
 
+      {/* ── Medicamento (condicional) ── */}
       {form.tratamientoAplicado && (
-        <div>
-          <label className={lbl2}>Medicamento / Antihelmíntico aplicado</label>
-          <input type="text" value={form.medicamento} placeholder="Ej: Ivermectina 1%, Albendazol..."
-            onChange={e => setForm(p => ({ ...p, medicamento: e.target.value }))} className={inp2} />
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5">
+          <label className="block text-sm font-semibold text-emerald-800 mb-1.5">
+            Medicamento / Antihelmíntico aplicado
+          </label>
+          <input type="text" value={form.medicamento}
+            placeholder="Ej: Ivermectina 1%, Albendazol..."
+            onChange={e => setForm(p => ({ ...p, medicamento: e.target.value }))}
+            className="w-full border border-emerald-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent bg-white" />
         </div>
       )}
 
+      {/* ── Observaciones ── */}
       <div>
         <label className={lbl2}>Observaciones</label>
-        <textarea value={form.observaciones} rows="2" placeholder="Condición general, signos adicionales..."
+        <textarea value={form.observaciones} rows="3"
+          placeholder="Condición general, signos adicionales..."
           onChange={e => setForm(p => ({ ...p, observaciones: e.target.value }))}
           className={`${inp2} resize-none`} />
       </div>
 
+      {/* ── Error ── */}
       {error && (
         <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
           <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
@@ -706,13 +741,14 @@ const FormFamacha = ({ animal, onGuardar, onCancelar }) => {
         </div>
       )}
 
-      <div className="flex gap-3 pt-1">
+      {/* ── Acciones ── */}
+      <div className="flex gap-3 pt-1 border-t border-gray-100">
         <button type="button" onClick={onCancelar}
-          className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+          className="flex-1 px-4 py-2.5 border-2 border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all">
           Cancelar
         </button>
         <button type="submit" disabled={guardando}
-          className="flex-1 px-4 py-2.5 bg-orange-500 text-white text-sm font-semibold rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50">
+          className="flex-1 px-4 py-2.5 bg-orange-500 text-white text-sm font-semibold rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50 shadow-sm shadow-orange-200">
           {guardando ? 'Guardando...' : 'Registrar evaluación'}
         </button>
       </div>
