@@ -1,486 +1,208 @@
-/**
- * Componente de Registro/Edición de Cabras
- * Formulario completo con todos los detalles y foto del animal
- */
-
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Save, 
-  X, 
-  Upload, 
-  Camera,
-  AlertCircle,
-  CheckCircle,
-  User,
-  Calendar,
-  Tag,
-  Weight,
-  Info,
-  Sparkles,
-  Heart,
-  Palette,
-  Target,
-  Moon,
-  Mountain,
-  Droplet,
-  Beef,
-  Baby,
-  Users as UsersIcon,
-  Activity,
-  TrendingUp,
-  DollarSign,
-  Skull,
-  Gift,
-  Zap,
-  Hourglass,
-  Milk,
-  CloudOff
+import {
+  Save, X, Upload, Camera, AlertCircle, CheckCircle, CheckCircle2,
+  User, Calendar, Tag, Weight, Info, Sparkles, Heart, Palette,
+  Target, Moon, Mountain, Droplet, Beef, Baby, Users as UsersIcon,
+  Activity, DollarSign, Skull, Gift, Milk, CloudOff,
+  ChevronDown, Dna, FileText
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
 import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 
+// ── Estilos base ─────────────────────────────────────────────────────────────
+
+const inp = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white disabled:bg-gray-50';
+const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
+
+const ErrMsg = ({ msg }) => msg ? (
+  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+    <AlertCircle className="w-3.5 h-3.5 shrink-0" />{msg}
+  </p>
+) : null;
+
+// ── Componente acordeón ───────────────────────────────────────────────────────
+
+const Seccion = ({ id, titulo, icono, color = 'green', abierta, onToggle, completada, hayError, children }) => {
+  const colores = {
+    green:  { ring: 'border-green-200',  bg: 'bg-green-50',  icon: 'bg-green-100 text-green-600',  txt: 'text-green-800'  },
+    blue:   { ring: 'border-blue-200',   bg: 'bg-blue-50',   icon: 'bg-blue-100 text-blue-600',    txt: 'text-blue-800'   },
+    violet: { ring: 'border-violet-200', bg: 'bg-violet-50', icon: 'bg-violet-100 text-violet-600',txt: 'text-violet-800' },
+    amber:  { ring: 'border-amber-200',  bg: 'bg-amber-50',  icon: 'bg-amber-100 text-amber-600',  txt: 'text-amber-800'  },
+    teal:   { ring: 'border-teal-200',   bg: 'bg-teal-50',   icon: 'bg-teal-100 text-teal-600',    txt: 'text-teal-800'   },
+    gray:   { ring: 'border-gray-200',   bg: 'bg-gray-50',   icon: 'bg-gray-100 text-gray-600',    txt: 'text-gray-800'   },
+  };
+  const c = colores[color] || colores.green;
+
+  return (
+    <div className={`border-2 rounded-2xl transition-all ${
+      hayError ? 'border-red-300' : abierta ? c.ring : 'border-gray-100'
+    }`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between px-5 py-4 text-left transition-colors rounded-2xl ${
+          abierta ? `${c.bg} rounded-b-none` : 'bg-white hover:bg-gray-50'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${abierta ? c.icon : 'bg-gray-100 text-gray-500'}`}>
+            {icono}
+          </div>
+          <span className={`text-sm font-semibold ${abierta ? c.txt : 'text-gray-700'}`}>{titulo}</span>
+          {hayError && <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">Revisar</span>}
+          {completada && !abierta && !hayError && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+        </div>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${abierta ? 'rotate-180' : ''}`} />
+      </button>
+      {abierta && (
+        <div className="px-5 pb-5 pt-4 bg-white border-t border-gray-100 rounded-b-2xl">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Componente principal ──────────────────────────────────────────────────────
+
 const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const [formData, setFormData] = useState({
-    // Información básica
     codigo: cabraEditar?.codigo || cabraEditar?.identificacion || '',
     nombre: cabraEditar?.nombre || '',
     sexo: cabraEditar?.sexo || '',
     raza: cabraEditar?.idRaza || cabraEditar?.raza || '',
-    
-    // Fechas importantes
     fechaNacimiento: cabraEditar?.fechaNacimiento || '',
     fechaIngreso: cabraEditar?.fechaIngreso || new Date().toISOString().split('T')[0],
-    
-    // Características físicas
     color: cabraEditar?.colorPelaje || cabraEditar?.color || '',
     pesoNacimiento: cabraEditar?.pesoNacimiento || '',
     pesoActual: cabraEditar?.pesoActual || '',
-    
-    // Genealogía
     codigoPadre: cabraEditar?.codigoPadre || '',
     codigoMadre: cabraEditar?.codigoMadre || '',
-    
-    // Estado y salud
     estado: cabraEditar?.estado || 'activo',
     estadoReproductivo: cabraEditar?.estadoReproductivo || '',
-    
-    // Información adicional
     proposito: cabraEditar?.proposito || '',
     observaciones: cabraEditar?.observaciones || '',
-    
-    // Foto
-    foto: cabraEditar?.fotoUrl || cabraEditar?.foto || null
+    foto: cabraEditar?.fotoUrl || cabraEditar?.foto || null,
   });
 
   const [imagenPreview, setImagenPreview] = useState(
-    (cabraEditar?.fotoUrl && cabraEditar.fotoUrl !== '') 
-      ? cabraEditar.fotoUrl 
-      : (cabraEditar?.foto && cabraEditar.foto !== '') 
-        ? cabraEditar.foto 
-        : null
+    cabraEditar?.fotoUrl || cabraEditar?.foto || null
   );
   const [errores, setErrores] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
   const [razasDisponibles, setRazasDisponibles] = useState([]);
+  const [seccionAbierta, setSeccionAbierta] = useState('identidad');
   const inputFotoRef = useRef(null);
-  const mensajeRef = useRef(null);
 
-  // Cargar razas desde la API
   useEffect(() => {
-    const cargarRazas = async () => {
-      try {
-        const respuesta = await razasAPI.getAll();
-        const razas = respuesta.data || respuesta;
-        setRazasDisponibles(razas);
-      } catch (error) {
-        console.error('Error al cargar razas:', error);
-      }
-    };
-    cargarRazas();
+    razasAPI.getAll()
+      .then(r => setRazasDisponibles(Array.isArray(r) ? r : (r.data || [])))
+      .catch(() => {});
   }, []);
 
-  // Opciones para los selectores con iconos
-  const opcionesSexo = [
-    { 
-      value: 'macho', 
-      label: 'Macho', 
-      icono: <User />,
-      colorFondo: 'bg-blue-100',
-      colorIcono: 'text-blue-600'
-    },
-    { 
-      value: 'hembra', 
-      label: 'Hembra', 
-      icono: <Heart />,
-      colorFondo: 'bg-pink-100',
-      colorIcono: 'text-pink-600'
-    }
-  ];
+  // ── Opciones SelectPersonalizado ──────────────────────────────────────────
 
-  const opcionesRaza = [
-    { 
-      value: 'Saanen', 
-      label: 'Saanen', 
-      icono: <Sparkles />,
-      colorFondo: 'bg-purple-100',
-      colorIcono: 'text-purple-600'
-    },
-    { 
-      value: 'Alpina Francesa', 
-      label: 'Alpina Francesa', 
-      icono: <Mountain />,
-      colorFondo: 'bg-indigo-100',
-      colorIcono: 'text-indigo-600'
-    },
-    { 
-      value: 'Toggenburg', 
-      label: 'Toggenburg', 
-      icono: <Moon />,
-      colorFondo: 'bg-gray-100',
-      colorIcono: 'text-gray-600'
-    },
-    { 
-      value: 'Nubia', 
-      label: 'Nubia', 
-      icono: <Sparkles />,
-      colorFondo: 'bg-yellow-100',
-      colorIcono: 'text-yellow-600'
-    },
-    { 
-      value: 'LaMancha', 
-      label: 'LaMancha', 
-      icono: <UsersIcon />,
-      colorFondo: 'bg-orange-100',
-      colorIcono: 'text-orange-600'
-    },
-    { 
-      value: 'Boer', 
-      label: 'Boer', 
-      icono: <Beef />,
-      colorFondo: 'bg-red-100',
-      colorIcono: 'text-red-600'
-    },
-    { 
-      value: 'Criolla', 
-      label: 'Criolla', 
-      icono: <Heart />,
-      colorFondo: 'bg-green-100',
-      colorIcono: 'text-green-600'
-    },
-    { 
-      value: 'Mestiza', 
-      label: 'Mestiza', 
-      icono: <Sparkles />,
-      colorFondo: 'bg-teal-100',
-      colorIcono: 'text-teal-600'
-    }
+  const opcionesSexo = [
+    { value: 'macho',  label: 'Macho',  icono: <User />,  colorFondo: 'bg-blue-100',  colorIcono: 'text-blue-600'  },
+    { value: 'hembra', label: 'Hembra', icono: <Heart />, colorFondo: 'bg-pink-100',  colorIcono: 'text-pink-600'  },
   ];
 
   const opcionesColor = [
-    { 
-      value: 'Blanco', 
-      label: 'Blanco', 
-      icono: <Palette />,
-      colorFondo: 'bg-gray-50 border border-gray-200',
-      colorIcono: 'text-gray-600'
-    },
-    { 
-      value: 'Negro', 
-      label: 'Negro', 
-      icono: <Palette />,
-      colorFondo: 'bg-gray-800',
-      colorIcono: 'text-white'
-    },
-    { 
-      value: 'Marrón', 
-      label: 'Marrón', 
-      icono: <Palette />,
-      colorFondo: 'bg-amber-700',
-      colorIcono: 'text-white'
-    },
-    { 
-      value: 'Beige', 
-      label: 'Beige', 
-      icono: <Palette />,
-      colorFondo: 'bg-amber-100',
-      colorIcono: 'text-amber-700'
-    },
-    { 
-      value: 'Gris', 
-      label: 'Gris', 
-      icono: <Palette />,
-      colorFondo: 'bg-gray-300',
-      colorIcono: 'text-gray-700'
-    },
-    { 
-      value: 'Manchado', 
-      label: 'Manchado', 
-      icono: <Palette />,
-      colorFondo: 'bg-gradient-to-r from-white to-gray-800',
-      colorIcono: 'text-gray-600'
-    },
-    { 
-      value: 'Multicolor', 
-      label: 'Multicolor', 
-      icono: <Palette />,
-      colorFondo: 'bg-gradient-to-r from-red-200 via-yellow-200 to-blue-200',
-      colorIcono: 'text-gray-700'
-    }
+    { value: 'Blanco',     label: 'Blanco',     icono: <Palette />, colorFondo: 'bg-gray-50 border border-gray-200', colorIcono: 'text-gray-600' },
+    { value: 'Negro',      label: 'Negro',      icono: <Palette />, colorFondo: 'bg-gray-800',    colorIcono: 'text-white'    },
+    { value: 'Marrón',     label: 'Marrón',     icono: <Palette />, colorFondo: 'bg-amber-700',   colorIcono: 'text-white'    },
+    { value: 'Beige',      label: 'Beige',      icono: <Palette />, colorFondo: 'bg-amber-100',   colorIcono: 'text-amber-700'},
+    { value: 'Gris',       label: 'Gris',       icono: <Palette />, colorFondo: 'bg-gray-300',    colorIcono: 'text-gray-700' },
+    { value: 'Manchado',   label: 'Manchado',   icono: <Palette />, colorFondo: 'bg-gradient-to-r from-white to-gray-800', colorIcono: 'text-gray-600' },
+    { value: 'Multicolor', label: 'Multicolor', icono: <Palette />, colorFondo: 'bg-gradient-to-r from-red-200 via-yellow-200 to-blue-200', colorIcono: 'text-gray-700' },
   ];
 
   const opcionesProposito = [
-    { 
-      value: 'Leche', 
-      label: 'Leche', 
-      icono: <Droplet />,
-      colorFondo: 'bg-cyan-100',
-      colorIcono: 'text-cyan-600'
-    },
-    { 
-      value: 'Carne', 
-      label: 'Carne', 
-      icono: <Beef />,
-      colorFondo: 'bg-red-100',
-      colorIcono: 'text-red-600'
-    },
-    { 
-      value: 'Doble propósito', 
-      label: 'Doble propósito', 
-      icono: <Target />,
-      colorFondo: 'bg-purple-100',
-      colorIcono: 'text-purple-600'
-    },
-    { 
-      value: 'Reproducción', 
-      label: 'Reproducción', 
-      icono: <Heart />,
-      colorFondo: 'bg-pink-100',
-      colorIcono: 'text-pink-600'
-    },
-    { 
-      value: 'Cría', 
-      label: 'Cría', 
-      icono: <Baby />,
-      colorFondo: 'bg-green-100',
-      colorIcono: 'text-green-600'
-    }
+    { value: 'Leche',           label: 'Leche',           icono: <Droplet />, colorFondo: 'bg-cyan-100',   colorIcono: 'text-cyan-600'   },
+    { value: 'Carne',           label: 'Carne',           icono: <Beef />,    colorFondo: 'bg-red-100',    colorIcono: 'text-red-600'    },
+    { value: 'Doble propósito', label: 'Doble propósito', icono: <Target />,  colorFondo: 'bg-purple-100', colorIcono: 'text-purple-600' },
+    { value: 'Reproducción',    label: 'Reproducción',    icono: <Heart />,   colorFondo: 'bg-pink-100',   colorIcono: 'text-pink-600'   },
+    { value: 'Cría',            label: 'Cría',            icono: <Baby />,    colorFondo: 'bg-green-100',  colorIcono: 'text-green-600'  },
   ];
 
   const opcionesEstadoGeneral = [
-    { 
-      value: 'activo', 
-      label: 'Activo', 
-      icono: <Activity />,
-      colorFondo: 'bg-green-100',
-      colorIcono: 'text-green-600'
-    },
-    { 
-      value: 'vendido', 
-      label: 'Vendido', 
-      icono: <DollarSign />,
-      colorFondo: 'bg-blue-100',
-      colorIcono: 'text-blue-600'
-    },
-    { 
-      value: 'muerto', 
-      label: 'Muerto', 
-      icono: <Skull />,
-      colorFondo: 'bg-gray-100',
-      colorIcono: 'text-gray-600'
-    },
-    { 
-      value: 'donado', 
-      label: 'Donado', 
-      icono: <Gift />,
-      colorFondo: 'bg-purple-100',
-      colorIcono: 'text-purple-600'
-    }
+    { value: 'activo',   label: 'Activo',   icono: <Activity />,   colorFondo: 'bg-green-100', colorIcono: 'text-green-600' },
+    { value: 'vendido',  label: 'Vendido',  icono: <DollarSign />, colorFondo: 'bg-blue-100',  colorIcono: 'text-blue-600'  },
+    { value: 'muerto',   label: 'Muerto',   icono: <Skull />,      colorFondo: 'bg-gray-100',  colorIcono: 'text-gray-600'  },
+    { value: 'donado',   label: 'Donado',   icono: <Gift />,       colorFondo: 'bg-purple-100',colorIcono: 'text-purple-600'},
   ];
 
   const opcionesEstadoReproductivo = [
-    { 
-      value: '', 
-      label: 'No aplica', 
-      icono: <CloudOff />,
-      colorFondo: 'bg-gray-100',
-      colorIcono: 'text-gray-500'
-    },
-    { 
-      value: 'apta', 
-      label: 'Apta para reproducción', 
-      icono: <CheckCircle />,
-      colorFondo: 'bg-green-100',
-      colorIcono: 'text-green-600'
-    },
-    { 
-      value: 'gestante', 
-      label: 'Gestante', 
-      icono: <Heart />,
-      colorFondo: 'bg-pink-100',
-      colorIcono: 'text-pink-600'
-    },
-    { 
-      value: 'lactante', 
-      label: 'Lactante', 
-      icono: <Milk />,
-      colorFondo: 'bg-cyan-100',
-      colorIcono: 'text-cyan-600'
-    },
-    { 
-      value: 'seca', 
-      label: 'Seca', 
-      icono: <CloudOff />,
-      colorFondo: 'bg-orange-100',
-      colorIcono: 'text-orange-600'
-    },
-    { 
-      value: 'joven', 
-      label: 'Muy joven', 
-      icono: <Baby />,
-      colorFondo: 'bg-yellow-100',
-      colorIcono: 'text-yellow-600'
-    }
+    { value: '',         label: 'No aplica',            icono: <CloudOff />,     colorFondo: 'bg-gray-100',  colorIcono: 'text-gray-500'  },
+    { value: 'apta',     label: 'Apta para reproducción',icono: <CheckCircle />, colorFondo: 'bg-green-100', colorIcono: 'text-green-600' },
+    { value: 'gestante', label: 'Gestante',              icono: <Heart />,       colorFondo: 'bg-pink-100',  colorIcono: 'text-pink-600'  },
+    { value: 'lactante', label: 'Lactante',              icono: <Milk />,        colorFondo: 'bg-cyan-100',  colorIcono: 'text-cyan-600'  },
+    { value: 'seca',     label: 'Seca',                  icono: <CloudOff />,    colorFondo: 'bg-orange-100',colorIcono: 'text-orange-600'},
+    { value: 'joven',    label: 'Muy joven',             icono: <Baby />,        colorFondo: 'bg-yellow-100',colorIcono: 'text-yellow-600'},
   ];
 
-  /**
-   * Maneja cambios en los campos del formulario
-   */
-  const manejarCambio = (e) => {
+  // ── Lógica ────────────────────────────────────────────────────────────────
+
+  const cambiar = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Limpiar error del campo
-    if (errores[name]) {
-      setErrores(prev => ({ ...prev, [name]: null }));
-    }
+    setFormData(p => ({ ...p, [name]: value }));
+    if (errores[name]) setErrores(p => ({ ...p, [name]: null }));
   };
 
-  /**
-   * Maneja la carga de imagen
-   */
-  const manejarCambioImagen = (e) => {
+  const cambiarImagen = (e) => {
     const archivo = e.target.files[0];
-    console.log('=== CAMBIO IMAGEN - Archivo:', archivo);
-    
-    if (archivo) {
-      // Validar tipo de archivo
-      if (!archivo.type.startsWith('image/')) {
-        setMensaje({ tipo: 'error', texto: 'Por favor selecciona un archivo de imagen válido' });
-        return;
-      }
-
-      // Validar tamaño (máximo 5MB)
-      if (archivo.size > 5 * 1024 * 1024) {
-        setMensaje({ tipo: 'error', texto: 'La imagen no debe superar los 5MB' });
-        return;
-      }
-
-      // Crear preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        console.log('=== CAMBIO IMAGEN - Preview listo, tamaño:', reader.result?.length);
-        setImagenPreview(reader.result);
-        setFormData(prev => ({ ...prev, foto: archivo }));
-      };
-      reader.readAsDataURL(archivo);
-    }
+    if (!archivo) return;
+    if (!archivo.type.startsWith('image/')) { setMensaje({ tipo: 'error', texto: 'Selecciona una imagen válida (JPG, PNG).' }); return; }
+    if (archivo.size > 5 * 1024 * 1024) { setMensaje({ tipo: 'error', texto: 'La imagen no debe superar los 5 MB.' }); return; }
+    const reader = new FileReader();
+    reader.onloadend = () => { setImagenPreview(reader.result); setFormData(p => ({ ...p, foto: archivo })); };
+    reader.readAsDataURL(archivo);
   };
 
-  /**
-   * Calcula la edad del animal
-   */
   const calcularEdad = () => {
     if (!formData.fechaNacimiento) return '';
-    
-    const hoy = new Date();
-    const nacimiento = new Date(formData.fechaNacimiento);
-    const diffTime = Math.abs(hoy - nacimiento);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 30) {
-      return `${diffDays} días`;
-    } else if (diffDays < 365) {
-      const meses = Math.floor(diffDays / 30);
-      return `${meses} ${meses === 1 ? 'mes' : 'meses'}`;
-    } else {
-      const años = Math.floor(diffDays / 365);
-      const meses = Math.floor((diffDays % 365) / 30);
-      return `${años} ${años === 1 ? 'año' : 'años'}${meses > 0 ? ` y ${meses} ${meses === 1 ? 'mes' : 'meses'}` : ''}`;
-    }
+    const dias = Math.ceil((new Date() - new Date(formData.fechaNacimiento)) / 86400000);
+    if (dias < 30)  return `${dias} día${dias !== 1 ? 's' : ''}`;
+    if (dias < 365) { const m = Math.floor(dias / 30); return `${m} mes${m !== 1 ? 'es' : ''}`; }
+    const a = Math.floor(dias / 365); const m = Math.floor((dias % 365) / 30);
+    return `${a} año${a !== 1 ? 's' : ''}${m > 0 ? ` y ${m} mes${m !== 1 ? 'es' : ''}` : ''}`;
   };
 
-  /**
-   * Valida el formulario
-   */
-  const validarFormulario = () => {
-    const nuevosErrores = {};
-
-    if (!formData.codigo.trim())      nuevosErrores.codigo = 'El código es obligatorio';
-    if (!formData.nombre.trim())      nuevosErrores.nombre = 'El nombre es obligatorio';
-    if (!formData.sexo)               nuevosErrores.sexo = 'Selecciona el sexo';
-    if (!formData.raza)               nuevosErrores.raza = 'Selecciona la raza';
-    if (!formData.fechaNacimiento)    nuevosErrores.fechaNacimiento = 'La fecha de nacimiento es obligatoria';
-
-    setErrores(nuevosErrores);
-
-    if (Object.keys(nuevosErrores).length > 0) {
-      const nombres = {
-        codigo: 'Código/ID', nombre: 'Nombre', sexo: 'Sexo',
-        raza: 'Raza', fechaNacimiento: 'Fecha de Nacimiento'
-      };
-      const faltantes = Object.keys(nuevosErrores).map(k => nombres[k]).join(', ');
-      setMensaje({ tipo: 'error', texto: `Completa los campos requeridos: ${faltantes}` });
-      setTimeout(() => mensajeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  const validar = () => {
+    const errs = {};
+    if (!formData.codigo.trim())    errs.codigo = 'El código es obligatorio';
+    if (!formData.nombre.trim())    errs.nombre = 'El nombre es obligatorio';
+    if (!formData.sexo)             errs.sexo = 'Selecciona el sexo';
+    if (!formData.raza)             errs.raza = 'Selecciona la raza';
+    if (!formData.fechaNacimiento)  errs.fechaNacimiento = 'La fecha de nacimiento es obligatoria';
+    setErrores(errs);
+    if (Object.keys(errs).length > 0) {
+      if (errs.codigo || errs.nombre || errs.sexo || errs.raza) setSeccionAbierta('identidad');
+      else if (errs.fechaNacimiento) setSeccionAbierta('fechas');
       return false;
     }
-
     return true;
   };
 
-  /**
-   * Maneja el envío del formulario
-   */
-  const manejarEnvio = async (e) => {
+  const enviar = async (e) => {
     e.preventDefault();
-    
-    console.log('=== REGISTRO CABRA - manejarEnvio llamado');
-    console.log('=== REGISTRO CABRA - Datos del formulario:', formData);
-    
-    if (!validarFormulario()) {
-      setMensaje({ tipo: 'error', texto: 'Por favor completa todos los campos obligatorios' });
-      return;
-    }
-
-    setGuardando(true);
     setMensaje({ tipo: '', texto: '' });
-
+    if (!validar()) return;
+    setGuardando(true);
     try {
-      // Convertir foto a base64 si es un archivo
       let fotoBase64 = null;
-      if (formData.foto && formData.foto instanceof File) {
-        console.log('=== FOTO - Convirtiendo File a base64...');
-        fotoBase64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            console.log('=== FOTO - Base64 generado, tamaño:', reader.result?.length);
-            resolve(reader.result);
-          };
-          reader.readAsDataURL(formData.foto);
+      if (formData.foto instanceof File) {
+        fotoBase64 = await new Promise(res => {
+          const r = new FileReader();
+          r.onloadend = () => res(r.result);
+          r.readAsDataURL(formData.foto);
         });
-      } else if (typeof formData.foto === 'string' && formData.foto !== '') {
-        console.log('=== FOTO - Ya es string, tamaño:', formData.foto.length);
+      } else if (typeof formData.foto === 'string' && formData.foto) {
         fotoBase64 = formData.foto;
-      } else {
-        console.log('=== FOTO - No hay foto o es null');
-        fotoBase64 = null;
       }
 
-      // Preparar datos para enviar a la API
-      const datosAnimal = {
+      const payload = {
         identificacion: formData.codigo,
         nombre: formData.nombre,
         sexo: formData.sexo,
@@ -489,503 +211,281 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
         colorPelaje: formData.color,
         pesoNacimiento: formData.pesoNacimiento ? parseFloat(formData.pesoNacimiento) : null,
         observaciones: formData.observaciones,
-        fotoUrl: fotoBase64
+        fotoUrl: fotoBase64,
+        estado: formData.estado,
       };
-      
-      console.log('=== REGISTRO CABRA - Enviando datos (sin foto para no saturar):', {
-        ...datosAnimal,
-        fotoUrl: fotoBase64 ? `[base64 de ${fotoBase64.length} chars]` : null
-      });
-      
-      let respuesta;
+
+      let resp;
       if (cabraEditar) {
-        // Actualizar cabra existente
-        respuesta = await animalesAPI.update(cabraEditar.id, datosAnimal);
-        setMensaje({ tipo: 'success', texto: 'Cabra actualizada exitosamente' });
+        resp = await animalesAPI.update(cabraEditar.id, payload);
+        setMensaje({ tipo: 'success', texto: 'Cabra actualizada correctamente.' });
       } else {
-        // Crear nueva cabra
-        respuesta = await animalesAPI.create(datosAnimal);
-        setMensaje({ tipo: 'success', texto: 'Cabra registrada exitosamente' });
+        resp = await animalesAPI.create(payload);
+        setMensaje({ tipo: 'success', texto: 'Cabra registrada correctamente.' });
       }
-      
-      console.log('=== REGISTRO CABRA - Respuesta de la API:', respuesta);
-      
-      setTimeout(() => {
-        onGuardar(respuesta);
-      }, 1500);
-    } catch (error) {
-      console.error('=== REGISTRO CABRA - Error al guardar:', error);
-      setMensaje({ tipo: 'error', texto: error.message || 'Error al guardar. Intenta nuevamente.' });
-      setTimeout(() => mensajeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      setTimeout(() => onGuardar(resp), 1200);
+    } catch (err) {
+      setMensaje({ tipo: 'error', texto: err.message || 'Error al guardar. Intenta de nuevo.' });
     } finally {
       setGuardando(false);
     }
   };
 
+  const toggle = (id) => setSeccionAbierta(p => p === id ? null : id);
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Encabezado */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              {cabraEditar ? 'Editar Cabra' : 'Registrar Nueva Cabra'}
-            </h2>
-            <p className="text-gray-600">
-              Completa toda la información del animal para un registro detallado
-            </p>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-green-600 to-emerald-700 rounded-2xl shadow-lg px-7 py-6 mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <Tag className="w-6 h-6 text-white" />
           </div>
-          <button
-            onClick={onCancelar}
-            className="text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-white leading-tight">
+              {cabraEditar ? 'Editar cabra' : 'Registrar nueva cabra'}
+            </h2>
+            <p className="text-green-200 text-sm">Completa las secciones. Los campos marcados con * son obligatorios.</p>
+          </div>
         </div>
+        <button type="button" onClick={onCancelar} className="text-white/70 hover:text-white transition-colors">
+          <X className="w-6 h-6" />
+        </button>
       </div>
 
-      <form onSubmit={manejarEnvio}>
+      <form onSubmit={enviar}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Columna izquierda - Foto */}
+
+          {/* ── Columna foto (sticky) ── */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Fotografía del Animal
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-24 space-y-4">
+              <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                <Camera className="w-4 h-4 text-green-600" /> Fotografía
               </h3>
-              
-              <div className="space-y-4">
-                {/* Preview de imagen */}
-                <div className="relative aspect-square w-full bg-gray-100 rounded-lg overflow-hidden border-2 border-dashed border-gray-300">
-                  {imagenPreview && imagenPreview !== '' ? (
-                    <img 
-                      src={imagenPreview} 
-                      alt="Preview" 
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        console.error('Error cargando imagen:', imagenPreview);
-                        setImagenPreview(null);
-                      }}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                      <Camera className="w-16 h-16 mb-2" />
-                      <p className="text-sm">Sin fotografía</p>
-                    </div>
-                  )}
-                </div>
 
-                {/* Botones de carga */}
-                <input
-                  ref={inputFotoRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={manejarCambioImagen}
-                  className="hidden"
-                />
-                
-                <button
-                  type="button"
-                  onClick={() => inputFotoRef.current?.click()}
-                  className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Upload className="w-5 h-5" />
-                  <span>Subir Fotografía</span>
-                </button>
-
-                {imagenPreview && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImagenPreview(null);
-                      setFormData(prev => ({ ...prev, foto: null }));
-                      if (inputFotoRef.current) {
-                        inputFotoRef.current.value = '';
-                      }
-                    }}
-                    className="w-full px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                  >
-                    Eliminar Foto
-                  </button>
+              <div className="aspect-square w-full bg-gray-50 rounded-xl overflow-hidden border-2 border-dashed border-gray-200 flex items-center justify-center">
+                {imagenPreview ? (
+                  <img src={imagenPreview} alt="Preview" className="w-full h-full object-cover"
+                    onError={() => setImagenPreview(null)} />
+                ) : (
+                  <div className="text-center text-gray-300">
+                    <Camera className="w-14 h-14 mx-auto mb-2" />
+                    <p className="text-xs">Sin fotografía</p>
+                  </div>
                 )}
-
-                <p className="text-xs text-gray-500 text-center">
-                  Formatos: JPG, PNG. Máximo 5MB
-                </p>
               </div>
 
-              {/* Información de edad si hay fecha de nacimiento */}
+              <input ref={inputFotoRef} type="file" accept="image/*" onChange={cambiarImagen} className="hidden" />
+
+              <button type="button" onClick={() => inputFotoRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors">
+                <Upload className="w-4 h-4" /> Subir foto
+              </button>
+
+              {imagenPreview && (
+                <button type="button"
+                  onClick={() => { setImagenPreview(null); setFormData(p => ({ ...p, foto: null })); if (inputFotoRef.current) inputFotoRef.current.value = ''; }}
+                  className="w-full px-4 py-2 text-red-600 border border-red-200 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors">
+                  Eliminar foto
+                </button>
+              )}
+
+              <p className="text-xs text-gray-400 text-center">JPG o PNG · máx. 5 MB</p>
+
               {formData.fechaNacimiento && (
-                <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center space-x-2 text-green-700">
-                    <Info className="w-5 h-5" />
-                    <div>
-                      <p className="text-sm font-medium">Edad Actual</p>
-                      <p className="text-lg font-bold">{calcularEdad()}</p>
-                    </div>
+                <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 flex items-center gap-2">
+                  <Info className="w-4 h-4 text-green-600 shrink-0" />
+                  <div>
+                    <p className="text-xs text-green-700 font-medium">Edad actual</p>
+                    <p className="text-base font-bold text-green-800">{calcularEdad()}</p>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Columna derecha - Formulario */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Mensaje de feedback */}
-            <div ref={mensajeRef}>
-              {mensaje.texto && (
-                <div className={`p-4 rounded-lg flex items-start space-x-3 ${
-                  mensaje.tipo === 'success'
-                    ? 'bg-green-50 text-green-800 border border-green-200'
-                    : 'bg-red-50 text-red-800 border border-red-300'
-                }`}>
-                  {mensaje.tipo === 'success' ? (
-                    <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                  )}
-                  <span className="font-medium">{mensaje.texto}</span>
-                </div>
-              )}
-            </div>
+          {/* ── Columna acordeón ── */}
+          <div className="lg:col-span-2 space-y-3">
 
-            {/* Sección: Información Básica */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <User className="w-5 h-5 mr-2 text-green-600" />
-                Información Básica
-              </h3>
-              
+            {/* Mensaje global */}
+            {mensaje.texto && (
+              <div className={`px-4 py-3 rounded-xl flex items-center gap-2 text-sm font-medium border ${
+                mensaje.tipo === 'success'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-red-50 text-red-700 border-red-200'
+              }`}>
+                {mensaje.tipo === 'success'
+                  ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  : <AlertCircle className="w-4 h-4 shrink-0" />}
+                {mensaje.texto}
+              </div>
+            )}
+
+            {/* 1 — Identidad básica */}
+            <Seccion id="identidad" titulo="Identidad básica" icono={<Tag className="w-4 h-4" />}
+              color="green" abierta={seccionAbierta === 'identidad'} onToggle={() => toggle('identidad')}
+              completada={!!(formData.codigo && formData.nombre && formData.sexo && formData.raza)}
+              hayError={!!(errores.codigo || errores.nombre || errores.sexo || errores.raza)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Código */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Código / ID <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="codigo"
-                    value={formData.codigo}
-                    onChange={manejarCambio}
+                  <label className={lbl}>Código / ID <span className="text-red-500">*</span></label>
+                  <input name="codigo" value={formData.codigo} onChange={cambiar}
                     placeholder="Ej: CAB-001"
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errores.codigo 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  />
-                  {errores.codigo && (
-                    <p className="mt-1 text-sm text-red-600">{errores.codigo}</p>
-                  )}
+                    className={`${inp} ${errores.codigo ? 'border-red-300 focus:ring-red-400' : ''}`} />
+                  <ErrMsg msg={errores.codigo} />
                 </div>
-
-                {/* Nombre */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="nombre"
-                    value={formData.nombre}
-                    onChange={manejarCambio}
+                  <label className={lbl}>Nombre <span className="text-red-500">*</span></label>
+                  <input name="nombre" value={formData.nombre} onChange={cambiar}
                     placeholder="Ej: Luna"
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errores.nombre 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  />
-                  {errores.nombre && (
-                    <p className="mt-1 text-sm text-red-600">{errores.nombre}</p>
-                  )}
+                    className={`${inp} ${errores.nombre ? 'border-red-300 focus:ring-red-400' : ''}`} />
+                  <ErrMsg msg={errores.nombre} />
                 </div>
-
-                {/* Sexo */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sexo <span className="text-red-500">*</span>
-                  </label>
-                  <SelectPersonalizado
-                    valor={formData.sexo}
-                    onChange={(valor) => manejarCambio({ target: { name: 'sexo', value: valor } })}
-                    opciones={opcionesSexo}
-                    placeholder="Seleccionar sexo..."
-                    error={!!errores.sexo}
-                    requerido
-                  />
-                  {errores.sexo && (
-                    <p className="mt-1 text-sm text-red-600">{errores.sexo}</p>
-                  )}
+                  <label className={lbl}>Sexo <span className="text-red-500">*</span></label>
+                  <SelectPersonalizado valor={formData.sexo}
+                    onChange={v => cambiar({ target: { name: 'sexo', value: v } })}
+                    opciones={opcionesSexo} placeholder="Seleccionar sexo..." error={!!errores.sexo} requerido />
+                  <ErrMsg msg={errores.sexo} />
                 </div>
-
-                {/* Raza */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Raza <span className="text-red-500">*</span>
-                  </label>
-                  <SelectPersonalizado
-                    valor={formData.raza}
-                    onChange={(valor) => manejarCambio({ target: { name: 'raza', value: valor } })}
-                    opciones={razasDisponibles.map(raza => ({
-                      value: raza.id_raza || raza.id,
-                      label: raza.nombre_raza || raza.nombre,
+                  <label className={lbl}>Raza <span className="text-red-500">*</span></label>
+                  <SelectPersonalizado valor={formData.raza}
+                    onChange={v => cambiar({ target: { name: 'raza', value: v } })}
+                    opciones={razasDisponibles.map(r => ({
+                      value: r.id_raza || r.id,
+                      label: r.nombre_raza || r.nombre,
                       icono: <Sparkles />,
                       colorFondo: 'bg-purple-100',
-                      colorIcono: 'text-purple-600'
+                      colorIcono: 'text-purple-600',
                     }))}
-                    placeholder="Seleccionar raza..."
-                    error={!!errores.raza}
-                    requerido
-                  />
-                  {errores.raza && (
-                    <p className="mt-1 text-sm text-red-600">{errores.raza}</p>
-                  )}
-                </div>
-
-                {/* Color */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Color
-                  </label>
-                  <SelectPersonalizado
-                    valor={formData.color}
-                    onChange={(valor) => manejarCambio({ target: { name: 'color', value: valor } })}
-                    opciones={opcionesColor}
-                    placeholder="Seleccionar color..."
-                  />
-                </div>
-
-                {/* Propósito */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Propósito
-                    <span className="ml-2 text-xs text-amber-600 font-normal">(informativo, no se almacena)</span>
-                  </label>
-                  <SelectPersonalizado
-                    valor={formData.proposito}
-                    onChange={(valor) => manejarCambio({ target: { name: 'proposito', value: valor } })}
-                    opciones={opcionesProposito}
-                    placeholder="Seleccionar propósito..."
-                  />
+                    placeholder={razasDisponibles.length === 0 ? 'Cargando razas...' : 'Seleccionar raza...'}
+                    error={!!errores.raza} requerido />
+                  <ErrMsg msg={errores.raza} />
                 </div>
               </div>
-            </div>
+            </Seccion>
 
-            {/* Sección: Fechas */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <Calendar className="w-5 h-5 mr-2 text-green-600" />
-                Fechas Importantes
-              </h3>
-              
+            {/* 2 — Fechas */}
+            <Seccion id="fechas" titulo="Fechas importantes" icono={<Calendar className="w-4 h-4" />}
+              color="blue" abierta={seccionAbierta === 'fechas'} onToggle={() => toggle('fechas')}
+              completada={!!formData.fechaNacimiento}
+              hayError={!!errores.fechaNacimiento}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Fecha de nacimiento */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Nacimiento <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="fechaNacimiento"
-                    value={formData.fechaNacimiento}
-                    onChange={manejarCambio}
+                  <label className={lbl}>Fecha de nacimiento <span className="text-red-500">*</span></label>
+                  <input type="date" name="fechaNacimiento" value={formData.fechaNacimiento} onChange={cambiar}
                     max={new Date().toISOString().split('T')[0]}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
-                      errores.fechaNacimiento 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-green-500'
-                    }`}
-                  />
-                  {errores.fechaNacimiento && (
-                    <p className="mt-1 text-sm text-red-600">{errores.fechaNacimiento}</p>
-                  )}
+                    className={`${inp} ${errores.fechaNacimiento ? 'border-red-300 focus:ring-red-400' : ''}`} />
+                  <ErrMsg msg={errores.fechaNacimiento} />
                 </div>
-
-                {/* Fecha de ingreso */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Ingreso al Rebaño
-                    <span className="ml-2 text-xs text-amber-600 font-normal">(referencia, no se almacena)</span>
-                  </label>
-                  <input
-                    type="date"
-                    name="fechaIngreso"
-                    value={formData.fechaIngreso}
-                    onChange={manejarCambio}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
+                  <label className={lbl}>Fecha de ingreso al rebaño</label>
+                  <input type="date" name="fechaIngreso" value={formData.fechaIngreso} onChange={cambiar} className={inp} />
+                  <p className="text-xs text-amber-600 mt-1.5">Solo referencia, no se almacena en BD.</p>
                 </div>
               </div>
-            </div>
+            </Seccion>
 
-            {/* Sección: Características Físicas */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <Weight className="w-5 h-5 mr-2 text-green-600" />
-                Características Físicas
-              </h3>
-              
+            {/* 3 — Características físicas */}
+            <Seccion id="fisico" titulo="Características físicas" icono={<Weight className="w-4 h-4" />}
+              color="violet" abierta={seccionAbierta === 'fisico'} onToggle={() => toggle('fisico')}
+              completada={!!(formData.color || formData.pesoNacimiento || formData.proposito)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Peso al nacimiento */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Peso al Nacimiento (kg)
-                  </label>
-                  <input
-                    type="number"
-                    name="pesoNacimiento"
-                    value={formData.pesoNacimiento}
-                    onChange={manejarCambio}
-                    step="0.1"
-                    min="0"
-                    placeholder="Ej: 3.5"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
+                  <label className={lbl}>Color de pelaje</label>
+                  <SelectPersonalizado valor={formData.color}
+                    onChange={v => cambiar({ target: { name: 'color', value: v } })}
+                    opciones={opcionesColor} placeholder="Seleccionar color..." />
                 </div>
-
-                {/* Peso actual */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Peso Actual (kg)
-                    <span className="ml-2 text-xs text-amber-600 font-normal">(regístralo en Módulo Pesaje)</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="pesoActual"
-                    value={formData.pesoActual}
-                    onChange={manejarCambio}
-                    step="0.1"
-                    min="0"
-                    placeholder="Ej: 45.5"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
+                  <label className={lbl}>Propósito</label>
+                  <SelectPersonalizado valor={formData.proposito}
+                    onChange={v => cambiar({ target: { name: 'proposito', value: v } })}
+                    opciones={opcionesProposito} placeholder="Seleccionar propósito..." />
+                  <p className="text-xs text-amber-600 mt-1.5">Solo referencia, no se almacena en BD.</p>
+                </div>
+                <div>
+                  <label className={lbl}>Peso al nacimiento (kg)</label>
+                  <input type="number" name="pesoNacimiento" value={formData.pesoNacimiento} onChange={cambiar}
+                    step="0.1" min="0" placeholder="Ej: 3.5" className={inp} />
+                </div>
+                <div>
+                  <label className={lbl}>Peso actual (kg)</label>
+                  <input type="number" name="pesoActual" value={formData.pesoActual} onChange={cambiar}
+                    step="0.1" min="0" placeholder="Ej: 45.5" className={inp} />
+                  <p className="text-xs text-amber-600 mt-1.5">Regístralo en el módulo de Pesaje.</p>
                 </div>
               </div>
-            </div>
+            </Seccion>
 
-            {/* Sección: Genealogía */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-1 flex items-center">
-                <Tag className="w-5 h-5 mr-2 text-green-600" />
-                Genealogía
-              </h3>
-              <p className="text-xs text-amber-600 mb-4">Los datos de padre/madre se registran en el Módulo de Genealogía tras guardar el animal.</p>
-              
+            {/* 4 — Estado */}
+            <Seccion id="estado" titulo="Estado del animal" icono={<Activity className="w-4 h-4" />}
+              color="amber" abierta={seccionAbierta === 'estado'} onToggle={() => toggle('estado')}
+              completada={!!formData.estado}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Código del padre */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Código del Padre (Macho Reproductor)
-                  </label>
-                  <input
-                    type="text"
-                    name="codigoPadre"
-                    value={formData.codigoPadre}
-                    onChange={manejarCambio}
-                    placeholder="Ej: CAB-M-001"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
+                  <label className={lbl}>Estado general</label>
+                  <SelectPersonalizado valor={formData.estado}
+                    onChange={v => cambiar({ target: { name: 'estado', value: v } })}
+                    opciones={opcionesEstadoGeneral} placeholder="Seleccionar estado..." />
                 </div>
-
-                {/* Código de la madre */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Código de la Madre
-                  </label>
-                  <input
-                    type="text"
-                    name="codigoMadre"
-                    value={formData.codigoMadre}
-                    onChange={manejarCambio}
-                    placeholder="Ej: CAB-H-002"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Sección: Estado */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                Estado del Animal
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Estado general */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estado General
-                  </label>
-                  <SelectPersonalizado
-                    valor={formData.estado}
-                    onChange={(valor) => manejarCambio({ target: { name: 'estado', value: valor } })}
-                    opciones={opcionesEstadoGeneral}
-                    placeholder="Seleccionar estado..."
-                  />
-                </div>
-
-                {/* Estado reproductivo (solo si es hembra) */}
                 {formData.sexo === 'hembra' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Estado Reproductivo
-                      <span className="ml-2 text-xs text-amber-600 font-normal">(regístralo en Módulo Reproducción)</span>
-                    </label>
-                    <SelectPersonalizado
-                      valor={formData.estadoReproductivo}
-                      onChange={(valor) => manejarCambio({ target: { name: 'estadoReproductivo', value: valor } })}
-                      opciones={opcionesEstadoReproductivo}
-                      placeholder="Seleccionar estado reproductivo..."
-                    />
+                    <label className={lbl}>Estado reproductivo</label>
+                    <SelectPersonalizado valor={formData.estadoReproductivo}
+                      onChange={v => cambiar({ target: { name: 'estadoReproductivo', value: v } })}
+                      opciones={opcionesEstadoReproductivo} placeholder="Seleccionar..." />
+                    <p className="text-xs text-amber-600 mt-1.5">Regístralo en el módulo de Reproducción.</p>
                   </div>
                 )}
               </div>
-            </div>
+            </Seccion>
 
-            {/* Sección: Observaciones */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                Observaciones Adicionales
-              </h3>
-              
-              <textarea
-                name="observaciones"
-                value={formData.observaciones}
-                onChange={manejarCambio}
-                rows="4"
-                placeholder="Características especiales, señas particulares, comportamiento, etc."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-              />
-            </div>
-
-            {/* Botones de acción */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex flex-col sm:flex-row gap-4 justify-end">
-                <button
-                  type="button"
-                  onClick={onCancelar}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardando}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {guardando ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      <span>Guardando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5" />
-                      <span>{cabraEditar ? 'Actualizar' : 'Guardar'} Cabra</span>
-                    </>
-                  )}
-                </button>
+            {/* 5 — Genealogía */}
+            <Seccion id="genealogia" titulo="Genealogía" icono={<Dna className="w-4 h-4" />}
+              color="teal" abierta={seccionAbierta === 'genealogia'} onToggle={() => toggle('genealogia')}
+              completada={!!(formData.codigoPadre || formData.codigoMadre)}>
+              <p className="text-xs text-amber-600 mb-4 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                Los vínculos padre/madre se gestionan en el módulo de <strong>Genealogía</strong> una vez guardado el animal. Aquí puedes anotar los códigos como referencia.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}><UsersIcon className="w-3.5 h-3.5 inline mr-1" />Código del padre</label>
+                  <input name="codigoPadre" value={formData.codigoPadre} onChange={cambiar}
+                    placeholder="Ej: CAB-M-001" className={inp} />
+                </div>
+                <div>
+                  <label className={lbl}><UsersIcon className="w-3.5 h-3.5 inline mr-1" />Código de la madre</label>
+                  <input name="codigoMadre" value={formData.codigoMadre} onChange={cambiar}
+                    placeholder="Ej: CAB-H-002" className={inp} />
+                </div>
               </div>
+            </Seccion>
+
+            {/* 6 — Observaciones */}
+            <Seccion id="notas" titulo="Observaciones" icono={<FileText className="w-4 h-4" />}
+              color="gray" abierta={seccionAbierta === 'notas'} onToggle={() => toggle('notas')}
+              completada={!!formData.observaciones}>
+              <textarea name="observaciones" value={formData.observaciones} onChange={cambiar} rows="4"
+                placeholder="Características especiales, señas, comportamiento, antecedentes de salud..."
+                className={`${inp} resize-none`} />
+            </Seccion>
+
+            {/* Botones */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button type="button" onClick={onCancelar}
+                className="flex-1 px-6 py-3 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
+                <X className="w-4 h-4" /> Cancelar
+              </button>
+              <button type="submit" disabled={guardando}
+                className="flex-1 px-6 py-3 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50">
+                {guardando
+                  ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Guardando...</>
+                  : <><Save className="w-4 h-4" /> {cabraEditar ? 'Guardar cambios' : 'Registrar cabra'}</>}
+              </button>
             </div>
           </div>
         </div>

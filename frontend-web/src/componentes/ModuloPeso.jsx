@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
 import {
   Weight, Plus, Search, Eye, Edit, AlertCircle,
   TrendingUp, TrendingDown, Minus, User, X, Activity,
@@ -13,15 +12,11 @@ import { pesajeAPI, animalesAPI } from '../servicios/caprino-api';
 
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white';
 const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
+const colorTend = (v) => v > 0 ? 'text-emerald-600' : v < 0 ? 'text-red-600' : 'text-gray-600';
 
 const ModuloPeso = () => {
-  const location = useLocation();
-  const [vistaActual, setVistaActual] = useState(() =>
-    location.state?.animalId ? 'registro' : 'lista'
-  );
-  const [registroEditar, setRegistroEditar] = useState(() =>
-    location.state?.animalId ? { idAnimal: location.state.animalId } : null
-  );
+  const [vistaActual, setVistaActual] = useState('lista');
+  const [registroEditar, setRegistroEditar] = useState(null);
   const [registroDetalle, setRegistroDetalle] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [registros, setRegistros] = useState([]);
@@ -94,59 +89,62 @@ const ModuloPeso = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 p-6 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-violet-500 rounded-xl flex items-center justify-center shadow-md">
-              <Weight className="w-6 h-6 text-white" />
+      {/* ── Hero ── */}
+      <div className="bg-gradient-to-br from-violet-600 to-violet-900 rounded-2xl shadow-lg p-7 text-white relative overflow-hidden mb-5">
+        <div className="absolute inset-0 opacity-10 pointer-events-none select-none flex items-center justify-end pr-8">
+          <Scale className="w-48 h-48 text-white" />
+        </div>
+        <div className="relative">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
+                <Weight className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold leading-tight">Control de Peso</h2>
+                <p className="text-violet-200 text-sm">Seguimiento del crecimiento y desarrollo</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">Control de Peso</h2>
-              <p className="text-sm text-gray-500">Seguimiento del crecimiento y desarrollo</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => { setRegistroEditar(null); setVistaActual('registro'); }}
-              className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors flex items-center gap-1.5 shadow-sm">
-              <Plus className="w-4 h-4" /> Registrar Pesaje
+            <button onClick={cargarRegistros} className="p-2 bg-white/15 rounded-xl hover:bg-white/25 transition-colors" title="Actualizar">
+              <RefreshCw className={`w-4 h-4 text-white ${cargando ? 'animate-spin' : ''}`} />
             </button>
-            <button onClick={cargarRegistros} className="px-3 py-2 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors">
-              <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
-            </button>
+          </div>
+          <div className="flex flex-wrap gap-3 mt-5">
+            {[
+              { icon: <BarChart3 className="w-4 h-4" />,  val: registros.length,        label: 'Pesajes totales' },
+              { icon: <Weight className="w-4 h-4" />,     val: `${pesoPromedio} kg`,    label: 'Peso promedio' },
+              { icon: <TrendingUp className="w-4 h-4" />, val: registros.filter(r => r.tipoPesaje === 'periodico').length, label: 'Periódicos' },
+              { icon: <Baby className="w-4 h-4" />,       val: registros.filter(r => r.tipoPesaje === 'nacimiento').length, label: 'Nacimiento' },
+            ].map(s => (
+              <div key={s.label} className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2.5">
+                <span className="text-violet-200">{s.icon}</span>
+                <div>
+                  <p className="text-xl font-black leading-none">{s.val}</p>
+                  <p className="text-[11px] text-violet-200 leading-none mt-0.5">{s.label}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          {[
-            { label: 'Pesajes', val: registros.length, color: 'bg-gray-50 border-gray-200', txt: 'text-gray-700' },
-            { label: 'Peso Promedio', val: `${pesoPromedio} kg`, color: 'bg-violet-50 border-violet-100', txt: 'text-violet-700' },
-            { label: 'Periódicos', val: registros.filter(r => r.tipoPesaje === 'periodico').length, color: 'bg-emerald-50 border-emerald-100', txt: 'text-emerald-700' },
-            { label: 'Nacimiento', val: registros.filter(r => r.tipoPesaje === 'nacimiento').length, color: 'bg-pink-50 border-pink-100', txt: 'text-pink-700' },
-          ].map(s => (
-            <div key={s.label} className={`${s.color} border rounded-xl p-3 text-center`}>
-              <p className={`text-2xl font-bold ${s.txt}`}>{s.val}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
-            </div>
-          ))}
+      {/* ── Filtros ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input type="text" placeholder="Buscar por animal..." value={filtros.busqueda}
+            onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })}
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-gray-50" />
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input type="text" placeholder="Buscar por animal..." value={filtros.busqueda}
-              onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent" />
-          </div>
-          <select value={filtros.tipoPesaje} onChange={e => setFiltros({ ...filtros, tipoPesaje: e.target.value })}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white">
-            <option value="">Todos los tipos</option>
-            <option value="nacimiento">Nacimiento</option>
-            <option value="destete">Destete</option>
-            <option value="periodico">Periódico</option>
-            <option value="venta">Pre-venta</option>
-            <option value="enfermedad">Control Enfermedad</option>
-          </select>
-        </div>
+        <select value={filtros.tipoPesaje} onChange={e => setFiltros({ ...filtros, tipoPesaje: e.target.value })}
+          className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent bg-white">
+          <option value="">Todos los tipos</option>
+          <option value="nacimiento">Nacimiento</option>
+          <option value="destete">Destete</option>
+          <option value="periodico">Periódico</option>
+          <option value="venta">Pre-venta</option>
+          <option value="enfermedad">Control Enfermedad</option>
+        </select>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -220,11 +218,7 @@ const ModuloPeso = () => {
             <Weight className="w-10 h-10 text-violet-300" />
           </div>
           <p className="text-gray-500 text-lg font-medium mb-1">Sin registros de peso</p>
-          <p className="text-gray-400 text-sm mb-6">Comienza registrando el peso de los animales del rebaño</p>
-          <button onClick={() => { setRegistroEditar(null); setVistaActual('registro'); }}
-            className="px-5 py-2.5 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors inline-flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Registrar Primer Pesaje
-          </button>
+          <p className="text-gray-400 text-sm">Ve al <strong>Expediente del animal</strong> para registrar pesajes.</p>
         </div>
       )}
     </div>
@@ -238,7 +232,7 @@ const Section = ({ color, icon, title, children }) => (
   </div>
 );
 
-const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
+export const FormularioPeso = ({ registroEditar, onGuardar, onCancelar, animalPreseleccionado }) => {
   const opcionesTipoPesaje = [
     { value: 'periodico', label: 'Pesaje Periódico', icono: <Clock />, colorFondo: 'bg-blue-100', colorIcono: 'text-blue-600' },
     { value: 'nacimiento', label: 'Nacimiento', icono: <Baby />, colorFondo: 'bg-pink-100', colorIcono: 'text-pink-600' },
@@ -280,7 +274,7 @@ const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
   }, []);
 
   const [formData, setFormData] = useState({
-    animalId: registroEditar?.idAnimal || '',
+    animalId: registroEditar?.idAnimal || animalPreseleccionado?.id || '',
     fechaPesaje: registroEditar?.fechaPesaje || new Date().toISOString().split('T')[0],
     horaPesaje: registroEditar?.horaPesaje || '',
     tipoPesaje: registroEditar?.tipoPesaje || 'periodico',
@@ -376,18 +370,20 @@ const FormularioPeso = ({ registroEditar, onGuardar, onCancelar }) => {
         <form onSubmit={manejarEnvio} className="p-6 space-y-5">
           <Section color="bg-gray-50 border-gray-100" icon={<User className="w-4 h-4 text-gray-500" />} title="Información Básica">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={lbl}>Animal <span className="text-red-500">*</span></label>
-                <SelectAnimal
-                  animales={animales}
-                  value={formData.animalId}
-                  onChange={id => setFormData(prev => ({ ...prev, animalId: id }))}
-                  busqueda={busquedaAnimal}
-                  onBusqueda={setBusquedaAnimal}
-                  colorFocus="focus:ring-violet-500"
-                />
-                {errores.animalId && <p className="text-red-500 text-xs mt-1">{errores.animalId}</p>}
-              </div>
+              {!animalPreseleccionado && (
+                <div>
+                  <label className={lbl}>Animal <span className="text-red-500">*</span></label>
+                  <SelectAnimal
+                    animales={animales}
+                    value={formData.animalId}
+                    onChange={id => setFormData(prev => ({ ...prev, animalId: id }))}
+                    busqueda={busquedaAnimal}
+                    onBusqueda={setBusquedaAnimal}
+                    colorFocus="focus:ring-violet-500"
+                  />
+                  {errores.animalId && <p className="text-red-500 text-xs mt-1">{errores.animalId}</p>}
+                </div>
+              )}
               <div>
                 <label className={lbl}>Tipo de Pesaje <span className="text-red-500">*</span></label>
                 <SelectPersonalizado valor={formData.tipoPesaje}

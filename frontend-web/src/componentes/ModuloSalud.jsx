@@ -3,11 +3,11 @@ import {
   Activity, Plus, Calendar, Search, Eye, Edit,
   AlertCircle, CheckCircle, Clock, Syringe, Pill,
   User, X, FileText, AlertTriangle, Zap, Wind, Smile,
-  ArrowLeft, RefreshCw
+  ArrowLeft, RefreshCw, ShieldAlert
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
 import SelectAnimal from './SelectAnimal';
-import { saludAPI, animalesAPI } from '../servicios/caprino-api';
+import { saludAPI, animalesAPI, famachaAPI } from '../servicios/caprino-api';
 
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white';
 const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
@@ -20,8 +20,12 @@ const ModuloSalud = () => {
   const [cargando, setCargando] = useState(false);
   const [eventos, setEventos] = useState([]);
   const [filtros, setFiltros] = useState({ busqueda: '', tipo: '', estado: '' });
+  const [famachaData, setFamachaData] = useState([]);
 
-  useEffect(() => { cargarEventos(); }, []);
+  useEffect(() => {
+    cargarEventos();
+    famachaAPI.getAll().then(r => setFamachaData(r.data || [])).catch(() => {});
+  }, []);
 
   const cargarEventos = async () => {
     setCargando(true);
@@ -108,70 +112,107 @@ const ModuloSalud = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Encabezado */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 p-6 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-md">
-              <Activity className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">Salud y Vacunas</h2>
-              <p className="text-sm text-gray-500">Gestión integral de la salud del rebaño</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => { setTipoRegistro('vacuna'); setVistaActual('registro'); }}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm">
-              <Plus className="w-4 h-4" /> Vacuna
-            </button>
-            <button onClick={() => { setTipoRegistro('enfermedad'); setVistaActual('registro'); }}
-              className="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors flex items-center gap-1.5 shadow-sm">
-              <Plus className="w-4 h-4" /> Enfermedad
-            </button>
-            <button onClick={() => { setTipoRegistro('tratamiento'); setVistaActual('registro'); }}
-              className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm">
-              <Plus className="w-4 h-4" /> Tratamiento
-            </button>
-            <button onClick={cargarEventos} className="px-3 py-2 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors">
-              <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+      {/* ── Hero ── */}
+      <div className="bg-gradient-to-br from-blue-600 to-blue-900 rounded-2xl shadow-lg p-7 text-white relative overflow-hidden mb-5">
+        <div className="absolute inset-0 opacity-10 pointer-events-none select-none flex items-center justify-end pr-8">
+          <Syringe className="w-48 h-48 text-white" />
         </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          {[
-            { label: 'Total', val: stats.total, color: 'bg-gray-50 border-gray-200', txt: 'text-gray-700' },
-            { label: 'Vacunas', val: stats.vacunas, color: 'bg-blue-50 border-blue-100', txt: 'text-blue-700' },
-            { label: 'Enfermedades', val: stats.enfermedades, color: 'bg-red-50 border-red-100', txt: 'text-red-700' },
-            { label: 'Tratamientos', val: stats.tratamientos, color: 'bg-emerald-50 border-emerald-100', txt: 'text-emerald-700' },
-          ].map(s => (
-            <div key={s.label} className={`${s.color} border rounded-xl p-3 text-center`}>
-              <p className={`text-2xl font-bold ${s.txt}`}>{s.val}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+        <div className="relative">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold leading-tight">Salud y Vacunas</h2>
+                <p className="text-blue-200 text-sm">Gestión integral de la salud del rebaño</p>
+              </div>
             </div>
-          ))}
-        </div>
-
-        {/* Filtros */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input type="text" placeholder="Buscar por animal..." value={filtros.busqueda}
-              onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            <button onClick={cargarEventos} className="p-2 bg-white/15 rounded-xl hover:bg-white/25 transition-colors" title="Actualizar">
+              <RefreshCw className={`w-4 h-4 text-white ${cargando ? 'animate-spin' : ''}`} />
+            </button>
           </div>
-          <div className="flex gap-2">
-            {[['', 'Todos'], ['vacuna', 'Vacunas'], ['enfermedad', 'Enfermedades'], ['tratamiento', 'Tratamientos']].map(([v, l]) => (
-              <button key={v} onClick={() => setFiltros({ ...filtros, tipo: v })}
-                className={`px-3 py-2.5 text-xs font-medium rounded-xl border transition-colors ${filtros.tipo === v ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-                {l}
-              </button>
+          <div className="flex flex-wrap gap-3 mt-5">
+            {[
+              { icon: <FileText className="w-4 h-4" />,      val: stats.total,         label: 'Total eventos' },
+              { icon: <Syringe className="w-4 h-4" />,       val: stats.vacunas,       label: 'Vacunas' },
+              { icon: <AlertTriangle className="w-4 h-4" />, val: stats.enfermedades,  label: 'Enfermedades' },
+              { icon: <Pill className="w-4 h-4" />,          val: stats.tratamientos,  label: 'Tratamientos' },
+            ].map(s => (
+              <div key={s.label} className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2.5">
+                <span className="text-blue-200">{s.icon}</span>
+                <div>
+                  <p className="text-xl font-black leading-none">{s.val}</p>
+                  <p className="text-[11px] text-blue-200 leading-none mt-0.5">{s.label}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </div>
+
+      {/* ── Filtros ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input type="text" placeholder="Buscar por animal..." value={filtros.busqueda}
+            onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })}
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50" />
+        </div>
+        <div className="flex gap-2">
+          {[['', 'Todos'], ['vacuna', 'Vacunas'], ['enfermedad', 'Enfermedades'], ['tratamiento', 'Tratamientos']].map(([v, l]) => (
+            <button key={v} onClick={() => setFiltros({ ...filtros, tipo: v })}
+              className={`px-3 py-2.5 text-xs font-medium rounded-xl border transition-colors ${filtros.tipo === v ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Resumen FAMACHA ── */}
+      {famachaData.length > 0 && (() => {
+        const dist = [1, 2, 3, 4, 5].map(s => ({
+          score: s,
+          count: famachaData.filter(r => Number(r.puntuacion) === s).length,
+          bg:    ['bg-red-600','bg-rose-400','bg-pink-400','bg-pink-200','bg-gray-100'][s - 1],
+          label: ['Rojo','Rojo-Rosa','Rosa','Rosa-Blanco','Blanco'][s - 1],
+          nivel: s <= 2 ? 'ok' : s === 3 ? 'warn' : 'danger',
+        }));
+        const urgentes = famachaData.filter(r => Number(r.puntuacion) >= 4).length;
+        return (
+          <div className="bg-white rounded-2xl border border-orange-100 shadow-sm p-5 mb-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Eye className="w-4 h-4 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-800">Resumen FAMACHA del rebaño</h3>
+                  <p className="text-xs text-gray-500">{famachaData.length} evaluaciones registradas</p>
+                </div>
+              </div>
+              {urgentes > 0 && (
+                <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 bg-red-100 text-red-700 rounded-full">
+                  <AlertTriangle className="w-3.5 h-3.5" /> {urgentes} requiere{urgentes > 1 ? 'n' : ''} tratamiento
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {dist.map(d => (
+                <div key={d.score} className="text-center">
+                  <div className={`h-5 rounded-lg ${d.bg} mb-1.5 border border-black/10`} />
+                  <p className="text-lg font-black text-gray-800 leading-none">{d.count}</p>
+                  <p className="text-[10px] text-gray-500 leading-tight">Score {d.score}</p>
+                  <p className="text-[9px] text-gray-400">{d.label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-3 text-center">
+              Accede al <strong>Expediente</strong> de cada animal para ver su historial completo o registrar una nueva evaluación.
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Grid de eventos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -190,11 +231,7 @@ const ModuloSalud = () => {
             <Activity className="w-10 h-10 text-blue-300" />
           </div>
           <p className="text-gray-500 text-lg font-medium mb-1">Sin eventos de salud</p>
-          <p className="text-gray-400 text-sm mb-6">Comienza registrando una vacunación, enfermedad o tratamiento</p>
-          <button onClick={() => { setTipoRegistro('vacuna'); setVistaActual('registro'); }}
-            className="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors inline-flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Registrar Primer Evento
-          </button>
+          <p className="text-gray-400 text-sm">Ve al <strong>Expediente del animal</strong> para registrar eventos de salud.</p>
         </div>
       )}
     </div>
@@ -279,7 +316,7 @@ const InfoRow = ({ label, value }) => (
   </div>
 );
 
-const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
+export const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar, animalPreseleccionado }) => {
   const opcionesViaAdministracion = [
     { value: 'subcutanea', label: 'Subcutánea', icono: <Zap />, colorFondo: 'bg-blue-100', colorIcono: 'text-blue-600' },
     { value: 'intramuscular', label: 'Intramuscular', icono: <Activity />, colorFondo: 'bg-red-100', colorIcono: 'text-red-600' },
@@ -301,7 +338,7 @@ const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
   }, []);
 
   const [formData, setFormData] = useState({
-    animalId: eventoEditar?.idAnimal || '',
+    animalId: eventoEditar?.idAnimal || animalPreseleccionado?.id || '',
     observaciones: eventoEditar?.observaciones || '',
     nombreVacuna: eventoEditar?.nombreVacuna || '',
     fechaAplicacion: eventoEditar?.fechaAplicacion || new Date().toISOString().split('T')[0],
@@ -431,17 +468,19 @@ const FormularioSalud = ({ tipo, eventoEditar, onGuardar, onCancelar }) => {
             <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <User className="w-4 h-4 text-gray-500" /> Información del Animal
             </h3>
-            <div>
-              <label className={lbl}>Animal <span className="text-red-500">*</span></label>
-              <SelectAnimal
-                animales={animales}
-                value={formData.animalId}
-                onChange={id => setFormData(prev => ({ ...prev, animalId: id }))}
-                busqueda={busquedaAnimal}
-                onBusqueda={setBusquedaAnimal}
-                colorFocus={colorFocus}
-              />
-            </div>
+            {!animalPreseleccionado && (
+              <div>
+                <label className={lbl}>Animal <span className="text-red-500">*</span></label>
+                <SelectAnimal
+                  animales={animales}
+                  value={formData.animalId}
+                  onChange={id => setFormData(prev => ({ ...prev, animalId: id }))}
+                  busqueda={busquedaAnimal}
+                  onBusqueda={setBusquedaAnimal}
+                  colorFocus={colorFocus}
+                />
+              </div>
+            )}
           </div>
 
           {/* Vacuna */}

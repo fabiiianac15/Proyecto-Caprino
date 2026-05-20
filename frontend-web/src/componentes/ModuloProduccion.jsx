@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Droplet, Plus, Calendar, Search, Eye, Edit,
+  Droplet, Plus, Calendar, Search, Eye, Edit, Trash2,
   AlertCircle, TrendingUp, TrendingDown, Clock, User, X,
   Activity, BarChart3, Thermometer, Sunrise, Sunset, Moon,
   Star, ThumbsUp, Smile, Frown, Meh, CheckCircle, XCircle,
@@ -13,6 +13,14 @@ import { produccionAPI, animalesAPI } from '../servicios/caprino-api';
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white';
 const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
 
+const turnoLabel = (t) => {
+  const lower = (t || '').toLowerCase().trim();
+  if (lower === 'tarde') return { numero: 2, nombre: '2do ordeño · Tarde' };
+  if (lower === 'noche') return { numero: 3, nombre: '3er ordeño · Noche' };
+  if (lower === 'total_dia') return { numero: 1, nombre: 'Ordeño del día' };
+  return { numero: 1, nombre: '1er ordeño · Mañana' };
+};
+
 const ModuloProduccion = () => {
   const [vistaActual, setVistaActual] = useState('lista');
   const [registroEditar, setRegistroEditar] = useState(null);
@@ -20,6 +28,8 @@ const ModuloProduccion = () => {
   const [cargando, setCargando] = useState(false);
   const [registros, setRegistros] = useState([]);
   const [filtros, setFiltros] = useState({ busqueda: '', fechaInicio: '', fechaFin: '', calidadLeche: '' });
+  const [confirmEliminar, setConfirmEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
 
   useEffect(() => { cargarRegistros(); }, []);
 
@@ -28,25 +38,41 @@ const ModuloProduccion = () => {
     try {
       const datos = await produccionAPI.getAll();
       const raw = datos.data || [];
-      const turnoNumero = { 'mañana': 1, 'manana': 1, 'tarde': 2, 'noche': 3, 'total_dia': 1 };
-      const transformados = raw.map(r => ({
-        id: r.id,
-        idAnimal: r.idAnimal,
-        hembra: { codigo: r.codigoAnimal, nombre: r.nombreAnimal },
-        fecha: r.fechaProduccion,
-        cantidadLitros: r.litros,
-        turno: r.turno,
-        numeroOrdenio: turnoNumero[r.turno] || 1,
-        calidadLeche: null,
-        porcentajeGrasa: r.grasaPorcentaje,
-        porcentajeProteina: null,
-        porcentajeLactosa: null,
-        temperatura: null,
-        ph: null,
-        observaciones: r.observaciones,
-      }));
+      const transformados = raw.map(r => {
+        const turno = turnoLabel(r.turno);
+        return {
+          id: r.id,
+          idAnimal: r.idAnimal,
+          hembra: { codigo: r.codigoAnimal, nombre: r.nombreAnimal },
+          fecha: r.fechaProduccion,
+          cantidadLitros: r.litros,
+          turno: r.turno,
+          turnoNombre: turno.nombre,
+          numeroOrdenio: turno.numero,
+          calidadLeche: null,
+          porcentajeGrasa: r.grasaPorcentaje,
+          porcentajeProteina: null,
+          porcentajeLactosa: null,
+          temperatura: null,
+          ph: null,
+          observaciones: r.observaciones,
+        };
+      });
       setRegistros(transformados);
     } catch { setRegistros([]); } finally { setCargando(false); }
+  };
+
+  const eliminarRegistro = async (id) => {
+    setEliminando(true);
+    try {
+      await produccionAPI.delete(id);
+      setConfirmEliminar(null);
+      await cargarRegistros();
+    } catch (err) {
+      console.error('Error al eliminar:', err);
+    } finally {
+      setEliminando(false);
+    }
   };
 
   const colorCalidad = (c) => ({
@@ -86,61 +112,60 @@ const ModuloProduccion = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Encabezado */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 p-6 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-cyan-500 rounded-xl flex items-center justify-center shadow-md">
-              <Droplet className="w-6 h-6 text-white" />
+      {/* ── Hero ── */}
+      <div className="bg-gradient-to-br from-cyan-600 to-cyan-900 rounded-2xl shadow-lg p-7 text-white relative overflow-hidden mb-5">
+        <div className="absolute inset-0 opacity-10 pointer-events-none select-none flex items-center justify-end pr-8">
+          <Droplet className="w-48 h-48 text-white" />
+        </div>
+        <div className="relative">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
+                <Droplet className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold leading-tight">Producción de Leche</h2>
+                <p className="text-cyan-200 text-sm">Control diario de la producción lechera</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">Producción de Leche</h2>
-              <p className="text-sm text-gray-500">Control diario de la producción lechera</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => { setRegistroEditar(null); setVistaActual('registro'); }}
-              className="px-4 py-2 bg-cyan-600 text-white text-sm font-semibold rounded-xl hover:bg-cyan-700 transition-colors flex items-center gap-1.5 shadow-sm">
-              <Plus className="w-4 h-4" /> Registrar Producción
+            <button onClick={cargarRegistros} className="p-2 bg-white/15 rounded-xl hover:bg-white/25 transition-colors" title="Actualizar">
+              <RefreshCw className={`w-4 h-4 text-white ${cargando ? 'animate-spin' : ''}`} />
             </button>
-            <button onClick={cargarRegistros} className="px-3 py-2 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors">
-              <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
-            </button>
+          </div>
+          <div className="flex flex-wrap gap-3 mt-5">
+            {[
+              { icon: <BarChart3 className="w-4 h-4" />,  val: registros.length,              label: 'Registros' },
+              { icon: <Droplet className="w-4 h-4" />,    val: `${totalLitros.toFixed(1)} L`, label: 'Litros totales' },
+              { icon: <TrendingUp className="w-4 h-4" />, val: `${promedioLitros} L`,         label: 'Promedio / ordeño' },
+            ].map(s => (
+              <div key={s.label} className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2.5">
+                <span className="text-cyan-200">{s.icon}</span>
+                <div>
+                  <p className="text-xl font-black leading-none">{s.val}</p>
+                  <p className="text-[11px] text-cyan-200 leading-none mt-0.5">{s.label}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          {[
-            { label: 'Registros', val: registros.length, color: 'bg-gray-50 border-gray-200', txt: 'text-gray-700' },
-            { label: 'Litros Totales', val: `${totalLitros.toFixed(1)} L`, color: 'bg-cyan-50 border-cyan-100', txt: 'text-cyan-700' },
-            { label: 'Promedio/Ordeño', val: `${promedioLitros} L`, color: 'bg-blue-50 border-blue-100', txt: 'text-blue-700' },
-            { label: 'Calidad Excelente', val: registros.filter(r => r.calidadLeche === 'excelente').length, color: 'bg-emerald-50 border-emerald-100', txt: 'text-emerald-700' },
-          ].map(s => (
-            <div key={s.label} className={`${s.color} border rounded-xl p-3 text-center`}>
-              <p className={`text-2xl font-bold ${s.txt}`}>{s.val}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
-            </div>
-          ))}
+      {/* ── Filtros ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input type="text" placeholder="Buscar por hembra..." value={filtros.busqueda}
+            onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })}
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-gray-50" />
         </div>
-
-        {/* Filtros */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input type="text" placeholder="Buscar por hembra..." value={filtros.busqueda}
-              onChange={e => setFiltros({ ...filtros, busqueda: e.target.value })}
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent" />
-          </div>
-          <select value={filtros.calidadLeche} onChange={e => setFiltros({ ...filtros, calidadLeche: e.target.value })}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white">
-            <option value="">Todas las calidades</option>
-            <option value="excelente">Excelente</option>
-            <option value="buena">Buena</option>
-            <option value="regular">Regular</option>
-            <option value="mala">Mala</option>
-          </select>
-        </div>
+        <select value={filtros.calidadLeche} onChange={e => setFiltros({ ...filtros, calidadLeche: e.target.value })}
+          className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white">
+          <option value="">Todas las calidades</option>
+          <option value="excelente">Excelente</option>
+          <option value="buena">Buena</option>
+          <option value="regular">Regular</option>
+          <option value="mala">Mala</option>
+        </select>
       </div>
 
       {/* Grid */}
@@ -152,7 +177,7 @@ const ModuloProduccion = () => {
                 <Droplet className="w-5 h-5 text-cyan-500" />
                 <div>
                   <p className="text-sm font-semibold text-gray-800">{registro.hembra?.codigo} — {registro.hembra?.nombre}</p>
-                  <p className="text-xs text-gray-500">Ordeño #{registro.numeroOrdenio} · {registro.fecha ? new Date(registro.fecha).toLocaleDateString('es-ES') : '-'}</p>
+                  <p className="text-xs text-gray-500">{registro.turnoNombre} · {registro.fecha ? new Date(registro.fecha).toLocaleDateString('es-ES') : '-'}</p>
                 </div>
               </div>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${colorCalidad(registro.calidadLeche)}`}>
@@ -194,6 +219,10 @@ const ModuloProduccion = () => {
                 className="flex-1 py-2 bg-gray-50 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center gap-1.5">
                 <Eye className="w-3.5 h-3.5" /> Detalles
               </button>
+              <button onClick={() => setConfirmEliminar(registro)}
+                className="py-2 px-3 bg-red-50 text-red-600 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-1.5">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         ))}
@@ -205,18 +234,52 @@ const ModuloProduccion = () => {
             <Droplet className="w-10 h-10 text-cyan-300" />
           </div>
           <p className="text-gray-500 text-lg font-medium mb-1">Sin registros de producción</p>
-          <p className="text-gray-400 text-sm mb-6">Comienza registrando la producción de leche del rebaño</p>
-          <button onClick={() => { setRegistroEditar(null); setVistaActual('registro'); }}
-            className="px-5 py-2.5 bg-cyan-600 text-white text-sm font-semibold rounded-xl hover:bg-cyan-700 transition-colors inline-flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Registrar Primera Producción
-          </button>
+          <p className="text-gray-400 text-sm">Ve al <strong>Expediente del animal</strong> para registrar producción.</p>
+        </div>
+      )}
+
+      {/* Modal confirmación eliminar */}
+      {confirmEliminar && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">Eliminar registro</h3>
+                <p className="text-sm text-gray-500">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              ¿Eliminar el registro de <strong>{confirmEliminar.hembra?.nombre}</strong> del{' '}
+              {confirmEliminar.fecha ? new Date(confirmEliminar.fecha).toLocaleDateString('es-ES') : '-'}?
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmEliminar(null)} disabled={eliminando}
+                className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={() => eliminarRegistro(confirmEliminar.id)} disabled={eliminando}
+                className="flex-1 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                {eliminando ? <><div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />Eliminando...</> : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 };
 
-const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
+const Section = ({ color, icon, title, children }) => (
+  <div className={`rounded-xl border p-5 ${color}`}>
+    <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">{icon}{title}</h3>
+    {children}
+  </div>
+);
+
+export const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar, animalPreseleccionado }) => {
   const opcionesNumeroOrdenio = [
     { value: '1', label: 'Primer ordeño (mañana)', icono: <Sunrise />, colorFondo: 'bg-yellow-100', colorIcono: 'text-yellow-600' },
     { value: '2', label: 'Segundo ordeño (tarde)', icono: <Sunset />, colorFondo: 'bg-orange-100', colorIcono: 'text-orange-600' },
@@ -250,7 +313,7 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
   }, []);
 
   const [formData, setFormData] = useState({
-    hembraId: registroEditar?.idAnimal || '',
+    hembraId: registroEditar?.idAnimal || animalPreseleccionado?.id || '',
     fecha: registroEditar?.fecha || new Date().toISOString().split('T')[0],
     numeroOrdenio: registroEditar?.numeroOrdenio || 1,
     horaOrdenio: registroEditar?.horaOrdenio || '',
@@ -328,13 +391,6 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
     }
   };
 
-  const Section = ({ color, icon, title, children }) => (
-    <div className={`rounded-xl border p-5 ${color}`}>
-      <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">{icon}{title}</h3>
-      {children}
-    </div>
-  );
-
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 overflow-hidden">
@@ -352,18 +408,20 @@ const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar }) => {
           {/* Básica */}
           <Section color="bg-gray-50 border-gray-100" icon={<User className="w-4 h-4 text-gray-500" />} title="Información Básica">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={lbl}>Hembra Productora <span className="text-red-500">*</span></label>
-                <SelectAnimal
-                  animales={animales.filter(a => !a.sexo || a.sexo.toLowerCase() === 'hembra')}
-                  value={formData.hembraId}
-                  onChange={id => setFormData(prev => ({ ...prev, hembraId: id }))}
-                  busqueda={busquedaAnimal}
-                  onBusqueda={setBusquedaAnimal}
-                  colorFocus="focus:ring-cyan-500"
-                />
-                {errores.hembraId && <p className="text-red-500 text-xs mt-1">{errores.hembraId}</p>}
-              </div>
+              {!animalPreseleccionado && (
+                <div>
+                  <label className={lbl}>Hembra Productora <span className="text-red-500">*</span></label>
+                  <SelectAnimal
+                    animales={animales.filter(a => !a.sexo || a.sexo.toLowerCase() === 'hembra')}
+                    value={formData.hembraId}
+                    onChange={id => setFormData(prev => ({ ...prev, hembraId: id }))}
+                    busqueda={busquedaAnimal}
+                    onBusqueda={setBusquedaAnimal}
+                    colorFocus="focus:ring-cyan-500"
+                  />
+                  {errores.hembraId && <p className="text-red-500 text-xs mt-1">{errores.hembraId}</p>}
+                </div>
+              )}
               <div>
                 <label className={lbl}>Fecha de Ordeño <span className="text-red-500">*</span></label>
                 <input type="date" name="fecha" value={formData.fecha} onChange={manejarCambio}

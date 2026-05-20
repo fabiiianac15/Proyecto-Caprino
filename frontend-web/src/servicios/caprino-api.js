@@ -329,6 +329,20 @@ export const razasAPI = {
   },
 };
 
+// ==================== GENEALOGY API ====================
+
+export const genealogiaAPI = {
+  getByAnimal: async (animalId) => {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/genealogia/${animalId}`);
+      return await handleResponse(response);
+    } catch (error) {
+      console.error(`Error fetching genealogy for animal ${animalId}:`, error);
+      throw error;
+    }
+  },
+};
+
 // ==================== PRODUCTION API ====================
 
 export const produccionAPI = {
@@ -374,6 +388,30 @@ export const produccionAPI = {
       throw error;
     }
   },
+
+  // Get production records by animal
+  getByAnimal: async (animalId) => {
+    return produccionAPI.getAll({ animal: animalId });
+  },
+
+  // Delete production record
+  delete: async (id) => {
+    if (USE_MOCK_DATA) {
+      await mockDelay();
+      return { success: true };
+    }
+
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/produccion/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.status === 204) return { success: true };
+      return await handleResponse(response);
+    } catch (error) {
+      console.error(`Error deleting production record ${id}:`, error);
+      throw error;
+    }
+  },
 };
 
 // ==================== REPRODUCTION API ====================
@@ -413,6 +451,11 @@ export const reproduccionAPI = {
     return await handleResponse(response);
   },
 
+  // Get reproduction records by animal (as hembra)
+  getByAnimal: async (animalId) => {
+    return reproduccionAPI.getAll({ animal: animalId });
+  },
+
   // Update reproduction record (diagnóstico o parto)
   update: async (id, datos) => {
     if (USE_MOCK_DATA) {
@@ -449,6 +492,11 @@ export const saludAPI = {
       console.error('Error fetching health records:', error);
       throw error;
     }
+  },
+
+  // Get health records by animal
+  getByAnimal: async (animalId) => {
+    return saludAPI.getAll({ animal: animalId });
   },
 
   // Create health record
@@ -498,6 +546,11 @@ export const pesajeAPI = {
     }
   },
 
+  // Get weight records by animal
+  getByAnimal: async (animalId) => {
+    return pesajeAPI.getAll({ animal: animalId });
+  },
+
   // Create weight record
   create: async (pesajeData) => {
     if (USE_MOCK_DATA) {
@@ -516,6 +569,70 @@ export const pesajeAPI = {
       return await handleResponse(response);
     } catch (error) {
       console.error('Error creating weight record:', error);
+      throw error;
+    }
+  },
+};
+
+// ==================== FAMACHA API ====================
+
+export const famachaAPI = {
+  getAll: async () => {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/famacha`);
+      const data = await handleResponse(response);
+      return { data: data.data || [], total: data.total || 0 };
+    } catch (error) {
+      console.error('Error fetching famacha records:', error);
+      throw error;
+    }
+  },
+
+  getByAnimal: async (animalId) => {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/famacha?idAnimal=${animalId}`);
+      const data = await handleResponse(response);
+      return { data: data.data || [] };
+    } catch (error) {
+      console.error('Error fetching famacha by animal:', error);
+      throw error;
+    }
+  },
+
+  create: async (datos) => {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/famacha`, {
+        method: 'POST',
+        body: JSON.stringify(datos),
+      });
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('Error creating famacha record:', error);
+      throw error;
+    }
+  },
+
+  update: async (id, datos) => {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/famacha/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(datos),
+      });
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('Error updating famacha record:', error);
+      throw error;
+    }
+  },
+
+  delete: async (id) => {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/famacha/${id}`, {
+        method: 'DELETE',
+      });
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('Error deleting famacha record:', error);
       throw error;
     }
   },

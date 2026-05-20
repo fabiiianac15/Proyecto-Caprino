@@ -28,6 +28,7 @@ import ModuloReportes from './componentes/ModuloReportes';
 import ModuloAuditoria from './componentes/ModuloAuditoria';
 import Notificaciones from './componentes/Notificaciones';
 import PerfilUsuario from './componentes/PerfilUsuario';
+import ExpedienteAnimal from './componentes/ExpedienteAnimal';
 
 function App() {
   const { estaAutenticado, usuario, cerrarSesion, cargando } = useAuth();
@@ -330,6 +331,8 @@ function App() {
           <Route path="/peso" element={<RutaProtegida><ModuloPeso /></RutaProtegida>} />
           
           <Route path="/genealogia" element={<RutaProtegida><ModuloGenealogia /></RutaProtegida>} />
+
+          <Route path="/animales/:id" element={<RutaProtegida><ExpedienteAnimal /></RutaProtegida>} />
           
           <Route path="/reportes" element={<RutaProtegida><ModuloReportes /></RutaProtegida>} />
 

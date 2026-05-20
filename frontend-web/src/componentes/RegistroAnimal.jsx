@@ -1,500 +1,344 @@
-/**
- * Componente de formulario para registro de animales
- * Permite crear y editar animales con validación completa
- */
-
 import React, { useState, useEffect } from 'react';
-import { 
-  Save, 
-  X, 
-  AlertCircle, 
-  Calendar, 
-  Tag, 
-  Users 
+import {
+  Save, X, AlertCircle, Calendar, Tag, Users, ChevronDown,
+  Dna, FileText, Leaf, CheckCircle2
 } from 'lucide-react';
-import { 
-  validarIdentificacion, 
-  validarPeso, 
-  validarFecha 
-} from '../utilidades/validaciones';
 import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 
+const inp = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white disabled:bg-gray-50 disabled:text-gray-400';
+const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
+
+const ErrorMsg = ({ msg }) => msg ? (
+  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+    <AlertCircle className="w-3.5 h-3.5 shrink-0" />{msg}
+  </p>
+) : null;
+
+const Seccion = ({ titulo, icono, abierta, onToggle, children, completada }) => (
+  <div className={`border rounded-2xl overflow-hidden transition-all ${abierta ? 'border-green-200 shadow-sm' : 'border-gray-100'}`}>
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`w-full flex items-center justify-between px-5 py-4 text-left transition-colors ${abierta ? 'bg-green-50' : 'bg-white hover:bg-gray-50'}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${abierta ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+          {icono}
+        </div>
+        <span className={`text-sm font-semibold ${abierta ? 'text-green-800' : 'text-gray-700'}`}>{titulo}</span>
+        {completada && !abierta && (
+          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+        )}
+      </div>
+      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${abierta ? 'rotate-180' : ''}`} />
+    </button>
+    {abierta && (
+      <div className="px-5 pb-5 pt-4 bg-white">
+        {children}
+      </div>
+    )}
+  </div>
+);
+
 const RegistroAnimal = ({ animalEditar = null, onGuardar, onCancelar }) => {
-  // Estado inicial del formulario
-  const formularioInicial = {
+  const inicial = {
     identificacion: '',
     nombre: '',
     sexo: 'hembra',
     fechaNacimiento: '',
     razaId: '',
     colorPelaje: '',
-    padreId: null,
-    madreId: null,
+    padreId: '',
+    madreId: '',
     pesoNacimiento: '',
     numeroPartos: 0,
     estado: 'activo',
     observaciones: '',
-    fotoUrl: ''
   };
 
-  const [formulario, setFormulario] = useState(formularioInicial);
+  const [formulario, setFormulario] = useState(inicial);
   const [errores, setErrores] = useState({});
   const [razas, setRazas] = useState([]);
   const [machos, setMachos] = useState([]);
   const [hembras, setHembras] = useState([]);
   const [cargando, setCargando] = useState(false);
-  const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
+  const [exito, setExito] = useState('');
+  const [errorGlobal, setErrorGlobal] = useState('');
 
-  // Cargar datos necesarios al montar el componente
+  const [seccionAbierta, setSeccionAbierta] = useState('identidad');
+
   useEffect(() => {
-    cargarDatosIniciales();
-    if (animalEditar) {
-      setFormulario(animalEditar);
-    }
-  }, [animalEditar]);
+    if (animalEditar) setFormulario({ ...inicial, ...animalEditar });
+    razasAPI.getAll()
+      .then(r => setRazas(Array.isArray(r) ? r : (r.data || [])))
+      .catch(() => {});
+    animalesAPI.getAll()
+      .then(r => {
+        const lista = r.data || [];
+        setMachos(lista.filter(a => a.sexo?.toLowerCase() === 'macho'));
+        setHembras(lista.filter(a => a.sexo?.toLowerCase() === 'hembra'));
+      })
+      .catch(() => {});
+  }, []);
 
-  /**
-   * Carga razas y animales reproductores disponibles
-   */
-  const cargarDatosIniciales = async () => {
-    try {
-      // Cargar razas disponibles
-      const datosRazas = await razasAPI.getAll();
-      setRazas(datosRazas);
-
-      // Cargar machos reproductores
-      const respuestaMachos = await animalesAPI.search({ 
-        sexo: 'Macho', 
-        estadoGeneral: 'Sano' 
-      });
-      setMachos(respuestaMachos.data || []);
-
-      // Cargar hembras reproductoras
-      const respuestaHembras = await animalesAPI.search({ 
-        sexo: 'Hembra', 
-        estadoGeneral: 'Sano' 
-      });
-      setHembras(respuestaHembras.data || []);
-    } catch (error) {
-      console.error('Error al cargar datos iniciales:', error);
-      mostrarMensaje('error', 'Error al cargar datos del formulario');
-    }
+  const cambiar = (e) => {
+    const { name, value } = e.target;
+    setFormulario(p => ({ ...p, [name]: value }));
+    if (errores[name]) setErrores(p => ({ ...p, [name]: null }));
   };
 
-  /**
-   * Maneja cambios en los campos del formulario
-   */
-  const manejarCambio = (evento) => {
-    const { name, value } = evento.target;
-    setFormulario(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Limpiar error del campo modificado
-    if (errores[name]) {
-      setErrores(prev => ({
-        ...prev,
-        [name]: null
-      }));
-    }
+  const validar = () => {
+    const errs = {};
+    if (!formulario.identificacion?.trim()) errs.identificacion = 'La identificación es obligatoria';
+    if (!['macho', 'hembra'].includes(formulario.sexo)) errs.sexo = 'Sexo no válido';
+    if (!formulario.fechaNacimiento) errs.fechaNacimiento = 'La fecha de nacimiento es obligatoria';
+    if (!formulario.razaId) errs.razaId = 'Selecciona una raza';
+    if (formulario.pesoNacimiento && parseFloat(formulario.pesoNacimiento) <= 0) errs.pesoNacimiento = 'El peso debe ser mayor a 0';
+    if (formulario.sexo === 'hembra' && formulario.numeroPartos < 0) errs.numeroPartos = 'No puede ser negativo';
+    setErrores(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  /**
-   * Valida todos los campos del formulario
-   */
-  const validarFormulario = () => {
-    const nuevosErrores = {};
-
-    // Validar identificación
-    const validacionId = validarIdentificacion(formulario.identificacion);
-    if (!validacionId.valido) {
-      nuevosErrores.identificacion = validacionId.mensaje;
-    }
-
-    // Validar sexo
-    if (!['macho', 'hembra'].includes(formulario.sexo)) {
-      nuevosErrores.sexo = 'Debe seleccionar un sexo válido';
-    }
-
-    // Validar fecha de nacimiento
-    const validacionFecha = validarFecha(formulario.fechaNacimiento);
-    if (!validacionFecha.valido) {
-      nuevosErrores.fechaNacimiento = validacionFecha.mensaje;
-    }
-
-    // Validar raza
-    if (!formulario.razaId) {
-      nuevosErrores.razaId = 'Debe seleccionar una raza';
-    }
-
-    // Validar peso de nacimiento
-    if (formulario.pesoNacimiento) {
-      const validacionPeso = validarPeso(formulario.pesoNacimiento);
-      if (!validacionPeso.valido) {
-        nuevosErrores.pesoNacimiento = validacionPeso.mensaje;
-      }
-    }
-
-    // Validar número de partos (solo para hembras)
-    if (formulario.sexo === 'hembra' && formulario.numeroPartos < 0) {
-      nuevosErrores.numeroPartos = 'El número de partos no puede ser negativo';
-    }
-
-    setErrores(nuevosErrores);
-    return Object.keys(nuevosErrores).length === 0;
-  };
-
-  /**
-   * Envía el formulario al backend
-   */
-  const manejarEnvio = async (evento) => {
-    evento.preventDefault();
-    
-    console.log('=== REGISTRO ANIMAL - manejarEnvio llamado');
-    console.log('=== REGISTRO ANIMAL - Formulario:', formulario);
-    
-    if (!validarFormulario()) {
-      console.log('=== REGISTRO ANIMAL - Validación falló');
-      mostrarMensaje('error', 'Por favor corrija los errores en el formulario');
+  const enviar = async (e) => {
+    e.preventDefault();
+    setErrorGlobal(''); setExito('');
+    if (!validar()) {
+      if (errores.identificacion || errores.sexo || errores.estado) setSeccionAbierta('identidad');
+      else if (errores.fechaNacimiento || errores.razaId || errores.pesoNacimiento) setSeccionAbierta('fisico');
       return;
     }
-
-    console.log('=== REGISTRO ANIMAL - Validación pasó, guardando...');
-    
     setCargando(true);
     try {
-      let respuesta;
+      const payload = {
+        ...formulario,
+        padreId: formulario.padreId || null,
+        madreId: formulario.madreId || null,
+        pesoNacimiento: formulario.pesoNacimiento ? parseFloat(formulario.pesoNacimiento) : null,
+        numeroPartos: formulario.sexo === 'hembra' ? parseInt(formulario.numeroPartos) || 0 : 0,
+      };
+      let resp;
       if (animalEditar) {
-        // Actualizar animal existente
-        console.log('=== REGISTRO ANIMAL - Actualizando animal:', animalEditar.id);
-        respuesta = await animalesAPI.update(
-          animalEditar.id, 
-          formulario
-        );
-        mostrarMensaje('success', 'Animal actualizado exitosamente');
+        resp = await animalesAPI.update(animalEditar.id, payload);
+        setExito('Animal actualizado correctamente.');
       } else {
-        // Crear nuevo animal
-        console.log('=== REGISTRO ANIMAL - Creando nuevo animal');
-        respuesta = await animalesAPI.create(formulario);
-        console.log('=== REGISTRO ANIMAL - Respuesta recibida:', respuesta);
-        mostrarMensaje('success', 'Animal registrado exitosamente');
+        resp = await animalesAPI.create(payload);
+        setExito('Animal registrado correctamente.');
+        setFormulario(inicial);
+        setSeccionAbierta('identidad');
       }
-
-      // Notificar al componente padre
-      if (onGuardar) {
-        console.log('=== REGISTRO ANIMAL - Llamando onGuardar callback');
-        onGuardar(respuesta);
-      } else {
-        console.log('=== REGISTRO ANIMAL - No hay callback onGuardar');
-      }
-
-      // Limpiar formulario si es registro nuevo
-      if (!animalEditar) {
-        setFormulario(formularioInicial);
-        setErrores({});
-      }
-    } catch (error) {
-      console.error('=== REGISTRO ANIMAL - Error al guardar:', error);
-      const mensajeError = error.message || 
-        'Error al guardar el animal. Intente nuevamente.';
-      mostrarMensaje('error', mensajeError);
+      if (onGuardar) onGuardar(resp);
+    } catch (err) {
+      setErrorGlobal(err.message || 'Error al guardar. Revisa los datos e intenta de nuevo.');
     } finally {
       setCargando(false);
     }
   };
 
-  /**
-   * Muestra mensaje de éxito o error
-   */
-  const mostrarMensaje = (tipo, texto) => {
-    setMensaje({ tipo, texto });
-    setTimeout(() => {
-      setMensaje({ tipo: '', texto: '' });
-    }, 5000);
-  };
+  const toggle = (id) => setSeccionAbierta(p => p === id ? null : id);
 
-  /**
-   * Renderiza campo de entrada con validación
-   */
-  const renderCampo = (nombre, etiqueta, tipo = 'text', opciones = {}) => {
-    const error = errores[nombre];
-    
-    return (
-      <div className="mb-4">
-        <label 
-          htmlFor={nombre}
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          {etiqueta}
-          {opciones.requerido && <span className="text-red-500 ml-1">*</span>}
-        </label>
-        <input
-          type={tipo}
-          id={nombre}
-          name={nombre}
-          value={formulario[nombre]}
-          onChange={manejarCambio}
-          className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 
-            ${error 
-              ? 'border-red-300 focus:ring-red-500' 
-              : 'border-gray-300 focus:ring-blue-500'
-            }`}
-          disabled={cargando}
-          {...opciones}
-        />
-        {error && (
-          <p className="mt-1 text-sm text-red-600 flex items-center">
-            <AlertCircle className="w-4 h-4 mr-1" />
-            {error}
-          </p>
-        )}
-      </div>
-    );
-  };
+  const identidadCompleta = formulario.identificacion && formulario.sexo && formulario.estado;
+  const fisicoCompleto = formulario.fechaNacimiento && formulario.razaId;
+  const genealogiaCompleta = formulario.padreId || formulario.madreId;
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      {/* Encabezado */}
-      <div className="border-b pb-4 mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-          <Tag className="w-6 h-6 mr-2 text-blue-600" />
-          {animalEditar ? 'Editar Animal' : 'Registrar Nuevo Animal'}
-        </h2>
-        <p className="text-gray-600 mt-1">
-          Complete la información del animal. Los campos con * son obligatorios.
-        </p>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-green-600 to-emerald-700 px-6 py-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <Tag className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white leading-tight">
+              {animalEditar ? 'Editar animal' : 'Registrar nueva cabra'}
+            </h2>
+            <p className="text-green-200 text-xs">Completa las secciones obligatorias (*)</p>
+          </div>
+        </div>
+        {onCancelar && (
+          <button type="button" onClick={onCancelar} className="text-white/70 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
-      {/* Mensaje de feedback */}
-      {mensaje.texto && (
-        <div className={`mb-4 p-4 rounded-md ${
-          mensaje.tipo === 'success' 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
-            : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 mr-2" />
-            {mensaje.texto}
+      <form onSubmit={enviar} className="p-5 space-y-3">
+
+        {/* Feedback global */}
+        {exito && (
+          <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-sm text-emerald-700">
+            <CheckCircle2 className="w-4 h-4 shrink-0" /> {exito}
           </div>
-        </div>
-      )}
-
-      {/* Formulario */}
-      <form onSubmit={manejarEnvio}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          {/* Identificación */}
-          {renderCampo(
-            'identificacion', 
-            'Identificación', 
-            'text', 
-            { 
-              requerido: true, 
-              placeholder: 'Ej: CAP-001' 
-            }
-          )}
-
-          {/* Nombre */}
-          {renderCampo(
-            'nombre', 
-            'Nombre', 
-            'text', 
-            { 
-              placeholder: 'Nombre del animal (opcional)' 
-            }
-          )}
-
-          {/* Sexo */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sexo <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="sexo"
-              value={formulario.sexo}
-              onChange={manejarCambio}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={cargando}
-            >
-              <option value="hembra">Hembra</option>
-              <option value="macho">Macho</option>
-            </select>
+        )}
+        {errorGlobal && (
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2 text-sm text-red-700">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {errorGlobal}
           </div>
+        )}
 
-          {/* Fecha de nacimiento */}
-          {renderCampo(
-            'fechaNacimiento', 
-            'Fecha de Nacimiento', 
-            'date', 
-            { 
-              requerido: true,
-              max: new Date().toISOString().split('T')[0]
-            }
-          )}
+        {/* ── Sección 1: Identidad básica ── */}
+        <Seccion
+          titulo="Identidad básica"
+          icono={<Tag className="w-4 h-4" />}
+          abierta={seccionAbierta === 'identidad'}
+          onToggle={() => toggle('identidad')}
+          completada={identidadCompleta}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={lbl}>Código / Identificación <span className="text-red-500">*</span></label>
+              <input name="identificacion" value={formulario.identificacion} onChange={cambiar}
+                placeholder="Ej: CAP-001" className={`${inp} ${errores.identificacion ? 'border-red-300' : ''}`}
+                disabled={cargando} />
+              <ErrorMsg msg={errores.identificacion} />
+            </div>
+            <div>
+              <label className={lbl}>Nombre</label>
+              <input name="nombre" value={formulario.nombre} onChange={cambiar}
+                placeholder="Nombre del animal (opcional)" className={inp} disabled={cargando} />
+            </div>
+            <div>
+              <label className={lbl}>Sexo <span className="text-red-500">*</span></label>
+              <div className="grid grid-cols-2 gap-2">
+                {['hembra', 'macho'].map(s => (
+                  <button key={s} type="button" disabled={cargando}
+                    onClick={() => cambiar({ target: { name: 'sexo', value: s } })}
+                    className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${formulario.sexo === s
+                      ? s === 'hembra' ? 'border-pink-400 bg-pink-50 text-pink-700' : 'border-blue-400 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                    {s === 'hembra' ? '♀ Hembra' : '♂ Macho'}
+                  </button>
+                ))}
+              </div>
+              <ErrorMsg msg={errores.sexo} />
+            </div>
+            <div>
+              <label className={lbl}>Estado</label>
+              <select name="estado" value={formulario.estado} onChange={cambiar} className={inp} disabled={cargando}>
+                <option value="activo">Activo</option>
+                <option value="vendido">Vendido</option>
+                <option value="muerto">Muerto</option>
+                <option value="descartado">Descartado</option>
+              </select>
+            </div>
+          </div>
+        </Seccion>
 
-          {/* Raza */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Raza <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="razaId"
-              value={formulario.razaId}
-              onChange={manejarCambio}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 
-                ${errores.razaId 
-                  ? 'border-red-300 focus:ring-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500'
-                }`}
-              disabled={cargando}
-            >
-              <option value="">Seleccione una raza</option>
-              {razas.map(raza => (
-                <option key={raza.id} value={raza.id}>
-                  {raza.nombre}
-                </option>
-              ))}
-            </select>
-            {errores.razaId && (
-              <p className="mt-1 text-sm text-red-600 flex items-center">
-                <AlertCircle className="w-4 h-4 mr-1" />
-                {errores.razaId}
-              </p>
+        {/* ── Sección 2: Nacimiento y características físicas ── */}
+        <Seccion
+          titulo="Nacimiento y características"
+          icono={<Calendar className="w-4 h-4" />}
+          abierta={seccionAbierta === 'fisico'}
+          onToggle={() => toggle('fisico')}
+          completada={fisicoCompleto}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={lbl}>Fecha de nacimiento <span className="text-red-500">*</span></label>
+              <input type="date" name="fechaNacimiento" value={formulario.fechaNacimiento} onChange={cambiar}
+                max={new Date().toISOString().split('T')[0]}
+                className={`${inp} ${errores.fechaNacimiento ? 'border-red-300' : ''}`} disabled={cargando} />
+              <ErrorMsg msg={errores.fechaNacimiento} />
+            </div>
+            <div>
+              <label className={lbl}>Raza <span className="text-red-500">*</span></label>
+              <select name="razaId" value={formulario.razaId} onChange={cambiar}
+                className={`${inp} ${errores.razaId ? 'border-red-300' : ''}`} disabled={cargando}>
+                <option value="">Seleccionar raza...</option>
+                {razas.map(r => (
+                  <option key={r.id} value={r.id}>{r.nombre}</option>
+                ))}
+              </select>
+              <ErrorMsg msg={errores.razaId} />
+            </div>
+            <div>
+              <label className={lbl}>Color de pelaje</label>
+              <input name="colorPelaje" value={formulario.colorPelaje} onChange={cambiar}
+                placeholder="Ej: Blanco, Café, Negro con blanco" className={inp} disabled={cargando} />
+            </div>
+            <div>
+              <label className={lbl}>Peso al nacimiento (kg)</label>
+              <input type="number" name="pesoNacimiento" value={formulario.pesoNacimiento} onChange={cambiar}
+                step="0.1" min="0" placeholder="Ej: 2.5"
+                className={`${inp} ${errores.pesoNacimiento ? 'border-red-300' : ''}`} disabled={cargando} />
+              <ErrorMsg msg={errores.pesoNacimiento} />
+            </div>
+          </div>
+        </Seccion>
+
+        {/* ── Sección 3: Genealogía ── */}
+        <Seccion
+          titulo="Genealogía"
+          icono={<Dna className="w-4 h-4" />}
+          abierta={seccionAbierta === 'genealogia'}
+          onToggle={() => toggle('genealogia')}
+          completada={genealogiaCompleta}
+        >
+          <p className="text-xs text-gray-400 mb-4">Opcional. Asigna el padre y la madre si están registrados en el sistema.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className={lbl}><Users className="w-3.5 h-3.5 inline mr-1" />Padre (Macho)</label>
+              <select name="padreId" value={formulario.padreId || ''} onChange={cambiar} className={inp} disabled={cargando}>
+                <option value="">Sin padre registrado</option>
+                {machos.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.codigo || m.identificacion} {m.nombre ? `— ${m.nombre}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={lbl}><Users className="w-3.5 h-3.5 inline mr-1" />Madre (Hembra)</label>
+              <select name="madreId" value={formulario.madreId || ''} onChange={cambiar} className={inp} disabled={cargando}>
+                <option value="">Sin madre registrada</option>
+                {hembras.map(h => (
+                  <option key={h.id} value={h.id}>
+                    {h.codigo || h.identificacion} {h.nombre ? `— ${h.nombre}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </Seccion>
+
+        {/* ── Sección 4: Información adicional ── */}
+        <Seccion
+          titulo="Información adicional"
+          icono={<FileText className="w-4 h-4" />}
+          abierta={seccionAbierta === 'notas'}
+          onToggle={() => toggle('notas')}
+          completada={false}
+        >
+          <div className="space-y-4">
+            {formulario.sexo === 'hembra' && (
+              <div>
+                <label className={lbl}>Número de partos</label>
+                <input type="number" name="numeroPartos" value={formulario.numeroPartos} onChange={cambiar}
+                  min="0" placeholder="0" className={`${inp} ${errores.numeroPartos ? 'border-red-300' : ''}`} disabled={cargando} />
+                <ErrorMsg msg={errores.numeroPartos} />
+              </div>
             )}
+            <div>
+              <label className={lbl}>Observaciones</label>
+              <textarea name="observaciones" value={formulario.observaciones} onChange={cambiar}
+                rows="3" placeholder="Información adicional, notas de salud, comportamiento..."
+                className={`${inp} resize-none`} disabled={cargando} />
+            </div>
           </div>
+        </Seccion>
 
-          {/* Color de pelaje */}
-          {renderCampo(
-            'colorPelaje', 
-            'Color de Pelaje', 
-            'text', 
-            { 
-              placeholder: 'Ej: Blanco, Café, Negro con blanco'
-            }
+        {/* ── Botones ── */}
+        <div className="flex gap-3 pt-2">
+          {onCancelar && (
+            <button type="button" onClick={onCancelar} disabled={cargando}
+              className="flex-1 px-5 py-3 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              <X className="w-4 h-4" /> Cancelar
+            </button>
           )}
-
-          {/* Peso al nacimiento */}
-          {renderCampo(
-            'pesoNacimiento', 
-            'Peso al Nacimiento (kg)', 
-            'number', 
-            { 
-              step: '0.1',
-              min: '0',
-              placeholder: 'Ej: 2.5'
-            }
-          )}
-
-          {/* Padre */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <Users className="w-4 h-4 inline mr-1" />
-              Padre (Macho)
-            </label>
-            <select
-              name="padreId"
-              value={formulario.padreId || ''}
-              onChange={manejarCambio}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={cargando}
-            >
-              <option value="">Sin padre registrado</option>
-              {machos.map(macho => (
-                <option key={macho.id} value={macho.id}>
-                  {macho.identificacion} - {macho.nombre || 'Sin nombre'}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Madre */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              <Users className="w-4 h-4 inline mr-1" />
-              Madre (Hembra)
-            </label>
-            <select
-              name="madreId"
-              value={formulario.madreId || ''}
-              onChange={manejarCambio}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={cargando}
-            >
-              <option value="">Sin madre registrada</option>
-              {hembras.map(hembra => (
-                <option key={hembra.id} value={hembra.id}>
-                  {hembra.identificacion} - {hembra.nombre || 'Sin nombre'}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Número de partos (solo para hembras) */}
-          {formulario.sexo === 'hembra' && renderCampo(
-            'numeroPartos', 
-            'Número de Partos', 
-            'number', 
-            { 
-              min: '0',
-              placeholder: '0'
-            }
-          )}
-
-          {/* Estado */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Estado
-            </label>
-            <select
-              name="estado"
-              value={formulario.estado}
-              onChange={manejarCambio}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={cargando}
-            >
-              <option value="activo">Activo</option>
-              <option value="vendido">Vendido</option>
-              <option value="muerto">Muerto</option>
-              <option value="descartado">Descartado</option>
-            </select>
-          </div>
-
-          {/* Observaciones */}
-          <div className="mb-4 md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Observaciones
-            </label>
-            <textarea
-              name="observaciones"
-              value={formulario.observaciones}
-              onChange={manejarCambio}
-              rows="3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Información adicional sobre el animal..."
-              disabled={cargando}
-            />
-          </div>
-        </div>
-
-        {/* Botones de acción */}
-        <div className="flex justify-end space-x-3 mt-6 pt-4 border-t">
-          <button
-            type="button"
-            onClick={onCancelar}
-            disabled={cargando}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 flex items-center"
-          >
-            <X className="w-4 h-4 mr-2" />
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={cargando}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 flex items-center"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {cargando ? 'Guardando...' : 'Guardar Animal'}
+          <button type="submit" disabled={cargando}
+            className="flex-1 px-5 py-3 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm">
+            <Save className="w-4 h-4" />
+            {cargando ? 'Guardando...' : animalEditar ? 'Guardar cambios' : 'Registrar animal'}
           </button>
         </div>
       </form>

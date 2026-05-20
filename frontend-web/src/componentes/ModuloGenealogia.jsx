@@ -186,7 +186,7 @@ const analizarCompatibilidad = (a, b) => {
 };
 
 // ── Componentes del árbol ────────────────────────────────────────────────────
-const NodoCard = ({ nodo, rol, onVincularPadre, onVincularMadre, compact = false }) => {
+const NodoCard = ({ nodo, rol, onVincularPadre, onVincularMadre, onDesvincularPadre, onDesvincularMadre, compact = false }) => {
   const estilo = ROLES[rol] || ROLES.principal;
   const edad = calcEdadMeses(nodo.fechaNacimiento);
   return (
@@ -211,18 +211,32 @@ const NodoCard = ({ nodo, rol, onVincularPadre, onVincularMadre, compact = false
           )}
         </>
       )}
-      {(onVincularPadre || onVincularMadre) && !compact && (
-        <div className="mt-2 flex gap-1">
+      {!compact && (
+        <div className="mt-2 flex flex-col gap-1">
+          {/* Padre: vincular o desvincular */}
           {onVincularPadre && !nodo.padre && (
             <button onClick={onVincularPadre}
-              className="flex-1 text-[9px] py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors flex items-center justify-center gap-0.5">
-              <Link2 className="w-2.5 h-2.5" /> Padre
+              className="text-[9px] py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors flex items-center justify-center gap-0.5">
+              <Link2 className="w-2.5 h-2.5" /> Vincular Padre
             </button>
           )}
+          {onDesvincularPadre && nodo.padre && (
+            <button onClick={onDesvincularPadre}
+              className="text-[9px] py-1 bg-blue-50 text-blue-400 rounded hover:bg-red-100 hover:text-red-600 transition-colors flex items-center justify-center gap-0.5 border border-blue-200 hover:border-red-200">
+              <X className="w-2.5 h-2.5" /> Quitar Padre
+            </button>
+          )}
+          {/* Madre: vincular o desvincular */}
           {onVincularMadre && !nodo.madre && (
             <button onClick={onVincularMadre}
-              className="flex-1 text-[9px] py-1 bg-pink-100 text-pink-600 rounded hover:bg-pink-200 transition-colors flex items-center justify-center gap-0.5">
-              <Link2 className="w-2.5 h-2.5" /> Madre
+              className="text-[9px] py-1 bg-pink-100 text-pink-600 rounded hover:bg-pink-200 transition-colors flex items-center justify-center gap-0.5">
+              <Link2 className="w-2.5 h-2.5" /> Vincular Madre
+            </button>
+          )}
+          {onDesvincularMadre && nodo.madre && (
+            <button onClick={onDesvincularMadre}
+              className="text-[9px] py-1 bg-pink-50 text-pink-400 rounded hover:bg-red-100 hover:text-red-600 transition-colors flex items-center justify-center gap-0.5 border border-pink-200 hover:border-red-200">
+              <X className="w-2.5 h-2.5" /> Quitar Madre
             </button>
           )}
         </div>
@@ -303,7 +317,7 @@ const ModalVincular = ({ titulo, filtroSexo, allAnimals, excluirIds, onSeleccion
   );
 };
 
-// ── Vista: Selector de animal ────────────────────────────────────────────────
+// ── Vista: Selector de animal (landing profesional) ──────────────────────────
 const SelectorAnimal = ({ allAnimals, cargando, onSeleccionar }) => {
   const [busqueda, setBusqueda] = useState('');
   const [filtroSexo, setFiltroSexo] = useState('');
@@ -315,78 +329,163 @@ const SelectorAnimal = ({ allAnimals, cargando, onSeleccionar }) => {
     return matchQ && matchSexo;
   });
 
+  const totalMachos  = allAnimals.filter(a => a.sexo === 'macho').length;
+  const totalHembras = allAnimals.filter(a => a.sexo === 'hembra').length;
+
+  const PASOS = [
+    { num: '1', icon: <Search className="w-5 h-5" />, titulo: 'Seleccionar animal', desc: 'Elige cualquier animal del rebaño para explorar su linaje' },
+    { num: '2', icon: <GitBranch className="w-5 h-5" />, titulo: 'Explorar árbol', desc: 'Visualiza 3 generaciones y vincula progenitores directamente' },
+    { num: '3', icon: <Scale className="w-5 h-5" />, titulo: 'Comparar cruces', desc: 'Analiza la compatibilidad genética entre dos animales' },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 p-6 mb-6">
-        <div className="flex items-center gap-4 mb-5">
-          <div className="w-12 h-12 bg-teal-500 rounded-xl flex items-center justify-center shadow-md">
-            <GitBranch className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Genealogía y Linaje</h2>
-            <p className="text-sm text-gray-500">Selecciona un animal para visualizar su árbol genealógico</p>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+      {/* ── Hero ── */}
+      <div className="bg-gradient-to-br from-teal-600 to-teal-800 rounded-2xl shadow-lg p-7 text-white relative overflow-hidden">
+        {/* fondo decorativo */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none select-none flex items-center justify-end pr-8">
+          <GitBranch className="w-48 h-48 text-white" />
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
-              placeholder="Buscar por código, nombre o raza..."
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
+              <Dna className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold leading-tight">Genealogía y Linaje</h2>
+              <p className="text-teal-200 text-sm">Gestión del patrimonio genético del rebaño</p>
+            </div>
           </div>
-          <select value={filtroSexo} onChange={e => setFiltroSexo(e.target.value)}
-            className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white">
-            <option value="">Todos</option>
-            <option value="macho">Machos</option>
-            <option value="hembra">Hembras</option>
-          </select>
+
+          {/* Stats */}
+          <div className="flex flex-wrap gap-4 mt-5">
+            {[
+              { icon: <Users className="w-4 h-4" />, val: allAnimals.length, label: 'Animales' },
+              { icon: <User className="w-4 h-4" />,  val: totalMachos,       label: 'Machos ♂' },
+              { icon: <Heart className="w-4 h-4" />, val: totalHembras,      label: 'Hembras ♀' },
+            ].map(s => (
+              <div key={s.label} className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2.5">
+                <span className="text-teal-200">{s.icon}</span>
+                <div>
+                  <p className="text-xl font-black leading-none">{s.val}</p>
+                  <p className="text-[11px] text-teal-200 leading-none mt-0.5">{s.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
+      {/* ── Guía de 3 pasos ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {PASOS.map((paso, i) => (
+          <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex gap-4 items-start">
+            <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center shrink-0 text-teal-600">
+              {paso.icon}
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-teal-500 uppercase tracking-widest mb-0.5">Paso {paso.num}</p>
+              <p className="text-sm font-bold text-gray-800 mb-0.5">{paso.titulo}</p>
+              <p className="text-xs text-gray-500 leading-relaxed">{paso.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Buscador y filtros ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col sm:flex-row gap-3 items-center">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por código, nombre o raza..."
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50" />
+        </div>
+        <div className="flex gap-2 shrink-0">
+          {[['', 'Todos'], ['macho', '♂ Machos'], ['hembra', '♀ Hembras']].map(([v, l]) => (
+            <button key={v} onClick={() => setFiltroSexo(v)}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors
+                ${filtroSexo === v
+                  ? v === '' ? 'bg-teal-600 text-white border-teal-600'
+                    : v === 'macho' ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-pink-600 text-white border-pink-600'
+                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 shrink-0">
+          {filtrados.length} de {allAnimals.length} animales
+        </p>
+      </div>
+
+      {/* ── Grid de animales ── */}
       {cargando ? (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <Loader2 className="w-10 h-10 text-teal-400 animate-spin" />
           <p className="text-gray-500 text-sm">Cargando animales...</p>
         </div>
+      ) : filtrados.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
+          <GitBranch className="w-12 h-12 mx-auto mb-3 text-gray-200" />
+          <p className="text-gray-400 text-sm">No se encontraron animales con esos filtros</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtrados.map(animal => (
-            <button key={animal.id} onClick={() => onSeleccionar(animal)}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left overflow-hidden group">
-              <div className={`h-2 ${animal.sexo === 'macho' ? 'bg-blue-400' : 'bg-pink-400'}`} />
-              <div className="p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${animal.sexo === 'macho' ? 'bg-blue-100' : 'bg-pink-100'}`}>
-                    {animal.sexo === 'macho' ? <User className="w-5 h-5 text-blue-500" /> : <Heart className="w-5 h-5 text-pink-500" />}
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium">{animal.codigo}</p>
-                    <p className="text-sm font-bold text-gray-800 leading-tight">{animal.nombre}</p>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  {animal.raza && <p className="text-xs text-gray-500">{animal.raza}</p>}
-                  {animal.estadoGeneral && (
-                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium
-                      ${animal.estadoGeneral.toLowerCase().includes('buen') || animal.estadoGeneral.toLowerCase().includes('san')
-                        ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {animal.estadoGeneral}
+          {filtrados.map(animal => {
+            const esMacho = animal.sexo === 'macho';
+            return (
+              <button key={animal.id} onClick={() => onSeleccionar(animal)}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 text-left overflow-hidden group">
+                {/* Banda de color */}
+                <div className={`h-1.5 ${esMacho ? 'bg-gradient-to-r from-blue-400 to-blue-600' : 'bg-gradient-to-r from-pink-400 to-pink-600'}`} />
+                <div className="p-5">
+                  {/* Avatar + badge sexo */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${esMacho ? 'bg-blue-50 border border-blue-100' : 'bg-pink-50 border border-pink-100'}`}>
+                      {esMacho
+                        ? <User className="w-5 h-5 text-blue-500" />
+                        : <Heart className="w-5 h-5 text-pink-500" />}
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${esMacho ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
+                      {esMacho ? '♂ Macho' : '♀ Hembra'}
                     </span>
-                  )}
+                  </div>
+
+                  {/* Nombre y código */}
+                  <p className="text-base font-bold text-gray-800 leading-tight truncate">{animal.nombre || <span className="italic text-gray-400 font-normal">Sin nombre</span>}</p>
+                  <p className="text-xs font-mono text-gray-400 mt-0.5">{animal.codigo}</p>
+
+                  {/* Raza + estado */}
+                  <div className="mt-2.5 space-y-1">
+                    {animal.raza && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-400 inline-block shrink-0" />
+                        {animal.raza}
+                      </p>
+                    )}
+                    {animal.estadoGeneral && (
+                      <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold
+                        ${animal.estadoGeneral.toLowerCase().includes('buen') || animal.estadoGeneral.toLowerCase().includes('san') || animal.estadoGeneral.toLowerCase().includes('activ')
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-amber-100 text-amber-700'}`}>
+                        {animal.estadoGeneral}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* CTA */}
+                  <div className={`mt-4 pt-3 border-t border-gray-100 flex items-center justify-between
+                    text-teal-600 group-hover:text-teal-700 transition-colors`}>
+                    <span className="text-xs font-semibold flex items-center gap-1.5">
+                      <GitBranch className="w-3.5 h-3.5" /> Ver árbol genealógico
+                    </span>
+                    <span className="text-lg group-hover:translate-x-0.5 transition-transform">→</span>
+                  </div>
                 </div>
-                <div className="mt-4 pt-3 border-t border-gray-50 flex items-center gap-1.5 text-teal-600 group-hover:text-teal-700">
-                  <GitBranch className="w-3.5 h-3.5" />
-                  <span className="text-xs font-semibold">Ver árbol genealógico</span>
-                </div>
-              </div>
-            </button>
-          ))}
-          {filtrados.length === 0 && (
-            <div className="col-span-full text-center py-16 text-gray-400">
-              <GitBranch className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No se encontraron animales</p>
-            </div>
-          )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -405,17 +504,43 @@ const VistaArbol = ({ arbol, allAnimals, cargando, onVolver, onComparar, onActua
     setGuardando(true);
     setModal(null);
     try {
-      const payload = { idAnimal: modal.targetId };
-      if (modal.tipo === 'padre') payload.idPadre = animal.id;
-      if (modal.tipo === 'madre') payload.idMadre = animal.id;
-      if (modal.tipo === 'abuelo_pp') { payload.idAnimal = arbol.idPadre; payload.idPadre = animal.id; }
-      if (modal.tipo === 'abuela_pp') { payload.idAnimal = arbol.idPadre; payload.idMadre = animal.id; }
-      if (modal.tipo === 'abuelo_mm') { payload.idAnimal = arbol.idMadre; payload.idPadre = animal.id; }
-      if (modal.tipo === 'abuela_mm') { payload.idAnimal = arbol.idMadre; payload.idMadre = animal.id; }
+      let payload = {};
+      // Siempre incluir ambos progenitores para no borrar el que ya existe
+      if (modal.tipo === 'padre') {
+        payload = { idAnimal: arbol.id, idPadre: animal.id, idMadre: arbol.idMadre };
+      } else if (modal.tipo === 'madre') {
+        payload = { idAnimal: arbol.id, idMadre: animal.id, idPadre: arbol.idPadre };
+      } else if (modal.tipo === 'abuelo_pp') {
+        payload = { idAnimal: arbol.idPadre, idPadre: animal.id, idMadre: arbol.padre?.idMadre };
+      } else if (modal.tipo === 'abuela_pp') {
+        payload = { idAnimal: arbol.idPadre, idMadre: animal.id, idPadre: arbol.padre?.idPadre };
+      } else if (modal.tipo === 'abuelo_mm') {
+        payload = { idAnimal: arbol.idMadre, idPadre: animal.id, idMadre: arbol.madre?.idMadre };
+      } else if (modal.tipo === 'abuela_mm') {
+        payload = { idAnimal: arbol.idMadre, idMadre: animal.id, idPadre: arbol.madre?.idPadre };
+      }
       await apiHelpers.post('/genealogia', payload);
       await onActualizar();
     } catch (err) {
       console.error('Error vinculando:', err);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const desvincular = async (tipo) => {
+    if (!arbol) return;
+    setGuardando(true);
+    try {
+      const payload = {
+        idAnimal: arbol.id,
+        idPadre: tipo === 'padre' ? null : arbol.idPadre,
+        idMadre: tipo === 'madre' ? null : arbol.idMadre,
+      };
+      await apiHelpers.post('/genealogia', payload);
+      await onActualizar();
+    } catch (err) {
+      console.error('Error desvinculando:', err);
     } finally {
       setGuardando(false);
     }
@@ -499,7 +624,9 @@ const VistaArbol = ({ arbol, allAnimals, cargando, onVolver, onComparar, onActua
             <div className="flex justify-center mb-2">
               <NodoCard nodo={arbol} rol="principal"
                 onVincularPadre={() => setModal({ tipo: 'padre', targetId: arbol.id })}
-                onVincularMadre={() => setModal({ tipo: 'madre', targetId: arbol.id })} />
+                onVincularMadre={() => setModal({ tipo: 'madre', targetId: arbol.id })}
+                onDesvincularPadre={() => desvincular('padre')}
+                onDesvincularMadre={() => desvincular('madre')} />
             </div>
 
             {/* Conector gen 0 → 1 */}

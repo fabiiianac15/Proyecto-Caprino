@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Filter, Edit, Trash2, Eye, Plus, Download,
-  AlertCircle, User, Tag, Calendar, Weight, AlertTriangle, X, Edit2, RefreshCw
+  AlertCircle, User, Tag, Calendar, Weight, AlertTriangle, X, Edit2, RefreshCw, FileText
 } from 'lucide-react';
 import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 
@@ -183,7 +183,8 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
             onEditar={() => onEditar(animal)}
             onVer={() => setModalDetalles({ mostrar: true, animal })}
             onEliminar={() => setModalEliminar({ mostrar: true, animal })}
-            onPesaje={() => navigate('/peso', { state: { animalId: animal.id } })} />)}
+            onPesaje={() => navigate(`/animales/${animal.id}`)}
+            onExpediente={() => navigate(`/animales/${animal.id}`)} />)}
         </div>
       )}
 
@@ -282,7 +283,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
 };
 
 // ── Tarjeta de animal ─────────────────────────────────────────────────────────
-function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar, onPesaje }) {
+function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar, onPesaje, onExpediente }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
       {/* Foto */}
@@ -321,23 +322,29 @@ function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar, onPe
         </div>
 
         {/* Botones */}
-        <div className="flex gap-1.5 pt-3 border-t border-gray-100">
-          <button onClick={onEditar}
-            className="flex-1 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors text-xs font-medium flex items-center justify-center gap-1">
-            <Edit className="w-3.5 h-3.5" /> Editar
+        <div className="pt-3 border-t border-gray-100 space-y-1.5">
+          <button onClick={onExpediente}
+            className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm">
+            <FileText className="w-3.5 h-3.5" /> Ver Expediente
           </button>
-          <button onClick={onVer}
-            className="flex-1 py-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors text-xs font-medium flex items-center justify-center gap-1">
-            <Eye className="w-3.5 h-3.5" /> Ver
-          </button>
-          <button onClick={onPesaje}
-            className="py-1.5 px-2.5 bg-violet-50 text-violet-500 hover:bg-violet-100 rounded-lg transition-colors" title="Registrar pesaje">
-            <Weight className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={onEliminar}
-            className="py-1.5 px-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors">
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex gap-1.5">
+            <button onClick={onEditar}
+              className="flex-1 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors text-xs font-medium flex items-center justify-center gap-1">
+              <Edit className="w-3.5 h-3.5" /> Editar
+            </button>
+            <button onClick={onVer}
+              className="flex-1 py-1.5 bg-gray-50 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-xs font-medium flex items-center justify-center gap-1">
+              <Eye className="w-3.5 h-3.5" /> Ver
+            </button>
+            <button onClick={onPesaje}
+              className="py-1.5 px-2.5 bg-violet-50 text-violet-500 hover:bg-violet-100 rounded-lg transition-colors" title="Registrar pesaje">
+              <Weight className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={onEliminar}
+              className="py-1.5 px-2.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

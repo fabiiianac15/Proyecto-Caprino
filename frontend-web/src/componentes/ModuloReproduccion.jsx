@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Heart, Plus, Search, Baby, Stethoscope,
   X, ChevronDown, AlertCircle, CheckCircle, Clock,
-  RefreshCw
+  RefreshCw, Users
 } from 'lucide-react';
 import { reproduccionAPI, animalesAPI } from '../servicios/caprino-api';
 
@@ -131,67 +131,55 @@ export default function ModuloReproduccion() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
-      {/* ── Encabezado ── */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-pink-100 rounded-lg"><Heart className="w-6 h-6 text-pink-600" /></div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Reproducción y Montas</h1>
-              <p className="text-sm text-gray-500">Control del ciclo reproductivo del rebaño</p>
+      {/* ── Hero ── */}
+      <div className="bg-gradient-to-br from-pink-600 to-pink-900 rounded-2xl shadow-lg p-7 text-white relative overflow-hidden mb-5">
+        <div className="absolute inset-0 opacity-10 pointer-events-none select-none flex items-center justify-end pr-8">
+          <Heart className="w-48 h-48 text-white" />
+        </div>
+        <div className="relative">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
+                <Heart className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold leading-tight">Reproducción y Montas</h2>
+                <p className="text-pink-200 text-sm">Control del ciclo reproductivo del rebaño</p>
+              </div>
             </div>
+            <button onClick={cargar} className="p-2 bg-white/15 rounded-xl hover:bg-white/25 transition-colors" title="Actualizar">
+              <RefreshCw className="w-4 h-4 text-white" />
+            </button>
           </div>
-          <button onClick={cargar} className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors text-sm">
-            <RefreshCw className="w-4 h-4" /> Actualizar
-          </button>
+          <div className="flex flex-wrap gap-3 mt-5">
+            {[
+              { icon: <Users className="w-4 h-4" />,       val: stats.total,     label: 'Total servicios' },
+              { icon: <Clock className="w-4 h-4" />,        val: stats.pendiente, label: 'Pendientes' },
+              { icon: <Heart className="w-4 h-4" />,        val: stats.exitoso,   label: 'Gestantes' },
+              { icon: <Baby className="w-4 h-4" />,         val: stats.parto,     label: 'Partos' },
+            ].map(s => (
+              <div key={s.label} className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 flex items-center gap-2.5">
+                <span className="text-pink-200">{s.icon}</span>
+                <div>
+                  <p className="text-xl font-black leading-none">{s.val}</p>
+                  <p className="text-[11px] text-pink-200 leading-none mt-0.5">{s.label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-
-        {/* Stats */}
-        <div className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Total registros', value: stats.total,     color: 'text-gray-800',   bg: 'bg-gray-50' },
-            { label: 'Pendientes',      value: stats.pendiente, color: 'text-yellow-700', bg: 'bg-yellow-50' },
-            { label: 'Gestantes',       value: stats.exitoso,   color: 'text-green-700',  bg: 'bg-green-50' },
-            { label: 'Partos',          value: stats.parto,     color: 'text-blue-700',   bg: 'bg-blue-50' },
-          ].map(s => (
-            <div key={s.label} className={`${s.bg} rounded-lg p-3 text-center`}>
-              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Botones de acción ── */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <button onClick={() => setVista('monta')}
-          className="flex items-center gap-2 px-4 py-2.5 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors font-medium text-sm shadow-sm">
-          <Plus className="w-4 h-4" /> Registrar Monta
-        </button>
-        <button onClick={() => setVista('diagnostico')}
-          disabled={stats.pendiente === 0}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
-          <Stethoscope className="w-4 h-4" /> Registrar Diagnóstico
-          {stats.pendiente > 0 && <span className="bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full">{stats.pendiente}</span>}
-        </button>
-        <button onClick={() => setVista('parto')}
-          disabled={stats.exitoso === 0}
-          className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm shadow-sm disabled:opacity-40 disabled:cursor-not-allowed">
-          <Baby className="w-4 h-4" /> Registrar Parto
-          {stats.exitoso > 0 && <span className="bg-white/30 text-white text-xs px-1.5 py-0.5 rounded-full">{stats.exitoso}</span>}
-        </button>
       </div>
 
       {/* ── Filtros ── */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-5 flex flex-col sm:flex-row gap-3">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
             placeholder="Buscar por hembra o macho..."
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-400" />
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-400 bg-gray-50" />
         </div>
         <select value={filtroRes} onChange={e => setFiltroRes(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400">
+          className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400 bg-white">
           <option value="">Todos los estados</option>
           {RESULTADO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -212,10 +200,7 @@ export default function ModuloReproduccion() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <Heart className="w-14 h-14 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-400 text-lg">No hay registros reproductivos</p>
-          <button onClick={() => setVista('monta')}
-            className="mt-4 px-5 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors text-sm font-medium">
-            Registrar primera monta
-          </button>
+          <p className="text-gray-400 text-sm mt-2">Ve al <strong>Expediente del animal</strong> para registrar montas.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -342,9 +327,10 @@ function TarjetaReproduccion({ r, onEditarDiagnostico, onEditarParto }) {
 }
 
 // ── Formulario: Registrar Monta ───────────────────────────────────────────────
-function FormMonta({ hembras, machos, onGuardar, onCancelar }) {
+export function FormMonta({ hembras, machos, onGuardar, onCancelar, animalPreseleccionado }) {
   const [form, setForm] = useState({
-    idHembra: '', idMacho: '', tipoServicio: 'monta_natural',
+    idHembra: animalPreseleccionado?.id ? String(animalPreseleccionado.id) : '',
+    idMacho: '', tipoServicio: 'monta_natural',
     fechaServicio: new Date().toISOString().split('T')[0], observaciones: '',
   });
   const [guardando, setGuardando] = useState(false);
@@ -379,9 +365,11 @@ function FormMonta({ hembras, machos, onGuardar, onCancelar }) {
         {error && <Alerta mensaje={error} />}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <Campo label="Hembra" requerido>
-            <SelectAnimal opciones={hembras} valor={form.idHembra} onChange={v => set('idHembra', v)} placeholder="Seleccionar hembra..." />
-          </Campo>
+          {!animalPreseleccionado && (
+            <Campo label="Hembra" requerido>
+              <SelectAnimal opciones={hembras} valor={form.idHembra} onChange={v => set('idHembra', v)} placeholder="Seleccionar hembra..." />
+            </Campo>
+          )}
 
           <Campo label={`Macho ${form.tipoServicio === 'monta_natural' ? '' : '(opcional)'}`} requerido={form.tipoServicio === 'monta_natural'}>
             <SelectAnimal opciones={machos} valor={form.idMacho} onChange={v => set('idMacho', v)} placeholder="Seleccionar macho..." />

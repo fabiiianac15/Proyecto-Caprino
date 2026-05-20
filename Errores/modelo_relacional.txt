@@ -1,0 +1,203 @@
+MODELO RELACIONAL DEL PROYECTO CAPRINO
+
+Fuente principal:
+- base-de-datos/esquemas/01-tablas-principales.sql
+- base-de-datos/esquemas/04-perfil-usuario.sql
+
+1. RAZA
+- id_raza (PK)
+- nombre_raza
+- origen
+- caracteristicas
+- aptitud
+- peso_adulto_promedio_kg
+- produccion_leche_dia_promedio
+- estado
+- fecha_creacion
+
+2. ANIMAL
+- id_animal (PK)
+- codigo_identificacion
+- nombre
+- fecha_nacimiento
+- sexo
+- id_raza (FK a RAZA)
+- color_pelaje
+- peso_nacimiento_kg
+- estado
+- motivo_estado
+- fecha_cambio_estado
+- observaciones
+- foto_url
+- fecha_registro
+- usuario_registro
+
+Relacion:
+- Una RAZA puede tener muchos ANIMAL.
+- Cada ANIMAL pertenece a una sola RAZA.
+
+3. GENEALOGIA
+- id_genealogia (PK)
+- id_animal (FK a ANIMAL)
+- id_padre (FK a ANIMAL)
+- id_madre (FK a ANIMAL)
+- generacion
+- coeficiente_consanguinidad
+- observaciones
+- fecha_registro
+
+Relacion:
+- Cada ANIMAL tiene un registro genealógico único.
+- Padre y madre apuntan a ANIMAL como relaciones autorreferenciales.
+
+4. PESAJE
+- id_pesaje (PK)
+- id_animal (FK a ANIMAL)
+- fecha_pesaje
+- peso_kg
+- edad_dias
+- ganancia_diaria_kg
+- condicion_corporal
+- observaciones
+- metodo_pesaje
+- usuario_registro
+- fecha_registro
+
+Relacion:
+- Un ANIMAL puede tener muchos PESAJE.
+
+5. PRODUCCION_LECHE
+- id_produccion (PK)
+- id_animal (FK a ANIMAL)
+- fecha_produccion
+- litros
+- numero_lactancia
+- dias_lactancia
+- grasa_porcentaje
+- proteina_porcentaje
+- celulas_somaticas
+- metodo_medicion
+- turno
+- observaciones
+- usuario_registro
+- fecha_registro
+
+Relacion:
+- Un ANIMAL puede tener muchos registros de PRODUCCION_LECHE.
+
+6. REPRODUCCION
+- id_reproduccion (PK)
+- id_hembra (FK a ANIMAL)
+- id_macho (FK a ANIMAL, opcional)
+- tipo_servicio
+- fecha_servicio
+- fecha_parto_estimada
+- fecha_parto_real
+- tipo_parto
+- numero_crias
+- resultado
+- dificultad_parto
+- observaciones
+- usuario_registro
+- fecha_registro
+
+Relacion:
+- Un ANIMAL puede participar en muchos eventos reproductivos como hembra o macho.
+
+7. SALUD
+- id_registro (PK)
+- id_animal (FK a ANIMAL)
+- tipo_registro
+- fecha_aplicacion
+- enfermedad_diagnostico
+- medicamento_producto
+- dosis
+- via_administracion
+- lote_producto
+- fecha_proxima_aplicacion
+- dias_retiro_leche
+- dias_retiro_carne
+- veterinario
+- observaciones
+- usuario_registro
+- fecha_registro
+
+Relacion:
+- Un ANIMAL puede tener muchos registros de SALUD.
+
+8. USUARIO
+- id_usuario (PK)
+- nombre_completo
+- email
+- password_hash
+- rol
+- telefono
+- estado
+- ultimo_acceso
+- fecha_creacion
+- fecha_modificacion
+
+Relacion:
+- Se usa para autenticación, roles y trazabilidad.
+
+9. USUARIO_PERFIL
+- id_usuario (PK y FK a USUARIO)
+- telefono
+- cedula
+- fecha_nacimiento
+- direccion
+- ciudad
+- departamento
+- nombre_granja
+- tipo_produccion
+- area_total
+- sistema_manejo
+- capacidad_instalada
+- coordenadas_gps
+- altitud
+- temperatura_prom
+- precipitacion
+- nit
+- registro_ica
+- registro_ganadero
+- licencia_ambiental
+- notif_reproduccion
+- notif_salud
+- notif_produccion
+- notif_reportes
+- notif_push
+- fecha_actualizacion
+
+Relacion:
+- Extiende a USUARIO en una relación 1 a 1.
+
+10. AUDITORIA
+- id_auditoria (PK)
+- tabla
+- operacion
+- id_registro
+- datos_anteriores
+- datos_nuevos
+- id_usuario
+- fecha_operacion
+- ip_origen
+
+Relacion:
+- Tabla de registro histórico independiente.
+
+Observaciones importantes
+- El modelo cubre el núcleo funcional del sistema: raza, animales, genealogía, pesaje, producción, reproducción, salud y usuarios.
+- No vi una tabla creada para NOTIFICACION; aparece como pendiente en la documentación.
+- Hay una diferencia entre el SQL y la entidad Doctrine de genealogía: el SQL usa id_animal como cría principal, pero la entidad PHP usa id_cria.
+- Para crear tablas, conviene seguir el script SQL como base principal y luego alinear el backend si hace falta.
+
+Resumen corto de cardinalidades
+- RAZA 1 --- N ANIMAL
+- ANIMAL 1 --- N PESAJE
+- ANIMAL 1 --- N PRODUCCION_LECHE
+- ANIMAL 1 --- N SALUD
+- ANIMAL 1 --- N REPRODUCCION como hembra
+- ANIMAL 1 --- N REPRODUCCION como macho
+- ANIMAL 1 --- 1 GENEALOGIA
+- USUARIO 1 --- 1 USUARIO_PERFIL
+- AUDITORIA queda independiente

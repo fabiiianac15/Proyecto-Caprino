@@ -23,7 +23,7 @@ class ReproduccionController extends AbstractController
     public function list(Request $request): JsonResponse
     {
         $resultado = $request->query->get('resultado');
-        $idHembra  = $request->query->get('idHembra') ?? $request->query->get('hembra');
+        $idHembra  = $request->query->get('idHembra') ?? $request->query->get('hembra') ?? $request->query->get('animal');
 
         $sql    = "SELECT r.id_reproduccion, r.id_hembra, r.id_macho,
                           h.nombre as nombre_hembra, h.codigo_identificacion as codigo_hembra,
