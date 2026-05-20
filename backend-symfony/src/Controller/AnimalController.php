@@ -120,22 +120,48 @@ class AnimalController extends AbstractController
         $user = $this->getUser();
         $usuarioReg = $user instanceof User ? $user->getId() : 1;
 
-        $this->connection->executeStatement(
-            "INSERT INTO ANIMAL (codigo_identificacion, nombre, fecha_nacimiento, sexo, id_raza, color_pelaje, peso_nacimiento_kg, estado, observaciones, foto_url, usuario_registro)
-             VALUES (:codigo, :nombre, TO_DATE(:fec, 'YYYY-MM-DD'), :sexo, :raza, :color, :peso, 'activo', :obs, :foto, :ureg)",
-            [
-                'codigo' => $codigo,
-                'nombre' => $nombre,
-                'fec'    => $fechaNac,
-                'sexo'   => $sexo,
-                'raza'   => $idRaza,
-                'color'  => $color,
-                'peso'   => $pesoNac,
-                'obs'    => $obs,
-                'foto'   => $fotoUrl,
-                'ureg'   => $usuarioReg,
-            ]
-        );
+        try {
+            $this->connection->executeStatement(
+                "INSERT INTO ANIMAL (codigo_identificacion, nombre, fecha_nacimiento, sexo, id_raza, color_pelaje, peso_nacimiento_kg, estado, observaciones, foto_url, usuario_registro)
+                 VALUES (:codigo, :nombre, TO_DATE(:fec, 'YYYY-MM-DD'), :sexo, :raza, :color, :peso, 'activo', :obs, :foto, :ureg)",
+                [
+                    'codigo' => $codigo,
+                    'nombre' => $nombre,
+                    'fec'    => $fechaNac,
+                    'sexo'   => $sexo,
+                    'raza'   => $idRaza,
+                    'color'  => $color,
+                    'peso'   => $pesoNac,
+                    'obs'    => $obs,
+                    'foto'   => $fotoUrl,
+                    'ureg'   => $usuarioReg,
+                ]
+            );
+        } catch (\Throwable $e) {
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'ORA-00001') || str_contains($msg, 'unique constraint')) {
+                return $this->json(
+                    ['error' => "El código '{$codigo}' ya está registrado. Usa un código diferente."],
+                    Response::HTTP_CONFLICT
+                );
+            }
+            if (str_contains($msg, 'ORA-02291')) {
+                return $this->json(
+                    ['error' => 'La raza seleccionada no existe.'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+            if (str_contains($msg, 'ORA-02290') || str_contains($msg, 'check constraint')) {
+                return $this->json(
+                    ['error' => 'Valor inválido: revisa el peso al nacimiento (debe ser > 0 y < 10 kg).'],
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+            return $this->json(
+                ['error' => 'Error al registrar el animal. Verifica los datos e intenta de nuevo.'],
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
 
         $newId = (int) $this->connection->fetchOne(
             'SELECT id_animal FROM ANIMAL WHERE codigo_identificacion = :c',
