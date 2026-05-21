@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react'; 
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   GitBranch, Search, User, Heart, X, Plus, ChevronLeft,
   AlertTriangle, CheckCircle2, XCircle, Loader2, RefreshCw,
   Scale, Link2, Shield, Dna, Activity, Baby, Users, Zap,
+  Brain, TrendingUp, TrendingDown, Minus, Info, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { apiHelpers } from '../servicios/api';
 
@@ -728,28 +729,94 @@ const VistaArbol = ({ arbol, allAnimals, cargando, onVolver, onComparar, onActua
   );
 };
 
+// ── Helpers de UI para resultado ML ─────────────────────────────────────────
+const CONFIG_CLASIFICACION = {
+  'Recomendado':              { color: 'text-emerald-700', bg: 'bg-emerald-50',  border: 'border-emerald-300', barra: '#10b981', icon: 'ok'      },
+  'Precaución':               { color: 'text-amber-700',   bg: 'bg-amber-50',    border: 'border-amber-300',   barra: '#f59e0b', icon: 'warning' },
+  'No recomendado':           { color: 'text-red-700',     bg: 'bg-red-50',      border: 'border-red-300',     barra: '#ef4444', icon: 'x'       },
+  'Insuficiente información': { color: 'text-gray-600',    bg: 'bg-gray-50',     border: 'border-gray-300',    barra: '#9ca3af', icon: 'info'    },
+};
+
+const IconoImpacto = ({ impacto }) => {
+  if (impacto === 'positivo') return <TrendingUp  className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
+  if (impacto === 'negativo') return <TrendingDown className="w-3.5 h-3.5 text-red-500    shrink-0" />;
+  return                             <Minus        className="w-3.5 h-3.5 text-gray-400   shrink-0" />;
+};
+
 // ── Vista: Comparar compatibilidad ───────────────────────────────────────────
 const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
-  const [animal2, setAnimal2] = useState(null);
-  const [arbol2, setArbol2] = useState(null);
-  const [cargando2, setCargando2] = useState(false);
-  const [busqueda, setBusqueda] = useState('');
-  const [resultado, setResultado] = useState(null);
+  const [animal2,    setAnimal2]    = useState(null);
+  const [arbol2,     setArbol2]     = useState(null);
+  const [cargando2,  setCargando2]  = useState(false);
+  const [mlCargando, setMlCargando] = useState(false);
+  const [mlResultado,setMlResultado]= useState(null);  // { resultado, features } | null
+  const [mlError,    setMlError]    = useState(null);
+  const [busqueda,   setBusqueda]   = useState('');
+  const [mostrarFeatures, setMostrarFeatures] = useState(false);
+
+  // Ancestros comunes para resaltar en el mini-árbol (calculados localmente)
+  const ancestrosComunes = (() => {
+    if (!arbol1 || !arbol2) return [];
+    const idsA = collectIds(arbol1);
+    const idsB = collectIds(arbol2);
+    return [...idsA].filter(id => idsB.has(id));
+  })();
 
   const seleccionar2 = async (a) => {
     setAnimal2(a);
     setCargando2(true);
-    setResultado(null);
+    setMlResultado(null);
+    setMlError(null);
     try {
       const tree = await buildTree(a.id, allAnimals);
       setArbol2(tree);
-      if (arbol1 && tree) {
-        setResultado(analizarCompatibilidad(arbol1, tree));
-      }
     } finally {
       setCargando2(false);
     }
   };
+
+  // Llamar al endpoint ML cuando tengamos los dos animales
+  const evaluarML = useCallback(async () => {
+    if (!animal1 || !animal2) return;
+
+    // Validación previa local: mismo sexo
+    if (animal1.sexo && animal2.sexo && animal1.sexo === animal2.sexo) {
+      setMlResultado({
+        features: null,
+        resultado: {
+          scoreCompatibilidad: 0,
+          clasificacion: 'No recomendado',
+          confidence: 1,
+          predicciones: { probPartoExitoso: 0 },
+          explicacion: {
+            topFactores: [],
+            mensaje: 'Ambos animales son del mismo sexo. La reproducción no es posible.',
+          },
+          metadata: { modelVersion: 'pre-check' },
+        },
+      });
+      return;
+    }
+
+    const idMacho  = animal1.sexo === 'macho'  ? animal1.id : animal2.id;
+    const idHembra = animal1.sexo === 'hembra' ? animal1.id : animal2.id;
+
+    setMlCargando(true);
+    setMlError(null);
+    try {
+      const res = await apiHelpers.post('/genealogia/compatibilidad', {
+        idMacho,
+        idHembra,
+        fechaReferencia: new Date().toISOString().split('T')[0],
+      });
+      setMlResultado(res);
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.response?.data?.detalle || 'No se pudo conectar con el servicio de IA.';
+      setMlError(msg);
+    } finally {
+      setMlCargando(false);
+    }
+  }, [animal1, animal2]);
 
   const candidatos = allAnimals.filter(a => {
     if (String(a.id) === String(animal1.id)) return false;
@@ -757,13 +824,13 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
     return !q || a.codigo?.toLowerCase().includes(q) || a.nombre?.toLowerCase().includes(q);
   });
 
-  const MiniArbol = ({ arbol, titulo, lado }) => {
+  // ── Mini-árbol con ancestros comunes resaltados ───────────────────────────
+  const MiniArbol = ({ arbol, titulo }) => {
     if (!arbol) return (
       <div className="flex items-center justify-center h-32 text-gray-300">
         <GitBranch className="w-8 h-8" />
       </div>
     );
-    const ancestrosComunes = resultado?.ancestrosComunes || [];
     const marked = (nodo) => nodo && ancestrosComunes.includes(String(nodo.id));
 
     const NodoMini = ({ nodo, rol }) => {
@@ -820,6 +887,138 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
     );
   };
 
+  // ── Render del resultado ML ───────────────────────────────────────────────
+  const ResultadoML = ({ resultado, features }) => {
+    const clasificacion = resultado?.clasificacion ?? 'Insuficiente información';
+    const cfg = CONFIG_CLASIFICACION[clasificacion] ?? CONFIG_CLASIFICACION['Insuficiente información'];
+    const score = resultado?.scoreCompatibilidad ?? 0;
+    const esInsuficiente = clasificacion === 'Insuficiente información';
+    const topFactores = resultado?.explicacion?.topFactores ?? [];
+    const mensaje = resultado?.explicacion?.mensaje ?? '';
+    const probExito = resultado?.predicciones?.probPartoExitoso ?? null;
+    const confidence = resultado?.confidence ?? null;
+    const meta = resultado?.metadata ?? {};
+
+    return (
+      <div className={`rounded-2xl border-2 ${cfg.border} ${cfg.bg} p-6 shadow-sm`}>
+        {/* Cabecera: veredicto + score */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-8 h-8 rounded-lg bg-white/60 flex items-center justify-center">
+                <Brain className={`w-5 h-5 ${cfg.color}`} />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Score ML</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              {cfg.icon === 'ok'      && <CheckCircle2  className={`w-6 h-6 ${cfg.color} shrink-0`} />}
+              {cfg.icon === 'warning' && <AlertTriangle  className={`w-6 h-6 ${cfg.color} shrink-0`} />}
+              {cfg.icon === 'x'       && <XCircle        className={`w-6 h-6 ${cfg.color} shrink-0`} />}
+              {cfg.icon === 'info'    && <Info            className={`w-6 h-6 ${cfg.color} shrink-0`} />}
+              <h3 className={`text-xl font-bold ${cfg.color}`}>{clasificacion}</h3>
+            </div>
+            <p className="text-sm text-gray-600 mt-1 leading-relaxed">{mensaje}</p>
+          </div>
+
+          {!esInsuficiente && (
+            <div className="text-center shrink-0">
+              <div className={`text-5xl font-black ${cfg.color}`}>{score}</div>
+              <div className="text-xs text-gray-400 font-medium">/ 100</div>
+            </div>
+          )}
+        </div>
+
+        {/* Barra de score */}
+        {!esInsuficiente && (
+          <div className="mb-5">
+            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${score}%`, background: cfg.barra }} />
+            </div>
+            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+              <span>0 — No rec.</span>
+              <span>50 — Precaución</span>
+              <span>72 — Recomendado</span>
+              <span>100</span>
+            </div>
+          </div>
+        )}
+
+        {/* Cards de predicciones */}
+        {!esInsuficiente && (
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="bg-white/60 rounded-xl p-3 text-center">
+              <Baby className="w-5 h-5 text-teal-500 mx-auto mb-1" />
+              <p className={`text-xl font-bold ${cfg.color}`}>
+                {probExito !== null ? `${Math.round(probExito * 100)}%` : '—'}
+              </p>
+              <p className="text-[10px] text-gray-500">Prob. parto exitoso</p>
+            </div>
+            <div className="bg-white/60 rounded-xl p-3 text-center">
+              <Shield className="w-5 h-5 text-indigo-400 mx-auto mb-1" />
+              <p className={`text-xl font-bold ${confidence >= 0.7 ? 'text-emerald-600' : confidence >= 0.6 ? 'text-amber-600' : 'text-red-500'}`}>
+                {confidence !== null ? `${Math.round(confidence * 100)}%` : '—'}
+              </p>
+              <p className="text-[10px] text-gray-500">Confianza del modelo</p>
+            </div>
+          </div>
+        )}
+
+        {/* Top factores */}
+        {topFactores.length > 0 && (
+          <div className="mb-4">
+            <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5" /> Factores más influyentes
+            </h4>
+            <div className="space-y-1.5">
+              {topFactores.map((f, i) => (
+                <div key={i} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg
+                  ${f.impacto === 'negativo' ? 'bg-red-100/60 text-red-700'
+                    : f.impacto === 'positivo' ? 'bg-emerald-100/60 text-emerald-700'
+                    : 'bg-gray-100/60 text-gray-600'}`}>
+                  <IconoImpacto impacto={f.impacto} />
+                  <span className="flex-1">{f.label ?? f.feature}</span>
+                  <span className="font-mono font-semibold">{f.valor}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Features raw (colapsable) */}
+        {features && (
+          <div className="mt-3">
+            <button
+              onClick={() => setMostrarFeatures(v => !v)}
+              className="flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-gray-600 transition-colors">
+              {mostrarFeatures ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {mostrarFeatures ? 'Ocultar datos enviados al modelo' : 'Ver datos enviados al modelo'}
+            </button>
+            {mostrarFeatures && (
+              <div className="mt-2 grid grid-cols-2 gap-1">
+                {Object.entries(features).map(([k, v]) => (
+                  <div key={k} className="flex justify-between text-[10px] px-2 py-1 bg-white/50 rounded">
+                    <span className="text-gray-400 truncate pr-1">{k}</span>
+                    <span className="font-mono font-semibold text-gray-600">{typeof v === 'number' ? Math.round(v * 10) / 10 : v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Metadata del modelo */}
+        {meta.modelVersion && (
+          <p className="mt-3 text-[10px] text-gray-400 text-right">
+            Modelo: {meta.modelVersion}
+            {meta.datasetVersion && ` · Dataset: ${meta.datasetVersion}`}
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  // ── Render principal ──────────────────────────────────────────────────────
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
@@ -833,46 +1032,63 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
           </div>
           <div>
             <h2 className="text-xl font-bold text-gray-800">Análisis de Compatibilidad</h2>
-            <p className="text-sm text-gray-500">Compara dos árboles genealógicos y evalúa la viabilidad del cruce</p>
+            <p className="text-sm text-gray-500">
+              Evaluación de cruce con IA · Score generado por modelo de Machine Learning
+            </p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Animal 2 selector */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 p-5">
-          <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-            <Users className="w-4 h-4 text-teal-500" /> Seleccionar segundo animal
-          </h3>
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
-              placeholder="Buscar..." className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        {/* Columna izquierda: selector + botón evaluar */}
+        <div className="space-y-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 p-5">
+            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4 text-teal-500" /> Segundo animal
+            </h3>
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+              <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                placeholder="Buscar..." className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            </div>
+            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+              {candidatos.map(a => (
+                <button key={a.id} onClick={() => seleccionar2(a)}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all text-sm flex items-center gap-2.5
+                    ${animal2?.id === a.id ? 'border-teal-400 bg-teal-50' : 'border-gray-100 hover:border-teal-200 hover:bg-teal-50/50'}`}>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${a.sexo === 'macho' ? 'bg-blue-100' : 'bg-pink-100'}`}>
+                    {a.sexo === 'macho' ? <User className="w-3.5 h-3.5 text-blue-500" /> : <Heart className="w-3.5 h-3.5 text-pink-500" />}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800 text-xs">{a.codigo} — {a.nombre}</p>
+                    <p className="text-[10px] text-gray-400">{a.raza}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="space-y-1.5 max-h-72 overflow-y-auto">
-            {candidatos.map(a => (
-              <button key={a.id} onClick={() => seleccionar2(a)}
-                className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all text-sm flex items-center gap-2.5
-                  ${animal2?.id === a.id ? 'border-teal-400 bg-teal-50' : 'border-gray-100 hover:border-teal-200 hover:bg-teal-50/50'}`}>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${a.sexo === 'macho' ? 'bg-blue-100' : 'bg-pink-100'}`}>
-                  {a.sexo === 'macho' ? <User className="w-3.5 h-3.5 text-blue-500" /> : <Heart className="w-3.5 h-3.5 text-pink-500" />}
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-800 text-xs">{a.codigo} — {a.nombre}</p>
-                  <p className="text-[10px] text-gray-400">{a.raza}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+
+          {/* Botón evaluar */}
+          {animal2 && !cargando2 && (
+            <button
+              onClick={evaluarML}
+              disabled={mlCargando}
+              className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white font-bold rounded-xl
+                flex items-center justify-center gap-2 transition-colors shadow-sm">
+              {mlCargando
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Evaluando con IA...</>
+                : <><Brain className="w-4 h-4" /> Evaluar compatibilidad</>}
+            </button>
+          )}
         </div>
 
-        {/* Árboles comparados */}
+        {/* Columna derecha: árboles + resultado ML */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Árboles lado a lado */}
+          {/* Mini-árboles lado a lado */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 p-5">
             <div className="grid grid-cols-2 gap-6 overflow-x-auto">
               <div className="min-w-0">
-                <MiniArbol arbol={arbol1} titulo={animal1.codigo + ' — ' + animal1.nombre} lado="izq" />
+                <MiniArbol arbol={arbol1} titulo={`${animal1.codigo} — ${animal1.nombre}`} />
               </div>
               <div className="min-w-0 border-l border-dashed border-gray-200 pl-6">
                 {cargando2 ? (
@@ -881,87 +1097,59 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
                     <p className="text-xs text-gray-400">Cargando árbol...</p>
                   </div>
                 ) : animal2 ? (
-                  <MiniArbol arbol={arbol2} titulo={animal2.codigo + ' — ' + animal2.nombre} lado="der" />
+                  <MiniArbol arbol={arbol2} titulo={`${animal2.codigo} — ${animal2.nombre}`} />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-300">
                     <Scale className="w-8 h-8" />
-                    <p className="text-xs text-center">Selecciona el segundo animal para comparar</p>
+                    <p className="text-xs text-center">Selecciona el segundo animal</p>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Resultado compatibilidad */}
-          {resultado && (
-            <div className={`rounded-2xl border-2 ${resultado.borderColor} ${resultado.bgColor} p-6 shadow-sm`}>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    {resultado.icon === 'ok'
-                      ? <CheckCircle2 className={`w-6 h-6 ${resultado.color}`} />
-                      : resultado.icon === 'warning'
-                        ? <AlertTriangle className={`w-6 h-6 ${resultado.color}`} />
-                        : <XCircle className={`w-6 h-6 ${resultado.color}`} />
-                    }
-                    <h3 className={`text-xl font-bold ${resultado.color}`}>Veredicto: {resultado.veredicto}</h3>
-                  </div>
-                  <p className="text-sm text-gray-600">{resultado.descripcion}</p>
-                </div>
-                <div className="text-center">
-                  <div className={`text-4xl font-black ${resultado.color}`}>{resultado.score}</div>
-                  <div className="text-xs text-gray-500 font-medium">/ 100 puntos</div>
-                </div>
+          {/* Estado de carga ML */}
+          {mlCargando && (
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-teal-200 p-8 flex flex-col items-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center">
+                <Brain className="w-7 h-7 text-teal-500 animate-pulse" />
               </div>
+              <p className="font-semibold text-teal-700">El modelo está analizando el cruce...</p>
+              <p className="text-xs text-gray-400 text-center">Calculando features genéticas, sanitarias y reproductivas</p>
+            </div>
+          )}
 
-              {/* Barra de puntuación */}
-              <div className="mb-5">
-                <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{
-                      width: `${resultado.score}%`,
-                      background: resultado.score >= 86 ? '#14b8a6' : resultado.score >= 61 ? '#10b981' : resultado.score >= 36 ? '#f59e0b' : '#ef4444'
-                    }} />
-                </div>
-                <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                  <span>No viable</span><span>Con reservas</span><span>Recomendado</span><span>Excelente</span>
-                </div>
-              </div>
-
-              {/* Métricas clave */}
-              <div className="grid grid-cols-3 gap-3 mb-5">
-                {[
-                  { icon: Dna, label: 'Coef. Consanguinidad', value: `${resultado.coeficiente.toFixed(2)}%`,
-                    color: resultado.coeficiente > 12.5 ? 'text-red-600' : resultado.coeficiente > 0 ? 'text-amber-600' : 'text-emerald-600' },
-                  { icon: Shield, label: 'Ancestros Comunes', value: resultado.ancestrosComunes.length,
-                    color: resultado.ancestrosComunes.length > 0 ? 'text-amber-600' : 'text-emerald-600' },
-                  { icon: Activity, label: 'Factores Evaluados', value: resultado.factores.length, color: 'text-teal-600' },
-                ].map(({ icon: Icon, label, value, color }) => (
-                  <div key={label} className="bg-white/60 rounded-xl p-3 text-center">
-                    <Icon className={`w-5 h-5 ${color} mx-auto mb-1`} />
-                    <p className={`text-lg font-bold ${color}`}>{value}</p>
-                    <p className="text-[10px] text-gray-500">{label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Factores */}
+          {/* Error ML */}
+          {mlError && !mlCargando && (
+            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 flex items-start gap-3">
+              <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5" /> Factores analizados
-                </h4>
-                <div className="space-y-1.5">
-                  {resultado.factores.map((f, i) => (
-                    <div key={i} className={`flex items-start gap-2 text-xs px-3 py-2 rounded-lg
-                      ${f.tipo === 'error' ? 'bg-red-100/60 text-red-700' : f.tipo === 'warning' ? 'bg-amber-100/60 text-amber-700' : 'bg-emerald-100/60 text-emerald-700'}`}>
-                      {f.tipo === 'error' ? <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> :
-                        f.tipo === 'warning' ? <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> :
-                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />}
-                      {f.texto}
-                    </div>
-                  ))}
-                </div>
+                <p className="font-semibold text-red-700 text-sm">Servicio ML no disponible</p>
+                <p className="text-xs text-red-600 mt-1">{mlError}</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Asegúrate de que el microservicio ML está corriendo en el servidor.
+                </p>
               </div>
+            </div>
+          )}
+
+          {/* Resultado ML */}
+          {mlResultado && !mlCargando && !mlError && (
+            <ResultadoML
+              resultado={mlResultado.resultado}
+              features={mlResultado.features}
+            />
+          )}
+
+          {/* Placeholder inicial */}
+          {!animal2 && !mlCargando && !mlResultado && (
+            <div className="bg-white/60 border-2 border-dashed border-gray-200 rounded-2xl p-10 flex flex-col items-center gap-3 text-gray-300">
+              <Brain className="w-12 h-12" />
+              <p className="text-sm font-medium text-gray-400 text-center">
+                Selecciona un segundo animal y pulsa
+                <br />
+                &ldquo;Evaluar compatibilidad&rdquo;
+              </p>
             </div>
           )}
         </div>
