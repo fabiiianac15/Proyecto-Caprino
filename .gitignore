@@ -87,6 +87,7 @@ tmp/
 temp/
 *.tmp
 *.cache
+Realizar-Temporal/
 
 # Backups
 *.bak
