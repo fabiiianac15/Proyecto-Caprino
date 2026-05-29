@@ -268,6 +268,8 @@ CREATE TABLE AUDITORIA (
     datos_anteriores CLOB,
     datos_nuevos CLOB,
     id_usuario NUMBER,
+    nombre_usuario VARCHAR2(200),
+    descripcion VARCHAR2(500),
     fecha_operacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ip_origen VARCHAR2(50)
 );

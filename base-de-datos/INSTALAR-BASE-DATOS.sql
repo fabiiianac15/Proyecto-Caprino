@@ -21,6 +21,9 @@
 --   @<ruta>\base-de-datos\esquemas\01-tablas-principales.sql
 --   @<ruta>\base-de-datos\esquemas\02-datos-iniciales-razas.sql
 --   @<ruta>\base-de-datos\esquemas\03-datos-iniciales-usuarios.sql
+--   @<ruta>\base-de-datos\esquemas\04-perfil-usuario.sql
+--   @<ruta>\base-de-datos\esquemas\05-tabla-famacha.sql
+--   @<ruta>\base-de-datos\esquemas\06-parche-columnas-faltantes.sql
 --   @<ruta>\base-de-datos\procedimientos\01-triggers-y-funciones.sql
 --   @<ruta>\base-de-datos\vistas\01-vistas-reportes.sql
 
@@ -38,11 +41,24 @@
 --   @<ruta>\base-de-datos\verificacion-completa.sql
 
 -- ==================================================================
--- CREDENCIALES DE LA BASE DE DATOS
+-- CREDENCIALES DE LA BASE DE DATOS (Oracle Autonomous Cloud)
 -- ==================================================================
 -- Usuario Oracle de la aplicación: caprino_user
--- Contraseña Oracle:               CaprinoPass2025
--- Host local:                      127.0.0.1:1521/XEPDB1
+-- Contraseña Oracle:               CaprinoPass2025!
+-- TNS Name (wallet):               dbcaprino_high
+-- Wallet path (servidor):          /ruta/al/wallet/Caprino-Wallet
 --
--- IMPORTANTE: Cambiar CaprinoPass2025 antes de ir a producción.
+-- IMPORTANTE: Configurar en backend-symfony/.env.local (no subir a git):
+--   DATABASE_TNS_NAME=dbcaprino_high
+--   DATABASE_USER=caprino_user
+--   DATABASE_PASSWORD=CaprinoPass2025!
+--   DATABASE_WALLET_PATH=/ruta/al/wallet/en/servidor
+-- ==================================================================
+
+-- ==================================================================
+-- NOTA PARA BD YA EXISTENTE (si las tablas principales ya están):
+-- ==================================================================
+-- Si la BD ya tiene las tablas del paso 01 pero le faltan las de
+-- los pasos 04, 05, 06, ejecutar SOLO esos scripts adicionales.
+-- El script 06 usa BEGIN/EXCEPTION para ignorar objetos ya existentes.
 -- ==================================================================
