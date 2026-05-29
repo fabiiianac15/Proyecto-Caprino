@@ -74,19 +74,25 @@ class PesajeController extends AbstractController
         $user = $this->getUser();
         $uReg = $user instanceof User ? $user->getId() : 1;
 
-        $this->connection->executeStatement(
-            "INSERT INTO PESAJE (id_animal, fecha_pesaje, peso_kg, condicion_corporal, metodo_pesaje, observaciones, usuario_registro)
-             VALUES (:id, TO_DATE(:f, 'YYYY-MM-DD'), :p, :cc, :met, :obs, :ur)",
-            [
-                'id'  => $idAnimal,
-                'f'   => $fecha,
-                'p'   => $pesoKg,
-                'cc'  => $condicion,
-                'met' => $metodo,
-                'obs' => $obs,
-                'ur'  => $uReg,
-            ]
-        );
+        try {
+            $this->connection->executeStatement(
+                "INSERT INTO PESAJE (id_animal, fecha_pesaje, peso_kg, condicion_corporal, metodo_pesaje, observaciones, usuario_registro)
+                 VALUES (:id, TO_DATE(:f, 'YYYY-MM-DD'), :p, :cc, :met, :obs, :ur)",
+                [
+                    'id'  => $idAnimal,
+                    'f'   => $fecha,
+                    'p'   => $pesoKg,
+                    'cc'  => $condicion,
+                    'met' => $metodo,
+                    'obs' => $obs,
+                    'ur'  => $uReg,
+                ]
+            );
+        } catch (\Doctrine\DBAL\Exception $e) {
+            $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+            preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $m);
+            return $this->json(['error' => trim($m[1] ?? $msg)], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $newId = (int) $this->connection->fetchOne(
             'SELECT MAX(id_pesaje) FROM PESAJE WHERE id_animal = :id AND fecha_pesaje = TO_DATE(:f, \'YYYY-MM-DD\')',

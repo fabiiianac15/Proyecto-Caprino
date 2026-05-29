@@ -84,21 +84,28 @@ class ProduccionController extends AbstractController
         $user = $this->getUser();
         $uReg = $user instanceof User ? $user->getId() : 1;
 
-        $this->connection->executeStatement(
-            "INSERT INTO PRODUCCION_LECHE (id_animal, fecha_produccion, litros, turno, numero_lactancia, dias_lactancia, grasa_porcentaje, observaciones, usuario_registro)
-             VALUES (:id, TO_DATE(:f, 'YYYY-MM-DD'), :l, :t, :nl, :dl, :gr, :obs, :ur)",
-            [
-                'id'  => $idAnimal,
-                'f'   => $fecha,
-                'l'   => $litros,
-                't'   => $turno,
-                'nl'  => $numLact,
-                'dl'  => $diasLact,
-                'gr'  => $grasa,
-                'obs' => $obs,
-                'ur'  => $uReg,
-            ]
-        );
+        try {
+            $this->connection->executeStatement(
+                "INSERT INTO PRODUCCION_LECHE (id_animal, fecha_produccion, litros, turno, numero_lactancia, dias_lactancia, grasa_porcentaje, observaciones, usuario_registro)
+                 VALUES (:id, TO_DATE(:f, 'YYYY-MM-DD'), :l, :t, :nl, :dl, :gr, :obs, :ur)",
+                [
+                    'id'  => $idAnimal,
+                    'f'   => $fecha,
+                    'l'   => $litros,
+                    't'   => $turno,
+                    'nl'  => $numLact,
+                    'dl'  => $diasLact,
+                    'gr'  => $grasa,
+                    'obs' => $obs,
+                    'ur'  => $uReg,
+                ]
+            );
+        } catch (\Doctrine\DBAL\Exception $e) {
+            $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+            preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $m);
+            $detalle = trim($m[1] ?? $msg);
+            return $this->json(['error' => $detalle], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $newId = (int) $this->connection->fetchOne(
             'SELECT MAX(id_produccion) FROM PRODUCCION_LECHE WHERE id_animal = :id AND fecha_produccion = TO_DATE(:f, \'YYYY-MM-DD\')',

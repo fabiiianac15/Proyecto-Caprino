@@ -101,12 +101,11 @@ BEFORE INSERT ON PRODUCCION_LECHE
 FOR EACH ROW
 DECLARE
     v_fecha_ultimo_parto DATE;
-    v_numero_lactancia NUMBER;
 BEGIN
-    -- Buscar el último parto del animal
+    -- Buscar el último parto exitoso del animal
     BEGIN
-        SELECT fecha_parto_real, ROWNUM
-        INTO v_fecha_ultimo_parto, v_numero_lactancia
+        SELECT fecha_parto_real
+        INTO v_fecha_ultimo_parto
         FROM (
             SELECT fecha_parto_real
             FROM REPRODUCCION
@@ -116,33 +115,26 @@ BEGIN
             ORDER BY fecha_parto_real DESC
         )
         WHERE ROWNUM = 1;
-        
-        -- Calcular días de lactancia
-        :NEW.dias_lactancia := TRUNC(:NEW.fecha_produccion - v_fecha_ultimo_parto);
-        
-        -- Contar número de lactancia
-        SELECT COUNT(*) + 1 INTO :NEW.numero_lactancia
-        FROM REPRODUCCION
-        WHERE id_hembra = :NEW.id_animal
-        AND fecha_parto_real IS NOT NULL
-        AND fecha_parto_real <= v_fecha_ultimo_parto
-        AND resultado = 'exitoso';
-        
-        -- Validar que no se registre producción sin haber parido
-        IF :NEW.dias_lactancia < 0 THEN
-            RAISE_APPLICATION_ERROR(-20003, 
-                'No se puede registrar producción antes del parto');
+
+        -- Calcular días de lactancia solo si no fue ingresado manualmente
+        IF :NEW.dias_lactancia IS NULL THEN
+            :NEW.dias_lactancia := TRUNC(:NEW.fecha_produccion - v_fecha_ultimo_parto);
         END IF;
-        
-        -- Advertencia si la lactancia es muy extensa (más de 305 días)
-        IF :NEW.dias_lactancia > 305 THEN
-            DBMS_OUTPUT.PUT_LINE('ADVERTENCIA: Lactancia extendida, revisar estado reproductivo');
+
+        -- Calcular número de lactancia solo si no fue ingresado manualmente
+        IF :NEW.numero_lactancia IS NULL THEN
+            SELECT COUNT(*) + 1 INTO :NEW.numero_lactancia
+            FROM REPRODUCCION
+            WHERE id_hembra = :NEW.id_animal
+            AND fecha_parto_real IS NOT NULL
+            AND fecha_parto_real <= v_fecha_ultimo_parto
+            AND resultado = 'exitoso';
         END IF;
-        
+
     EXCEPTION
         WHEN NO_DATA_FOUND THEN
-            RAISE_APPLICATION_ERROR(-20004, 
-                'No se puede registrar producción de leche sin un parto previo registrado');
+            -- Sin parto registrado: dejar dias_lactancia y numero_lactancia en NULL
+            NULL;
     END;
 END;
 /

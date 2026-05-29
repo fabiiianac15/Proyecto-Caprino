@@ -100,15 +100,10 @@ class FamachaController extends AbstractController
                     'ur'   => $uReg,
                 ]
             );
-        } catch (\Throwable $e) {
-            $msg = $e->getMessage();
-            if (str_contains($msg, 'ORA-02291')) {
-                return $this->json(['error' => 'El animal especificado no existe.'], Response::HTTP_BAD_REQUEST);
-            }
-            return $this->json(
-                ['error' => 'Error al registrar la evaluación FAMACHA.'],
-                Response::HTTP_INTERNAL_SERVER_ERROR
-            );
+        } catch (\Doctrine\DBAL\Exception $e) {
+            $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+            preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $m);
+            return $this->json(['error' => trim($m[1] ?? $msg)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {

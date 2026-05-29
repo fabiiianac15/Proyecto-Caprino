@@ -99,31 +99,37 @@ class SaludController extends AbstractController
         $user = $this->getUser();
         $uReg = $user instanceof User ? $user->getId() : 1;
 
-        $this->connection->executeStatement(
-            "INSERT INTO SALUD (id_animal, tipo_registro, fecha_aplicacion, enfermedad_diagnostico,
-               medicamento_producto, dosis, via_administracion, lote_producto,
-               fecha_proxima_aplicacion, dias_retiro_leche, dias_retiro_carne,
-               veterinario, observaciones, usuario_registro)
-             VALUES (:id, :tipo, TO_DATE(:f, 'YYYY-MM-DD'), :enf, :med, :dos, :via, :lote,
-               CASE WHEN :fp IS NOT NULL THEN TO_DATE(:fp, 'YYYY-MM-DD') ELSE NULL END,
-               :dl, :dc, :vet, :obs, :ur)",
-            [
-                'id'   => $idAnimal,
-                'tipo' => $tipo,
-                'f'    => $fecha,
-                'enf'  => $enfermedad,
-                'med'  => $medicamento,
-                'dos'  => $dosis,
-                'via'  => $via,
-                'lote' => $lote,
-                'fp'   => $fechaProx,
-                'dl'   => $diasLeche,
-                'dc'   => $diasCarne,
-                'vet'  => $vet,
-                'obs'  => $obs,
-                'ur'   => $uReg,
-            ]
-        );
+        try {
+            $this->connection->executeStatement(
+                "INSERT INTO SALUD (id_animal, tipo_registro, fecha_aplicacion, enfermedad_diagnostico,
+                   medicamento_producto, dosis, via_administracion, lote_producto,
+                   fecha_proxima_aplicacion, dias_retiro_leche, dias_retiro_carne,
+                   veterinario, observaciones, usuario_registro)
+                 VALUES (:id, :tipo, TO_DATE(:f, 'YYYY-MM-DD'), :enf, :med, :dos, :via, :lote,
+                   CASE WHEN :fp IS NOT NULL THEN TO_DATE(:fp, 'YYYY-MM-DD') ELSE NULL END,
+                   :dl, :dc, :vet, :obs, :ur)",
+                [
+                    'id'   => $idAnimal,
+                    'tipo' => $tipo,
+                    'f'    => $fecha,
+                    'enf'  => $enfermedad,
+                    'med'  => $medicamento,
+                    'dos'  => $dosis,
+                    'via'  => $via,
+                    'lote' => $lote,
+                    'fp'   => $fechaProx,
+                    'dl'   => $diasLeche,
+                    'dc'   => $diasCarne,
+                    'vet'  => $vet,
+                    'obs'  => $obs,
+                    'ur'   => $uReg,
+                ]
+            );
+        } catch (\Doctrine\DBAL\Exception $e) {
+            $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+            preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $m);
+            return $this->json(['error' => trim($m[1] ?? $msg)], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $newId = (int) $this->connection->fetchOne(
             'SELECT MAX(id_registro) FROM SALUD WHERE id_animal = :id AND fecha_aplicacion = TO_DATE(:f, \'YYYY-MM-DD\')',

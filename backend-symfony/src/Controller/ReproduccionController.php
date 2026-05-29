@@ -94,18 +94,24 @@ class ReproduccionController extends AbstractController
         $user = $this->getUser();
         $uReg = $user instanceof User ? $user->getId() : 1;
 
-        $this->connection->executeStatement(
-            "INSERT INTO REPRODUCCION (id_hembra, id_macho, tipo_servicio, fecha_servicio, resultado, observaciones, usuario_registro)
-             VALUES (:h, :m, :ts, TO_DATE(:f, 'YYYY-MM-DD'), 'pendiente', :obs, :ur)",
-            [
-                'h'   => $idHembra,
-                'm'   => $idMacho,
-                'ts'  => $tipoServicio,
-                'f'   => $fechaServicio,
-                'obs' => $obs,
-                'ur'  => $uReg,
-            ]
-        );
+        try {
+            $this->connection->executeStatement(
+                "INSERT INTO REPRODUCCION (id_hembra, id_macho, tipo_servicio, fecha_servicio, resultado, observaciones, usuario_registro)
+                 VALUES (:h, :m, :ts, TO_DATE(:f, 'YYYY-MM-DD'), 'pendiente', :obs, :ur)",
+                [
+                    'h'   => $idHembra,
+                    'm'   => $idMacho,
+                    'ts'  => $tipoServicio,
+                    'f'   => $fechaServicio,
+                    'obs' => $obs,
+                    'ur'  => $uReg,
+                ]
+            );
+        } catch (\Doctrine\DBAL\Exception $e) {
+            $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+            preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $m);
+            return $this->json(['error' => trim($m[1] ?? $msg)], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $newId = (int) $this->connection->fetchOne(
             'SELECT MAX(id_reproduccion) FROM REPRODUCCION WHERE id_hembra = :h AND fecha_servicio = TO_DATE(:f, \'YYYY-MM-DD\')',

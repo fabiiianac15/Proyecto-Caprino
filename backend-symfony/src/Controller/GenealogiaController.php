@@ -83,10 +83,16 @@ class GenealogiaController extends AbstractController
                 ['id' => $idAnimal]
             );
 
-            $this->connection->executeStatement(
-                'UPDATE GENEALOGIA SET id_padre = :p, id_madre = :m, observaciones = NVL(:obs, observaciones) WHERE id_animal = :id',
-                ['p' => $idPadre, 'm' => $idMadre, 'obs' => $obs, 'id' => $idAnimal]
-            );
+            try {
+                $this->connection->executeStatement(
+                    'UPDATE GENEALOGIA SET id_padre = :p, id_madre = :m, observaciones = NVL(:obs, observaciones) WHERE id_animal = :id',
+                    ['p' => $idPadre, 'm' => $idMadre, 'obs' => $obs, 'id' => $idAnimal]
+                );
+            } catch (\Doctrine\DBAL\Exception $e) {
+                $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+                preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $m);
+                return $this->json(['error' => trim($m[1] ?? $msg)], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
 
             try {
                 $this->auditoria->registrar(
@@ -104,10 +110,16 @@ class GenealogiaController extends AbstractController
                 );
             } catch (\Throwable) {}
         } else {
-            $this->connection->executeStatement(
-                'INSERT INTO GENEALOGIA (id_animal, id_padre, id_madre, observaciones) VALUES (:id, :p, :m, :obs)',
-                ['id' => $idAnimal, 'p' => $idPadre, 'm' => $idMadre, 'obs' => $obs]
-            );
+            try {
+                $this->connection->executeStatement(
+                    'INSERT INTO GENEALOGIA (id_animal, id_padre, id_madre, observaciones) VALUES (:id, :p, :m, :obs)',
+                    ['id' => $idAnimal, 'p' => $idPadre, 'm' => $idMadre, 'obs' => $obs]
+                );
+            } catch (\Doctrine\DBAL\Exception $e) {
+                $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+                preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $m);
+                return $this->json(['error' => trim($m[1] ?? $msg)], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
 
             try {
                 $this->auditoria->registrar(
