@@ -82,7 +82,7 @@ const MOCK_ANIMALS = [
 const MOCK_RAZAS = [
   { id: 1, nombre: 'Saanen', descripcion: 'Raza suiza, alta producción lechera', activo: true },
   { id: 2, nombre: 'Alpina', descripcion: 'Raza versátil, buena adaptación', activo: true },
-  { id: 3, nombre: 'Nubia', descripcion: 'Raza de doble propósito', activo: true },
+  { id: 3, nombre: 'Anglonubiana', descripcion: 'Raza de doble propósito', activo: true },
   { id: 4, nombre: 'Boer', descripcion: 'Raza cárnica', activo: true }
 ];
 
@@ -201,8 +201,15 @@ export const animalesAPI = {
       colorPelaje: animalData.colorPelaje || animalData.color,
       pesoNacimiento: animalData.pesoNacimiento,
       observaciones: animalData.observaciones,
-      fotoUrl: animalData.fotoUrl || animalData.foto
+      fotoUrl: animalData.fotoUrl || animalData.foto,
+      estado: animalData.estado,
+      motivoEstado: animalData.motivoEstado,
+      idCorral: animalData.idCorral,
     };
+
+    // Chapetas: solo enviarlas si vienen definidas (el backend las actualiza condicionalmente)
+    if (animalData.chapetaNueva !== undefined) dataTransformada.chapetaNueva = animalData.chapetaNueva;
+    if (animalData.chapetaVieja !== undefined) dataTransformada.chapetaVieja = animalData.chapetaVieja;
 
     try {
       const response = await apiFetch(`${API_BASE_URL}/animales/${id}`, {
@@ -456,7 +463,7 @@ export const reproduccionAPI = {
     return reproduccionAPI.getAll({ animal: animalId });
   },
 
-  // Update reproduction record (diagnóstico o parto)
+  // Update reproduction record (diagnóstico)
   update: async (id, datos) => {
     if (USE_MOCK_DATA) {
       await mockDelay();
@@ -464,6 +471,19 @@ export const reproduccionAPI = {
     }
     const response = await apiFetch(`${API_BASE_URL}/reproduccion/${id}`, {
       method: 'PUT',
+      body: JSON.stringify(datos),
+    });
+    return await handleResponse(response);
+  },
+
+  // Registrar parto: actualiza el ciclo y crea las crías automáticamente
+  registrarParto: async (id, datos) => {
+    if (USE_MOCK_DATA) {
+      await mockDelay();
+      return { success: true, crias: [] };
+    }
+    const response = await apiFetch(`${API_BASE_URL}/reproduccion/${id}/parto`, {
+      method: 'POST',
       body: JSON.stringify(datos),
     });
     return await handleResponse(response);
@@ -653,6 +673,44 @@ export const notificacionesAPI = {
   },
 };
 
+// ==================== CORRALES API ====================
+
+export const corralesAPI = {
+  getAll: async () => {
+    try {
+      const response = await apiFetch(`${API_BASE_URL}/corrales`);
+      const data = await handleResponse(response);
+      return { data: data.data || [], total: data.total || (data.data ? data.data.length : 0) };
+    } catch (error) {
+      console.error('Error fetching corrales:', error);
+      throw error;
+    }
+  },
+
+  create: async (datos) => {
+    const response = await apiFetch(`${API_BASE_URL}/corrales`, {
+      method: 'POST',
+      body: JSON.stringify(datos),
+    });
+    return await handleResponse(response);
+  },
+
+  update: async (id, datos) => {
+    const response = await apiFetch(`${API_BASE_URL}/corrales/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(datos),
+    });
+    return await handleResponse(response);
+  },
+
+  delete: async (id) => {
+    const response = await apiFetch(`${API_BASE_URL}/corrales/${id}`, {
+      method: 'DELETE',
+    });
+    return await handleResponse(response);
+  },
+};
+
 // Export configuration
 export const API_CONFIG = {
   baseUrl: API_BASE_URL,
@@ -666,5 +724,6 @@ export default {
   reproduccionAPI,
   saludAPI,
   pesajeAPI,
+  corralesAPI,
   API_CONFIG,
 };

@@ -7,12 +7,17 @@ import {
   ChevronDown, Dna, FileText
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
-import { animalesAPI, razasAPI } from '../servicios/caprino-api';
+import { animalesAPI, razasAPI, corralesAPI } from '../servicios/caprino-api';
 
 // ── Estilos base ─────────────────────────────────────────────────────────────
 
 const inp = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white disabled:bg-gray-50';
 const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
+
+const TIPO_CORRAL_LABEL = {
+  general: 'General', gestante: 'Gestantes', ordeno: 'Ordeño',
+  lactancia: 'Lactancia', levante: 'Levante', machos: 'Machos',
+};
 
 const ErrMsg = ({ msg }) => msg ? (
   <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
@@ -67,7 +72,8 @@ const Seccion = ({ id, titulo, icono, color = 'green', abierta, onToggle, comple
 
 const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const [formData, setFormData] = useState({
-    codigo: cabraEditar?.codigo || cabraEditar?.identificacion || '',
+    chapetaNueva: cabraEditar?.chapetaNueva || '',
+    chapetaVieja: cabraEditar?.chapetaVieja || cabraEditar?.codigo || cabraEditar?.identificacion || '',
     nombre: cabraEditar?.nombre || '',
     sexo: cabraEditar?.sexo || '',
     raza: cabraEditar?.idRaza || cabraEditar?.raza || '',
@@ -79,6 +85,8 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
     codigoPadre: cabraEditar?.codigoPadre || '',
     codigoMadre: cabraEditar?.codigoMadre || '',
     estado: cabraEditar?.estado || 'activo',
+    motivoEstado: cabraEditar?.motivoEstado || '',
+    idCorral: cabraEditar?.idCorral || '',
     estadoReproductivo: cabraEditar?.estadoReproductivo || '',
     proposito: cabraEditar?.proposito || '',
     observaciones: cabraEditar?.observaciones || '',
@@ -92,6 +100,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
   const [razasDisponibles, setRazasDisponibles] = useState([]);
+  const [corralesDisponibles, setCorralesDisponibles] = useState([]);
   const [seccionAbierta, setSeccionAbierta] = useState('identidad');
   const inputFotoRef = useRef(null);
 
@@ -99,7 +108,12 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
     razasAPI.getAll()
       .then(r => setRazasDisponibles(Array.isArray(r) ? r : (r.data || [])))
       .catch(() => {});
+    corralesAPI.getAll()
+      .then(r => setCorralesDisponibles(Array.isArray(r) ? r : (r.data || [])))
+      .catch(() => {});
   }, []);
+
+  const corralSeleccionado = corralesDisponibles.find(c => String(c.id) === String(formData.idCorral));
 
   // ── Opciones SelectPersonalizado ──────────────────────────────────────────
 
@@ -171,15 +185,20 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
 
   const validar = () => {
     const errs = {};
-    if (!formData.codigo.trim())    errs.codigo = 'El código es obligatorio';
+    if (!formData.chapetaNueva.trim() && !formData.chapetaVieja.trim()) {
+      errs.chapetas = 'Debe registrar al menos una chapeta (nueva o vieja)';
+    }
     if (!formData.nombre.trim())    errs.nombre = 'El nombre es obligatorio';
     if (!formData.sexo)             errs.sexo = 'Selecciona el sexo';
     if (!formData.raza)             errs.raza = 'Selecciona la raza';
-    if (!formData.fechaNacimiento)  errs.fechaNacimiento = 'La fecha de nacimiento es obligatoria';
+    // La fecha de nacimiento es opcional: hay cabras viejas sin fecha conocida.
+    if (formData.estado === 'muerto' && !formData.motivoEstado.trim()) {
+      errs.motivoEstado = 'Indica el motivo de muerte';
+    }
     setErrores(errs);
     if (Object.keys(errs).length > 0) {
-      if (errs.codigo || errs.nombre || errs.sexo || errs.raza) setSeccionAbierta('identidad');
-      else if (errs.fechaNacimiento) setSeccionAbierta('fechas');
+      if (errs.chapetas || errs.nombre || errs.sexo || errs.raza) setSeccionAbierta('identidad');
+      else if (errs.motivoEstado) setSeccionAbierta('estado');
       return false;
     }
     return true;
@@ -202,17 +221,25 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
         fotoBase64 = formData.foto;
       }
 
+      const chapetaNueva = formData.chapetaNueva.trim();
+      const chapetaVieja = formData.chapetaVieja.trim();
+
       const payload = {
-        identificacion: formData.codigo,
+        // codigo_identificacion principal: la nueva si existe, si no la vieja
+        identificacion: chapetaNueva || chapetaVieja,
+        chapetaNueva: chapetaNueva || null,
+        chapetaVieja: chapetaVieja || null,
         nombre: formData.nombre,
         sexo: formData.sexo,
-        fechaNacimiento: formData.fechaNacimiento,
+        fechaNacimiento: formData.fechaNacimiento || null,
         razaId: formData.raza,
         colorPelaje: formData.color,
         pesoNacimiento: formData.pesoNacimiento ? parseFloat(formData.pesoNacimiento) : null,
         observaciones: formData.observaciones,
         fotoUrl: fotoBase64,
         estado: formData.estado,
+        motivoEstado: formData.estado !== 'activo' ? (formData.motivoEstado || null) : null,
+        idCorral: formData.idCorral || null,
       };
 
       let resp;
@@ -326,15 +353,29 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
             {/* 1 — Identidad básica */}
             <Seccion id="identidad" titulo="Identidad básica" icono={<Tag className="w-4 h-4" />}
               color="green" abierta={seccionAbierta === 'identidad'} onToggle={() => toggle('identidad')}
-              completada={!!(formData.codigo && formData.nombre && formData.sexo && formData.raza)}
-              hayError={!!(errores.codigo || errores.nombre || errores.sexo || errores.raza)}>
+              completada={!!((formData.chapetaNueva || formData.chapetaVieja) && formData.nombre && formData.sexo && formData.raza)}
+              hayError={!!(errores.chapetas || errores.nombre || errores.sexo || errores.raza)}>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-4">
+                <p className="text-xs text-blue-700">
+                  <strong>Chapetas:</strong> registra la chapeta nueva y/o la vieja. Las cabras nuevas
+                  suelen tener solo la nueva; las viejas, solo la vieja. Debe haber <strong>al menos una</strong>.
+                </p>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className={lbl}>Código / ID <span className="text-red-500">*</span></label>
-                  <input name="codigo" value={formData.codigo} onChange={cambiar}
-                    placeholder="Ej: CAB-001"
-                    className={`${inp} ${errores.codigo ? 'border-red-300 focus:ring-red-400' : ''}`} />
-                  <ErrMsg msg={errores.codigo} />
+                  <label className={lbl}>Chapeta nueva</label>
+                  <input name="chapetaNueva" value={formData.chapetaNueva} onChange={cambiar}
+                    placeholder="Ej: CAB-2026-001"
+                    className={`${inp} ${errores.chapetas ? 'border-red-300 focus:ring-red-400' : ''}`} />
+                </div>
+                <div>
+                  <label className={lbl}>Chapeta vieja</label>
+                  <input name="chapetaVieja" value={formData.chapetaVieja} onChange={cambiar}
+                    placeholder="Ej: 045"
+                    className={`${inp} ${errores.chapetas ? 'border-red-300 focus:ring-red-400' : ''}`} />
+                </div>
+                <div className="md:col-span-2 -mt-2">
+                  <ErrMsg msg={errores.chapetas} />
                 </div>
                 <div>
                   <label className={lbl}>Nombre <span className="text-red-500">*</span></label>
@@ -371,15 +412,14 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
             {/* 2 — Fechas */}
             <Seccion id="fechas" titulo="Fechas importantes" icono={<Calendar className="w-4 h-4" />}
               color="blue" abierta={seccionAbierta === 'fechas'} onToggle={() => toggle('fechas')}
-              completada={!!formData.fechaNacimiento}
-              hayError={!!errores.fechaNacimiento}>
+              completada={!!formData.fechaNacimiento}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className={lbl}>Fecha de nacimiento <span className="text-red-500">*</span></label>
+                  <label className={lbl}>Fecha de nacimiento</label>
                   <input type="date" name="fechaNacimiento" value={formData.fechaNacimiento} onChange={cambiar}
                     max={new Date().toISOString().split('T')[0]}
-                    className={`${inp} ${errores.fechaNacimiento ? 'border-red-300 focus:ring-red-400' : ''}`} />
-                  <ErrMsg msg={errores.fechaNacimiento} />
+                    className={inp} />
+                  <p className="text-xs text-amber-600 mt-1.5">Opcional: hay cabras viejas sin fecha de nacimiento conocida.</p>
                 </div>
                 <div>
                   <label className={lbl}>Fecha de ingreso al rebaño</label>
@@ -421,6 +461,68 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
               </div>
             </Seccion>
 
+            {/* 3.5 — Ubicación: corral / lote */}
+            <Seccion id="ubicacion" titulo="Ubicación (corral / lote)" icono={<Mountain className="w-4 h-4" />}
+              color="teal" abierta={seccionAbierta === 'ubicacion'} onToggle={() => toggle('ubicacion')}
+              completada={!!formData.idCorral}>
+              <div>
+                <label className={lbl}>Corral</label>
+                <SelectPersonalizado valor={formData.idCorral}
+                  onChange={v => cambiar({ target: { name: 'idCorral', value: v } })}
+                  opciones={[
+                    { value: '', label: 'Sin asignar', icono: <CloudOff />, colorFondo: 'bg-gray-100', colorIcono: 'text-gray-500' },
+                    ...corralesDisponibles.filter(c => c.estado !== 'inactivo').map(c => ({
+                      value: c.id,
+                      label: `${c.nombre}${c.lote ? ' · ' + c.lote : ''} — ${TIPO_CORRAL_LABEL[c.tipo] || c.tipo}` +
+                        (c.capacidadMaxima ? ` (${c.ocupacion}/${c.capacidadMaxima})` : ''),
+                      icono: <Mountain />,
+                      colorFondo: c.lleno ? 'bg-red-100' : 'bg-teal-100',
+                      colorIcono: c.lleno ? 'text-red-600' : 'text-teal-600',
+                    })),
+                  ]}
+                  placeholder={corralesDisponibles.length === 0 ? 'Sin corrales registrados' : 'Seleccionar corral...'} />
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Según su peso, la cabra puede cambiar de corral. Hay corrales solo para gestantes o solo de ordeño.
+                </p>
+
+                {corralSeleccionado && (
+                  <div className="mt-3 space-y-2">
+                    <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-3 text-sm text-teal-800 grid grid-cols-2 gap-2">
+                      <div><span className="text-teal-600 text-xs">Tipo:</span> <strong>{TIPO_CORRAL_LABEL[corralSeleccionado.tipo] || corralSeleccionado.tipo}</strong></div>
+                      <div><span className="text-teal-600 text-xs">Lote:</span> <strong>{corralSeleccionado.lote || '—'}</strong></div>
+                      {corralSeleccionado.capacidadMaxima != null && (
+                        <div><span className="text-teal-600 text-xs">Ocupación:</span> <strong>{corralSeleccionado.ocupacion}/{corralSeleccionado.capacidadMaxima}</strong></div>
+                      )}
+                      {(corralSeleccionado.pesoMinKg != null || corralSeleccionado.pesoMaxKg != null) && (
+                        <div><span className="text-teal-600 text-xs">Rango peso:</span> <strong>{corralSeleccionado.pesoMinKg ?? 0}–{corralSeleccionado.pesoMaxKg ?? '∞'} kg</strong></div>
+                      )}
+                    </div>
+
+                    {corralSeleccionado.lleno && (!cabraEditar || String(cabraEditar.idCorral) !== String(formData.idCorral)) && (
+                      <p className="text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" /> Este corral está en su capacidad máxima.
+                      </p>
+                    )}
+                    {corralSeleccionado.tipo === 'machos' && formData.sexo === 'hembra' && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" /> Es un corral de machos y la cabra es hembra.
+                      </p>
+                    )}
+                    {corralSeleccionado.tipo === 'gestante' && formData.sexo === 'macho' && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" /> Es un corral de gestantes y el animal es macho.
+                      </p>
+                    )}
+                    {formData.pesoActual && corralSeleccionado.pesoMaxKg != null && parseFloat(formData.pesoActual) > corralSeleccionado.pesoMaxKg && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" /> El peso supera el máximo recomendado del corral.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Seccion>
+
             {/* 4 — Estado */}
             <Seccion id="estado" titulo="Estado del animal" icono={<Activity className="w-4 h-4" />}
               color="amber" abierta={seccionAbierta === 'estado'} onToggle={() => toggle('estado')}
@@ -432,6 +534,23 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                     onChange={v => cambiar({ target: { name: 'estado', value: v } })}
                     opciones={opcionesEstadoGeneral} placeholder="Seleccionar estado..." />
                 </div>
+                {formData.estado === 'muerto' && (
+                  <div className="md:col-span-2">
+                    <label className={lbl}>Motivo de muerte <span className="text-red-500">*</span></label>
+                    <textarea name="motivoEstado" value={formData.motivoEstado} onChange={cambiar} rows="2"
+                      placeholder="Ej: enfermedad, accidente, depredador, mortinato..."
+                      className={`${inp} resize-none ${errores.motivoEstado ? 'border-red-300 focus:ring-red-400' : ''}`} />
+                    <ErrMsg msg={errores.motivoEstado} />
+                  </div>
+                )}
+                {(formData.estado === 'vendido' || formData.estado === 'donado' || formData.estado === 'descartado') && (
+                  <div className="md:col-span-2">
+                    <label className={lbl}>Motivo / detalle</label>
+                    <textarea name="motivoEstado" value={formData.motivoEstado} onChange={cambiar} rows="2"
+                      placeholder="Detalle del cambio de estado (comprador, motivo del descarte, etc.)"
+                      className={`${inp} resize-none`} />
+                  </div>
+                )}
                 {formData.sexo === 'hembra' && (
                   <div>
                     <label className={lbl}>Estado reproductivo</label>

@@ -280,11 +280,7 @@ const Section = ({ color, icon, title, children }) => (
 );
 
 export const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar, animalPreseleccionado }) => {
-  const opcionesNumeroOrdenio = [
-    { value: '1', label: 'Primer ordeño (mañana)', icono: <Sunrise />, colorFondo: 'bg-yellow-100', colorIcono: 'text-yellow-600' },
-    { value: '2', label: 'Segundo ordeño (tarde)', icono: <Sunset />, colorFondo: 'bg-orange-100', colorIcono: 'text-orange-600' },
-    { value: '3', label: 'Tercer ordeño (noche)', icono: <Moon />, colorFondo: 'bg-indigo-100', colorIcono: 'text-indigo-600' },
-  ];
+  // En la granja solo se hace un ordeño, en la mañana.
   const opcionesCalidadLeche = [
     { value: 'excelente', label: 'Excelente', icono: <Star />, colorFondo: 'bg-green-100', colorIcono: 'text-green-600' },
     { value: 'buena', label: 'Buena', icono: <ThumbsUp />, colorFondo: 'bg-blue-100', colorIcono: 'text-blue-600' },
@@ -315,9 +311,7 @@ export const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar, an
   const [formData, setFormData] = useState({
     hembraId: registroEditar?.idAnimal || animalPreseleccionado?.id || '',
     fecha: registroEditar?.fecha || new Date().toISOString().split('T')[0],
-    numeroOrdenio: registroEditar?.numeroOrdenio || 1,
     horaOrdenio: registroEditar?.horaOrdenio || '',
-    duracionOrdenio: registroEditar?.duracionOrdenio || '',
     cantidadLitros: registroEditar?.cantidadLitros || '',
     calidadLeche: registroEditar?.calidadLeche || 'buena',
     porcentajeGrasa: registroEditar?.porcentajeGrasa || '',
@@ -360,7 +354,6 @@ export const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar, an
     if (!formData.hembraId) { setErrorGuardar('Debes seleccionar una hembra.'); return; }
     setGuardando(true);
     try {
-      const turnoMap = { '1': 'mañana', '2': 'tarde', '3': 'noche' };
       const extraObs = [
         formData.calidadLeche ? `Calidad: ${formData.calidadLeche}` : '',
         formData.porcentajeProteina ? `Proteína: ${formData.porcentajeProteina}%` : '',
@@ -378,7 +371,7 @@ export const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar, an
         idAnimal: formData.hembraId,
         fechaProduccion: formData.fecha,
         litros: parseFloat(formData.cantidadLitros),
-        turno: turnoMap[String(formData.numeroOrdenio)] || 'total_dia',
+        turno: 'mañana',
         grasaPorcentaje: formData.porcentajeGrasa ? parseFloat(formData.porcentajeGrasa) : null,
         observaciones: extraObs || null,
       };
@@ -428,19 +421,9 @@ export const FormularioProduccion = ({ registroEditar, onGuardar, onCancelar, an
                   max={new Date().toISOString().split('T')[0]} className={inp} required />
               </div>
               <div>
-                <label className={lbl}>Número de Ordeño <span className="text-red-500">*</span></label>
-                <SelectPersonalizado valor={formData.numeroOrdenio}
-                  onChange={v => manejarCambio({ target: { name: 'numeroOrdenio', value: v } })}
-                  opciones={opcionesNumeroOrdenio} placeholder="Seleccionar ordeño..." requerido />
-              </div>
-              <div>
                 <label className={lbl}>Hora de Ordeño</label>
                 <input type="time" name="horaOrdenio" value={formData.horaOrdenio} onChange={manejarCambio} className={inp} />
-              </div>
-              <div>
-                <label className={lbl}>Duración (minutos)</label>
-                <input type="number" name="duracionOrdenio" value={formData.duracionOrdenio} onChange={manejarCambio}
-                  placeholder="15" min="1" max="120" className={inp} />
+                <p className="text-xs text-gray-400 mt-1">Se registra un único ordeño en la mañana.</p>
               </div>
             </div>
           </Section>

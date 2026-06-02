@@ -5,6 +5,7 @@ import {
   RefreshCw, Users
 } from 'lucide-react';
 import { reproduccionAPI, animalesAPI } from '../servicios/caprino-api';
+import BuscadorAnimal from './SelectAnimal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const hdrs = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -333,6 +334,7 @@ export function FormMonta({ hembras, machos, onGuardar, onCancelar, animalPresel
     idMacho: '', tipoServicio: 'monta_natural',
     fechaServicio: new Date().toISOString().split('T')[0], observaciones: '',
   });
+  const [busquedaMacho, setBusquedaMacho] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError]         = useState(null);
 
@@ -372,7 +374,14 @@ export function FormMonta({ hembras, machos, onGuardar, onCancelar, animalPresel
           )}
 
           <Campo label={`Macho ${form.tipoServicio === 'monta_natural' ? '' : '(opcional)'}`} requerido={form.tipoServicio === 'monta_natural'}>
-            <SelectAnimal opciones={machos} valor={form.idMacho} onChange={v => set('idMacho', v)} placeholder="Seleccionar macho..." />
+            <BuscadorAnimal
+              animales={machos}
+              value={form.idMacho ? Number(form.idMacho) : ''}
+              onChange={v => set('idMacho', v)}
+              busqueda={busquedaMacho}
+              onBusqueda={setBusquedaMacho}
+              colorFocus="focus:ring-pink-400"
+            />
             {form.tipoServicio !== 'monta_natural' && <p className="text-xs text-gray-400 mt-1">No aplica para {labelOpt(TIPO_SERVICIO_OPTS, form.tipoServicio)}</p>}
           </Campo>
 
@@ -516,37 +525,47 @@ function FormDiagnostico({ pendientes, onGuardar, onCancelar, editando }) {
 }
 
 // ── Formulario: Registrar Parto ───────────────────────────────────────────────
+const MAX_CRIAS = 3; // En la granja el máximo registrado por parto ha sido 3
+const criaVacia = () => ({ sexo: 'hembra', vivo: true, nombre: '' });
+
 function FormParto({ gestantes, onGuardar, onCancelar, editando }) {
   const inicial = editando?.id ?? '';
   const [idReg, setIdReg]           = useState(String(inicial));
   const [fechaReal, setFechaReal]   = useState(new Date().toISOString().split('T')[0]);
-  const [tipoParto, setTipoParto]   = useState('simple');
-  const [numCrias, setNumCrias]     = useState(1);
   const [dificultad, setDificultad] = useState('normal');
-  const [resultado, setResultado]   = useState('exitoso');
+  const [crias, setCrias]           = useState([criaVacia()]);
   const [obs, setObs]               = useState('');
   const [guardando, setGuardando]   = useState(false);
   const [error, setError]           = useState(null);
 
-  // Sincronizar tipo_parto con numero_crias
-  useEffect(() => {
-    const map = { simple: 1, doble: 2, triple: 3, multiple: 4 };
-    setNumCrias(map[tipoParto] ?? 1);
-  }, [tipoParto]);
+  const setNumCrias = (n) => {
+    setCrias(prev => {
+      const arr = [...prev];
+      while (arr.length < n) arr.push(criaVacia());
+      arr.length = n;
+      return arr;
+    });
+  };
+  const actualizarCria = (i, campo, valor) =>
+    setCrias(prev => prev.map((c, idx) => idx === i ? { ...c, [campo]: valor } : c));
+
+  const vivas = crias.filter(c => c.vivo).length;
 
   const guardar = async (e) => {
     e.preventDefault();
     if (!idReg) { setError('Selecciona la hembra gestante.'); return; }
+    if (crias.length < 1 || crias.length > MAX_CRIAS) { setError(`El número de crías debe estar entre 1 y ${MAX_CRIAS}.`); return; }
     setGuardando(true);
     setError(null);
     try {
-      await reproduccionAPI.update(idReg, {
+      // El resultado del ciclo se deriva del estado de las crías
+      const resultado = vivas > 0 ? 'exitoso' : 'mortinato';
+      await reproduccionAPI.registrarParto(idReg, {
         fechaPartoReal: fechaReal,
-        tipoParto,
-        numeroCrias:    parseInt(numCrias),
         dificultadParto: dificultad,
         resultado,
-        observaciones:  obs || null,
+        observaciones: obs || null,
+        crias: crias.map(c => ({ sexo: c.sexo, vivo: c.vivo, nombre: c.nombre || null })),
       });
       onGuardar();
     } catch (e) {
@@ -585,11 +604,7 @@ function FormParto({ gestantes, onGuardar, onCancelar, editando }) {
             <div className="bg-green-50 rounded-lg p-3 text-sm text-green-800 border border-green-100">
               <p><span className="font-medium">Hembra:</span> {regSel.codigoHembra} {regSel.nombreHembra && `· ${regSel.nombreHembra}`}</p>
               <p><span className="font-medium">Servicio:</span> {fmtDate(regSel.fechaServicio)} · {labelOpt(TIPO_SERVICIO_OPTS, regSel.tipoServicio)}</p>
-              {regSel.fechaPartoEstimada && (
-                <p><span className="font-medium">Parto estimado:</span> {fmtDate(regSel.fechaPartoEstimada)}
-                  {diasHasta(regSel.fechaPartoEstimada) !== null && <span className="ml-1 text-green-600">({diasHasta(regSel.fechaPartoEstimada)}d)</span>}
-                </p>
-              )}
+              {regSel.codigoMacho && <p><span className="font-medium">Padre:</span> {regSel.codigoMacho} {regSel.nombreMacho && `· ${regSel.nombreMacho}`}</p>}
             </div>
           )}
 
@@ -598,29 +613,6 @@ function FormParto({ gestantes, onGuardar, onCancelar, editando }) {
               <input type="date" value={fechaReal} onChange={e => setFechaReal(e.target.value)}
                 max={new Date().toISOString().split('T')[0]}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
-            </Campo>
-
-            <Campo label="Resultado del parto" requerido>
-              <select value={resultado} onChange={e => setResultado(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-                <option value="exitoso">Exitoso</option>
-                <option value="aborto">Aborto</option>
-                <option value="mortinato">Mortinato</option>
-              </select>
-            </Campo>
-
-            <Campo label="Tipo de parto (nro crías)" requerido>
-              <select value={tipoParto} onChange={e => setTipoParto(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400">
-                {TIPO_PARTO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </Campo>
-
-            <Campo label="Número de crías" requerido>
-              <input type="number" value={numCrias} onChange={e => setNumCrias(e.target.value)}
-                min={1} max={5}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
-              <p className="text-xs text-gray-400 mt-1">Máximo 5 por parto</p>
             </Campo>
 
             <Campo label="Dificultad del parto">
@@ -636,6 +628,73 @@ function FormParto({ gestantes, onGuardar, onCancelar, editando }) {
                 ))}
               </div>
             </Campo>
+          </div>
+
+          {/* Número de crías */}
+          <Campo label="Número de crías" requerido>
+            <div className="flex gap-2">
+              {[1, 2, 3].map(n => (
+                <button key={n} type="button" onClick={() => setNumCrias(n)}
+                  className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all ${
+                    crias.length === n ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}>
+                  {n} {n === 1 ? 'cría' : 'crías'}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Máximo {MAX_CRIAS} crías por parto. Cada cría se registrará automáticamente como animal.</p>
+          </Campo>
+
+          {/* Estado de cada cría */}
+          <div className="space-y-3">
+            {crias.map((c, i) => (
+              <div key={i} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                <div className="flex items-center gap-2 mb-3">
+                  <Baby className="w-4 h-4 text-green-600" />
+                  <p className="text-sm font-semibold text-gray-700">Cría {i + 1}</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Sexo</label>
+                    <div className="flex gap-2">
+                      {[{ v: 'hembra', l: 'Hembra' }, { v: 'macho', l: 'Macho' }].map(o => (
+                        <button key={o.v} type="button" onClick={() => actualizarCria(i, 'sexo', o.v)}
+                          className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                            c.sexo === o.v ? (o.v === 'macho' ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-pink-400 bg-pink-50 text-pink-700') : 'border-gray-200 text-gray-600 hover:bg-white'
+                          }`}>
+                          {o.l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Estado al nacer</label>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => actualizarCria(i, 'vivo', true)}
+                        className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-colors ${c.vivo ? 'border-green-400 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:bg-white'}`}>
+                        Nació viva
+                      </button>
+                      <button type="button" onClick={() => actualizarCria(i, 'vivo', false)}
+                        className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-colors ${!c.vivo ? 'border-red-400 bg-red-50 text-red-700' : 'border-gray-200 text-gray-600 hover:bg-white'}`}>
+                        Nació muerta
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Nombre (opcional)</label>
+                    <input value={c.nombre} onChange={e => actualizarCria(i, 'nombre', e.target.value)}
+                      placeholder="Ej: Lucero"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2.5 text-xs text-blue-700">
+            Se crearán <strong>{crias.length}</strong> cría(s) automáticamente en <strong>Mis Cabras</strong>
+            {vivas < crias.length && ` (${crias.length - vivas} como muerta(s))`}, heredando la raza de la madre y su
+            genealogía. Luego solo deberás completar foto, chapeta y demás datos.
           </div>
 
           <Campo label="Observaciones del parto">

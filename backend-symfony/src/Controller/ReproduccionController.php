@@ -138,6 +138,141 @@ class ReproduccionController extends AbstractController
         return $this->json(['success' => true, 'message' => 'Reproducción registrada'], Response::HTTP_CREATED);
     }
 
+    /**
+     * Registra el parto de una hembra gestante y crea automáticamente las crías
+     * como nuevos animales (ANIMAL) con su genealogía (padre/madre del servicio).
+     * Las crías quedan registradas en "Mis cabras" para completar luego foto, chapeta, etc.
+     */
+    #[Route('/{id}/parto', name: 'api_reproduccion_parto', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function registrarParto(int $id, Request $request): JsonResponse
+    {
+        $data        = json_decode($request->getContent(), true) ?? [];
+        $fechaReal   = $data['fechaPartoReal'] ?? date('Y-m-d');
+        $dificultad  = $data['dificultadParto'] ?? 'normal';
+        $resultado   = $data['resultado'] ?? 'exitoso';
+        $obs         = $data['observaciones'] ?? null;
+        $crias       = is_array($data['crias'] ?? null) ? $data['crias'] : [];
+
+        $dificultadesValidas = ['normal', 'asistido', 'distocico', 'cesarea'];
+        if (!in_array($dificultad, $dificultadesValidas, true)) $dificultad = 'normal';
+        $resultadosValidos = ['exitoso', 'aborto', 'mortinato', 'pendiente'];
+        if (!in_array($resultado, $resultadosValidos, true)) $resultado = 'exitoso';
+
+        $numCrias = count($crias);
+        if ($numCrias < 1 || $numCrias > 3) {
+            return $this->json(['error' => 'El número de crías debe estar entre 1 y 3.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $repro = $this->connection->fetchAssociative(
+            'SELECT * FROM REPRODUCCION WHERE id_reproduccion = :id',
+            ['id' => $id]
+        );
+        if (!$repro) {
+            return $this->json(['error' => 'Registro reproductivo no encontrado'], Response::HTTP_NOT_FOUND);
+        }
+
+        $idHembra = (int) $repro['ID_HEMBRA'];
+        $idMacho  = $repro['ID_MACHO'] !== null ? (int) $repro['ID_MACHO'] : null;
+
+        // Raza heredada de la madre (las crías nacen de la madre del servicio)
+        $idRazaMadre = (int) $this->connection->fetchOne(
+            'SELECT id_raza FROM ANIMAL WHERE id_animal = :id', ['id' => $idHembra]
+        );
+
+        $tipoPartoMap = [1 => 'simple', 2 => 'doble', 3 => 'triple'];
+        $tipoParto = $tipoPartoMap[$numCrias] ?? 'multiple';
+
+        $user = $this->getUser();
+        $uReg = $user instanceof User ? $user->getId() : 1;
+
+        $criasCreadas = [];
+
+        $this->connection->beginTransaction();
+        try {
+            // 1. Actualizar el registro reproductivo (el parto)
+            $this->connection->executeStatement(
+                "UPDATE REPRODUCCION SET
+                    fecha_parto_real = TO_DATE(:fr, 'YYYY-MM-DD'),
+                    numero_crias     = :nc,
+                    tipo_parto       = :tp,
+                    dificultad_parto = :dif,
+                    resultado        = :res,
+                    observaciones    = NVL(:obs, observaciones)
+                  WHERE id_reproduccion = :id",
+                [
+                    'fr' => $fechaReal, 'nc' => $numCrias, 'tp' => $tipoParto,
+                    'dif' => $dificultad, 'res' => $resultado, 'obs' => $obs, 'id' => $id,
+                ]
+            );
+
+            // 2. Crear cada cría como ANIMAL + GENEALOGIA
+            $n = 0;
+            foreach ($crias as $cria) {
+                $n++;
+                $sexo = ($cria['sexo'] ?? 'hembra') === 'macho' ? 'macho' : 'hembra';
+                $vivo = (bool) ($cria['vivo'] ?? true);
+                $nombre = trim($cria['nombre'] ?? '') ?: null;
+                // Código provisional único; el usuario asignará la chapeta real luego
+                $codigo = 'CRIA-' . $id . '-' . $n;
+                $estadoCria = $vivo ? 'activo' : 'muerto';
+                $motivoCria = $vivo ? null : 'Cría nacida muerta (mortinato)';
+
+                $this->connection->executeStatement(
+                    "INSERT INTO ANIMAL
+                        (codigo_identificacion, nombre, fecha_nacimiento, sexo, id_raza,
+                         estado, motivo_estado, fecha_cambio_estado, id_reproduccion_origen, usuario_registro)
+                     VALUES
+                        (:cod, :nom, TO_DATE(:fn, 'YYYY-MM-DD'), :sexo, :raza,
+                         :est, :mot, " . ($vivo ? 'NULL' : 'CURRENT_TIMESTAMP') . ", :repro, :ureg)",
+                    [
+                        'cod' => $codigo, 'nom' => $nombre, 'fn' => $fechaReal, 'sexo' => $sexo,
+                        'raza' => $idRazaMadre, 'est' => $estadoCria, 'mot' => $motivoCria,
+                        'repro' => $id, 'ureg' => $uReg,
+                    ]
+                );
+
+                $idCria = (int) $this->connection->fetchOne(
+                    'SELECT id_animal FROM ANIMAL WHERE codigo_identificacion = :c', ['c' => $codigo]
+                );
+
+                // Genealogía: padre = macho del servicio (si hubo), madre = hembra del servicio
+                $this->connection->executeStatement(
+                    "INSERT INTO GENEALOGIA (id_animal, id_padre, id_madre)
+                     VALUES (:a, :p, :m)",
+                    ['a' => $idCria, 'p' => $idMacho, 'm' => $idHembra]
+                );
+
+                $criasCreadas[] = ['id' => $idCria, 'codigo' => $codigo, 'sexo' => $sexo, 'vivo' => $vivo];
+            }
+
+            $this->connection->commit();
+        } catch (\Throwable $e) {
+            $this->connection->rollBack();
+            $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+            preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $mm);
+            return $this->json(
+                ['error' => 'No se pudo registrar el parto: ' . trim($mm[1] ?? $msg)],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            );
+        }
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'REPRODUCCION',
+                operacion: 'ACTUALIZAR',
+                idRegistro: $id,
+                descripcion: "Registro de parto ({$numCrias} cría(s)) y alta automática de crías para hembra ID {$idHembra}",
+                datosNuevos: ['fechaPartoReal' => $fechaReal, 'numeroCrias' => $numCrias, 'crias' => $criasCreadas],
+            );
+        } catch (\Throwable) {}
+
+        return $this->json([
+            'success' => true,
+            'message' => "Parto registrado. Se crearon {$numCrias} cría(s) automáticamente.",
+            'crias'   => $criasCreadas,
+        ], Response::HTTP_CREATED);
+    }
+
     #[Route('/{id}', name: 'api_reproduccion_update', methods: ['PUT'], requirements: ['id' => '\d+'])]
     public function update(int $id, Request $request): JsonResponse
     {

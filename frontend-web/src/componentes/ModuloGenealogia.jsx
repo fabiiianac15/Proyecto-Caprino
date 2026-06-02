@@ -3,7 +3,8 @@ import {
   GitBranch, Search, User, Heart, X, Plus, ChevronLeft,
   AlertTriangle, CheckCircle2, XCircle, Loader2, RefreshCw,
   Scale, Link2, Shield, Dna, Activity, Baby, Users, Zap,
-  Brain, TrendingUp, TrendingDown, Minus, Info, ChevronDown, ChevronUp,
+  Brain, TrendingUp, Info, ChevronDown, ChevronUp,
+  Sparkles, RotateCcw,
 } from 'lucide-react';
 import { apiHelpers } from '../servicios/api';
 
@@ -258,14 +259,45 @@ const NodoVacio = ({ rol, onVincular }) => {
   );
 };
 
-// ── Líneas conectoras ────────────────────────────────────────────────────────
-const LineaV = ({ color = 'bg-gray-200' }) => (
-  <div className={`w-0.5 h-8 ${color} mx-auto`} />
+// ── Conectores del árbol horizontal ──────────────────────────────────────────
+// Tramo horizontal corto que sale del progenitor hacia el "tronco" de sus padres.
+const TroncoH = ({ color = 'bg-gray-300' }) => (
+  <div className={`h-0.5 w-8 ${color} shrink-0`} />
 );
-const LineaH = ({ color = 'bg-gray-200', children }) => (
-  <div className="relative flex items-center justify-around">
-    <div className={`absolute top-0 left-1/4 right-1/4 h-0.5 ${color}`} />
-    {children}
+
+// Agrupa dos (o más) ramas y dibuja el corchete vertical que las une al
+// progenitor. Cada hija se centra verticalmente en su fila y de ahí sale una
+// línea horizontal hasta el tronco vertical compartido.
+const Corchete = ({ hijas, color = 'bg-gray-300' }) => (
+  <div className="flex flex-col">
+    {hijas.map((hija, i) => {
+      const sola   = hijas.length === 1;
+      const arriba = i === 0;
+      const abajo  = i === hijas.length - 1;
+      // El tronco vertical sólo cubre la mitad interior de la fila extrema,
+      // de modo que ambas mitades se encuentran en el centro del bloque.
+      const troncoPos = sola ? '' : arriba ? 'top-1/2 bottom-0' : abajo ? 'top-0 bottom-1/2' : 'top-0 bottom-0';
+      return (
+        <div key={i} className="relative flex items-center pl-8 py-2.5">
+          {!sola && <div className={`absolute left-0 w-0.5 ${color} ${troncoPos}`} />}
+          <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-0.5 w-8 ${color}`} />
+          {hija}
+        </div>
+      );
+    })}
+  </div>
+);
+
+// Nodo del árbol: tarjeta del progenitor + (opcionalmente) sus ramas a la derecha.
+const RamaHorizontal = ({ tarjeta, hijas }) => (
+  <div className="flex items-center">
+    {tarjeta}
+    {hijas && hijas.length > 0 && (
+      <>
+        <TroncoH />
+        <Corchete hijas={hijas} />
+      </>
+    )}
   </div>
 );
 
@@ -494,7 +526,7 @@ const SelectorAnimal = ({ allAnimals, cargando, onSeleccionar }) => {
 };
 
 // ── Vista: Árbol genealógico ─────────────────────────────────────────────────
-const VistaArbol = ({ arbol, allAnimals, cargando, onVolver, onComparar, onActualizar, animalBase }) => {
+const VistaArbol = ({ arbol, allAnimals, cargando, onVolver, onComparar, onRankear, onActualizar, animalBase }) => {
   const [modal, setModal] = useState(null); // { tipo: 'padre'|'madre'|'abuelo_pp'|..., targetId }
   const [guardando, setGuardando] = useState(false);
 
@@ -589,6 +621,10 @@ const VistaArbol = ({ arbol, allAnimals, cargando, onVolver, onComparar, onActua
               className="px-3 py-2 border border-gray-200 text-gray-600 text-sm rounded-xl hover:bg-gray-50 transition-colors flex items-center gap-1.5">
               <RefreshCw className="w-4 h-4" /> Actualizar
             </button>
+            <button onClick={onRankear}
+              className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-xl hover:bg-violet-700 transition-colors flex items-center gap-1.5 shadow-sm">
+              <TrendingUp className="w-4 h-4" /> Buscar mejor cruce
+            </button>
             <button onClick={onComparar}
               className="px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 transition-colors flex items-center gap-1.5 shadow-sm">
               <Scale className="w-4 h-4" /> Comparar compatibilidad
@@ -606,8 +642,13 @@ const VistaArbol = ({ arbol, allAnimals, cargando, onVolver, onComparar, onActua
             <span className="text-xs text-gray-500">{e.label}</span>
           </div>
         ))}
-        <span className="ml-auto text-xs text-gray-400 flex items-center gap-1">
-          <Link2 className="w-3 h-3" /> Haz clic en los botones vacíos para vincular un progenitor
+        <span className="ml-auto text-xs text-gray-400 flex items-center gap-3">
+          <span className="flex items-center gap-1">
+            <GitBranch className="w-3 h-3 rotate-90" /> Padre arriba · Madre abajo · el linaje crece hacia la derecha
+          </span>
+          <span className="hidden lg:flex items-center gap-1 border-l border-gray-200 pl-3">
+            <Link2 className="w-3 h-3" /> Clic en los recuadros vacíos para vincular
+          </span>
         </span>
       </div>
 
@@ -620,96 +661,54 @@ const VistaArbol = ({ arbol, allAnimals, cargando, onVolver, onComparar, onActua
         )}
 
         {arbol ? (
-          <div className="min-w-[700px]">
-            {/* Generación 0: Animal principal */}
-            <div className="flex justify-center mb-2">
-              <NodoCard nodo={arbol} rol="principal"
-                onVincularPadre={() => setModal({ tipo: 'padre', targetId: arbol.id })}
-                onVincularMadre={() => setModal({ tipo: 'madre', targetId: arbol.id })}
-                onDesvincularPadre={() => desvincular('padre')}
-                onDesvincularMadre={() => desvincular('madre')} />
-            </div>
+          (() => {
+            // ── Generación 2: abuelos (tarjetas compactas u opción de vincular) ──
+            const abueloPP = arbol.padre?.padre
+              ? <NodoCard nodo={arbol.padre.padre} rol="abuelo_pp" compact />
+              : <NodoVacio rol="abuelo_pp" onVincular={() => setModal({ tipo: 'abuelo_pp', targetId: arbol.idPadre })} />;
+            const abuelaPP = arbol.padre?.madre
+              ? <NodoCard nodo={arbol.padre.madre} rol="abuela_pp" compact />
+              : <NodoVacio rol="abuela_pp" onVincular={() => setModal({ tipo: 'abuela_pp', targetId: arbol.idPadre })} />;
+            const abueloMM = arbol.madre?.padre
+              ? <NodoCard nodo={arbol.madre.padre} rol="abuelo_mm" compact />
+              : <NodoVacio rol="abuelo_mm" onVincular={() => setModal({ tipo: 'abuelo_mm', targetId: arbol.idMadre })} />;
+            const abuelaMM = arbol.madre?.madre
+              ? <NodoCard nodo={arbol.madre.madre} rol="abuela_mm" compact />
+              : <NodoVacio rol="abuela_mm" onVincular={() => setModal({ tipo: 'abuela_mm', targetId: arbol.idMadre })} />;
 
-            {/* Conector gen 0 → 1 */}
-            {(arbol.padre || arbol.madre || !arbol.idPadre || !arbol.idMadre) && (
-              <div className="relative flex justify-center mb-2">
-                <div className="w-0.5 h-8 bg-gray-200 mx-auto" />
-              </div>
-            )}
+            // ── Generación 1: rama del PADRE (arriba) y de la MADRE (abajo) ──
+            const ramaPadre = arbol.padre
+              ? <RamaHorizontal
+                  tarjeta={<NodoCard nodo={arbol.padre} rol="padre" />}
+                  hijas={arbol.idPadre ? [abueloPP, abuelaPP] : null} />
+              : <NodoVacio rol="padre" onVincular={() => setModal({ tipo: 'padre', targetId: arbol.id })} />;
 
-            {/* Generación 1: Padre y Madre */}
-            <div className="flex justify-center gap-16 mb-2 relative">
-              {/* Línea horizontal entre gen 0 y gen 1 */}
-              <div className="absolute top-0 left-1/4 right-1/4 h-0.5 bg-gray-200" />
-              <div className="flex flex-col items-center">
-                <div className="w-0.5 h-0 bg-gray-200" />
-                {arbol.padre
-                  ? <NodoCard nodo={arbol.padre} rol="padre"
-                      onVincularPadre={arbol.idPadre ? () => setModal({ tipo: 'abuelo_pp', targetId: arbol.idPadre }) : null}
-                      onVincularMadre={arbol.idPadre ? () => setModal({ tipo: 'abuela_pp', targetId: arbol.idPadre }) : null} />
-                  : <NodoVacio rol="padre" onVincular={() => setModal({ tipo: 'padre', targetId: arbol.id })} />
-                }
-              </div>
-              <div className="flex flex-col items-center">
-                {arbol.madre
-                  ? <NodoCard nodo={arbol.madre} rol="madre"
-                      onVincularPadre={arbol.idMadre ? () => setModal({ tipo: 'abuelo_mm', targetId: arbol.idMadre }) : null}
-                      onVincularMadre={arbol.idMadre ? () => setModal({ tipo: 'abuela_mm', targetId: arbol.idMadre }) : null} />
-                  : <NodoVacio rol="madre" onVincular={() => setModal({ tipo: 'madre', targetId: arbol.id })} />
-                }
-              </div>
-            </div>
+            const ramaMadre = arbol.madre
+              ? <RamaHorizontal
+                  tarjeta={<NodoCard nodo={arbol.madre} rol="madre" />}
+                  hijas={arbol.idMadre ? [abueloMM, abuelaMM] : null} />
+              : <NodoVacio rol="madre" onVincular={() => setModal({ tipo: 'madre', targetId: arbol.id })} />;
 
-            {/* Conectores gen 1 → 2 */}
-            <div className="flex justify-center gap-16 mb-2">
-              {[arbol.padre, arbol.madre].map((_, i) => (
-                <div key={i} className="flex justify-center" style={{ minWidth: '160px' }}>
-                  <div className="w-0.5 h-8 bg-gray-200" />
-                </div>
-              ))}
-            </div>
-
-            {/* Generación 2: Abuelos */}
-            <div className="flex justify-center">
-              <div className="flex gap-6">
-                {/* Abuelos paternos */}
-                <div className="flex gap-4 border-r border-dashed border-gray-200 pr-6">
-                  {arbol.padre?.padre
-                    ? <NodoCard nodo={arbol.padre.padre} rol="abuelo_pp" compact />
-                    : arbol.idPadre
-                      ? <NodoVacio rol="abuelo_pp" onVincular={() => setModal({ tipo: 'abuelo_pp', targetId: arbol.idPadre })} />
-                      : null
+            // ── Generación 0: animal principal, raíz a la izquierda ──
+            return (
+              <div className="flex justify-start py-4 min-w-max">
+                <RamaHorizontal
+                  tarjeta={
+                    <NodoCard nodo={arbol} rol="principal"
+                      onVincularPadre={() => setModal({ tipo: 'padre', targetId: arbol.id })}
+                      onVincularMadre={() => setModal({ tipo: 'madre', targetId: arbol.id })}
+                      onDesvincularPadre={() => desvincular('padre')}
+                      onDesvincularMadre={() => desvincular('madre')} />
                   }
-                  {arbol.padre?.madre
-                    ? <NodoCard nodo={arbol.padre.madre} rol="abuela_pp" compact />
-                    : arbol.idPadre
-                      ? <NodoVacio rol="abuela_pp" onVincular={() => setModal({ tipo: 'abuela_pp', targetId: arbol.idPadre })} />
-                      : null
-                  }
-                </div>
-                {/* Abuelos maternos */}
-                <div className="flex gap-4 pl-2">
-                  {arbol.madre?.padre
-                    ? <NodoCard nodo={arbol.madre.padre} rol="abuelo_mm" compact />
-                    : arbol.idMadre
-                      ? <NodoVacio rol="abuelo_mm" onVincular={() => setModal({ tipo: 'abuelo_mm', targetId: arbol.idMadre })} />
-                      : null
-                  }
-                  {arbol.madre?.madre
-                    ? <NodoCard nodo={arbol.madre.madre} rol="abuela_mm" compact />
-                    : arbol.idMadre
-                      ? <NodoVacio rol="abuela_mm" onVincular={() => setModal({ tipo: 'abuela_mm', targetId: arbol.idMadre })} />
-                      : null
-                  }
-                </div>
+                  hijas={[ramaPadre, ramaMadre]} />
               </div>
-            </div>
-          </div>
+            );
+          })()
         ) : (
           <div className="text-center py-12 text-gray-400">
             <GitBranch className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p className="text-sm">No se encontraron datos genealógicos para este animal.</p>
-            <p className="text-xs mt-1">Usa los botones de abajo para vincular progenitores.</p>
+            <p className="text-xs mt-1">Usa los recuadros para vincular progenitores.</p>
           </div>
         )}
       </div>
@@ -735,13 +734,110 @@ const CONFIG_CLASIFICACION = {
   'Precaución':               { color: 'text-amber-700',   bg: 'bg-amber-50',    border: 'border-amber-300',   barra: '#f59e0b', icon: 'warning' },
   'No recomendado':           { color: 'text-red-700',     bg: 'bg-red-50',      border: 'border-red-300',     barra: '#ef4444', icon: 'x'       },
   'Insuficiente información': { color: 'text-gray-600',    bg: 'bg-gray-50',     border: 'border-gray-300',    barra: '#9ca3af', icon: 'info'    },
+  'Datos insuficientes':      { color: 'text-gray-600',    bg: 'bg-gray-50',     border: 'border-gray-300',    barra: '#9ca3af', icon: 'info'    },
 };
 
-const IconoImpacto = ({ impacto }) => {
-  if (impacto === 'positivo') return <TrendingUp  className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
-  if (impacto === 'negativo') return <TrendingDown className="w-3.5 h-3.5 text-red-500    shrink-0" />;
-  return                             <Minus        className="w-3.5 h-3.5 text-gray-400   shrink-0" />;
+// Color de cada dimensión según si es de calidad (alto=bueno) o de riesgo (alto=malo)
+const DIMS_RIESGO = new Set(['consanguinidad', 'riesgo_hereditario', 'riesgo_enfermedades']);
+const ICONO_DIM = {
+  compatibilidad_genetica: Dna,
+  consanguinidad: Link2,
+  riesgo_hereditario: Dna,
+  parto_exitoso: Baby,
+  calidad_leche: Activity,
+  fertilidad: Heart,
+  riesgo_enfermedades: Shield,
+  capacidad_reproductiva: Activity,
 };
+const colorScoreDim = (score) =>
+  score >= 72 ? 'text-emerald-600' : score >= 50 ? 'text-amber-600' : 'text-red-500';
+const colorBarraDim = (score) =>
+  score >= 72 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+const colorConfianza = (c) =>
+  c === 'alta' ? 'bg-emerald-100 text-emerald-700'
+  : c === 'media' ? 'bg-amber-100 text-amber-700'
+  : 'bg-gray-200 text-gray-500';
+
+// ── Render de markdown ligero (negritas, títulos ##, citas >) ─────────────────
+const renderInline = (texto) =>
+  texto.split(/(\*\*[^*]+\*\*)/g).map((parte, i) =>
+    parte.startsWith('**') && parte.endsWith('**')
+      ? <strong key={i} className="font-semibold text-gray-800">{parte.slice(2, -2)}</strong>
+      : <React.Fragment key={i}>{parte}</React.Fragment>
+  );
+
+const MarkdownLigero = ({ texto }) => {
+  const lineas = texto.split('\n');
+  return (
+    <div className="space-y-2">
+      {lineas.map((linea, i) => {
+        const l = linea.trimEnd();
+        if (!l.trim()) return <div key={i} className="h-1" />;
+        if (l.trim().startsWith('```')) return null;   // ignora cercas de código
+        if (l.startsWith('## ') || l.startsWith('### ')) {
+          const txt = l.replace(/^#+\s/, '');
+          return (
+            <h4 key={i} className="text-sm font-bold text-teal-700 mt-3 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" /> {renderInline(txt)}
+            </h4>
+          );
+        }
+        if (l.startsWith('> ')) {
+          return (
+            <p key={i} className="text-xs text-amber-700 bg-amber-50 border-l-2 border-amber-300 pl-3 py-1.5 rounded-r">
+              {renderInline(l.replace(/^>\s*/, ''))}
+            </p>
+          );
+        }
+        if (l.startsWith('- ')) {
+          return (
+            <p key={i} className="text-sm text-gray-600 leading-relaxed pl-3">• {renderInline(l.slice(2))}</p>
+          );
+        }
+        return <p key={i} className="text-sm text-gray-600 leading-relaxed">{renderInline(l)}</p>;
+      })}
+    </div>
+  );
+};
+
+// ── Panel del análisis generado por IA ────────────────────────────────────────
+const AnalisisIA = ({ texto, cargando, error, onRegenerar }) => (
+  <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50/70 to-white p-6 shadow-sm">
+    <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+          <Sparkles className={`w-5 h-5 text-violet-600 ${cargando ? 'animate-pulse' : ''}`} />
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-violet-800">Análisis del asistente de IA</h3>
+          <p className="text-[10px] text-gray-400">Interpretación en lenguaje natural · IA generativa local</p>
+        </div>
+      </div>
+      {!cargando && (texto || error) && (
+        <button onClick={onRegenerar}
+          className="flex items-center gap-1 text-[11px] text-violet-600 hover:text-violet-800 transition-colors">
+          <RotateCcw className="w-3 h-3" /> Regenerar
+        </button>
+      )}
+    </div>
+
+    {error && !texto && (
+      <p className="text-xs text-red-600 bg-red-50 rounded-lg p-3">{error}</p>
+    )}
+
+    {texto
+      ? <MarkdownLigero texto={texto} />
+      : cargando && (
+        <div className="flex items-center gap-2 text-xs text-violet-500">
+          <Loader2 className="w-4 h-4 animate-spin" /> Redactando análisis a partir del resultado del modelo…
+        </div>
+      )}
+
+    {cargando && texto && (
+      <span className="inline-block w-2 h-4 bg-violet-400 ml-0.5 animate-pulse align-middle" />
+    )}
+  </div>
+);
 
 // ── Vista: Comparar compatibilidad ───────────────────────────────────────────
 const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
@@ -749,10 +845,12 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
   const [arbol2,     setArbol2]     = useState(null);
   const [cargando2,  setCargando2]  = useState(false);
   const [mlCargando, setMlCargando] = useState(false);
-  const [mlResultado,setMlResultado]= useState(null);  // { resultado, features } | null
+  const [mlResultado,setMlResultado]= useState(null);  // { animales, evaluacion } | { aviso } | null
   const [mlError,    setMlError]    = useState(null);
   const [busqueda,   setBusqueda]   = useState('');
-  const [mostrarFeatures, setMostrarFeatures] = useState(false);
+  const [iaTexto,    setIaTexto]    = useState('');
+  const [iaCargando, setIaCargando] = useState(false);
+  const [iaError,    setIaError]    = useState(null);
 
   // Ancestros comunes para resaltar en el mini-árbol (calculados localmente)
   const ancestrosComunes = (() => {
@@ -767,6 +865,8 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
     setCargando2(true);
     setMlResultado(null);
     setMlError(null);
+    setIaTexto('');
+    setIaError(null);
     try {
       const tree = await buildTree(a.id, allAnimals);
       setArbol2(tree);
@@ -775,26 +875,31 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
     }
   };
 
+  // ── Paso 2: análisis narrativo generado por la IA local (streaming) ───────
+  const generarAnalisisIA = useCallback(async (idMacho, idHembra) => {
+    setIaTexto('');
+    setIaError(null);
+    setIaCargando(true);
+    try {
+      await apiHelpers.postStream(
+        '/genealogia/analisis-ia',
+        { idMacho, idHembra, fechaReferencia: new Date().toISOString().split('T')[0] },
+        (full) => setIaTexto(full),
+      );
+    } catch (err) {
+      setIaError(err?.message || 'No se pudo generar el análisis con IA.');
+    } finally {
+      setIaCargando(false);
+    }
+  }, []);
+
   // Llamar al endpoint ML cuando tengamos los dos animales
   const evaluarML = useCallback(async () => {
     if (!animal1 || !animal2) return;
 
     // Validación previa local: mismo sexo
     if (animal1.sexo && animal2.sexo && animal1.sexo === animal2.sexo) {
-      setMlResultado({
-        features: null,
-        resultado: {
-          scoreCompatibilidad: 0,
-          clasificacion: 'No recomendado',
-          confidence: 1,
-          predicciones: { probPartoExitoso: 0 },
-          explicacion: {
-            topFactores: [],
-            mensaje: 'Ambos animales son del mismo sexo. La reproducción no es posible.',
-          },
-          metadata: { modelVersion: 'pre-check' },
-        },
-      });
+      setMlResultado({ aviso: 'Ambos animales son del mismo sexo. La reproducción no es posible.' });
       return;
     }
 
@@ -803,6 +908,8 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
 
     setMlCargando(true);
     setMlError(null);
+    setIaTexto('');
+    setIaError(null);
     try {
       const res = await apiHelpers.post('/genealogia/compatibilidad', {
         idMacho,
@@ -810,13 +917,22 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
         fechaReferencia: new Date().toISOString().split('T')[0],
       });
       setMlResultado(res);
+      // Paso 2: la IA interpreta el resultado del modelo (en streaming).
+      generarAnalisisIA(idMacho, idHembra);
     } catch (err) {
       const msg = err?.response?.data?.error || err?.response?.data?.detalle || 'No se pudo conectar con el servicio de IA.';
       setMlError(msg);
     } finally {
       setMlCargando(false);
     }
-  }, [animal1, animal2]);
+  }, [animal1, animal2, generarAnalisisIA]);
+
+  const regenerarIA = useCallback(() => {
+    if (!animal1 || !animal2) return;
+    const idMacho  = animal1.sexo === 'macho'  ? animal1.id : animal2.id;
+    const idHembra = animal1.sexo === 'hembra' ? animal1.id : animal2.id;
+    generarAnalisisIA(idMacho, idHembra);
+  }, [animal1, animal2, generarAnalisisIA]);
 
   const candidatos = allAnimals.filter(a => {
     if (String(a.id) === String(animal1.id)) return false;
@@ -850,168 +966,132 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
     return (
       <div>
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3 text-center">{titulo}</p>
-        <div className="flex flex-col items-center gap-1">
-          <NodoMini nodo={arbol} rol="principal" />
-          <div className="flex gap-8">
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-0.5 h-4 bg-gray-200" />
-              <NodoMini nodo={arbol.padre} rol="padre" />
-              <div className="flex gap-2">
-                <div className="flex flex-col items-center gap-1">
-                  <div className="w-0.5 h-3 bg-gray-200" />
-                  <NodoMini nodo={arbol.padre?.padre} rol="abuelo_pp" />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <div className="w-0.5 h-3 bg-gray-200" />
-                  <NodoMini nodo={arbol.padre?.madre} rol="abuela_pp" />
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-0.5 h-4 bg-gray-200" />
-              <NodoMini nodo={arbol.madre} rol="madre" />
-              <div className="flex gap-2">
-                <div className="flex flex-col items-center gap-1">
-                  <div className="w-0.5 h-3 bg-gray-200" />
-                  <NodoMini nodo={arbol.madre?.padre} rol="abuelo_mm" />
-                </div>
-                <div className="flex flex-col items-center gap-1">
-                  <div className="w-0.5 h-3 bg-gray-200" />
-                  <NodoMini nodo={arbol.madre?.madre} rol="abuela_mm" />
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="flex justify-center overflow-x-auto py-2">
+          <RamaHorizontal
+            tarjeta={<NodoMini nodo={arbol} rol="principal" />}
+            hijas={[
+              <RamaHorizontal
+                tarjeta={<NodoMini nodo={arbol.padre} rol="padre" />}
+                hijas={[
+                  <NodoMini nodo={arbol.padre?.padre} rol="abuelo_pp" />,
+                  <NodoMini nodo={arbol.padre?.madre} rol="abuela_pp" />,
+                ]} />,
+              <RamaHorizontal
+                tarjeta={<NodoMini nodo={arbol.madre} rol="madre" />}
+                hijas={[
+                  <NodoMini nodo={arbol.madre?.padre} rol="abuelo_mm" />,
+                  <NodoMini nodo={arbol.madre?.madre} rol="abuela_mm" />,
+                ]} />,
+            ]} />
         </div>
       </div>
     );
   };
 
-  // ── Render del resultado ML ───────────────────────────────────────────────
-  const ResultadoML = ({ resultado, features }) => {
-    const clasificacion = resultado?.clasificacion ?? 'Insuficiente información';
-    const cfg = CONFIG_CLASIFICACION[clasificacion] ?? CONFIG_CLASIFICACION['Insuficiente información'];
-    const score = resultado?.scoreCompatibilidad ?? 0;
-    const esInsuficiente = clasificacion === 'Insuficiente información';
-    const topFactores = resultado?.explicacion?.topFactores ?? [];
-    const mensaje = resultado?.explicacion?.mensaje ?? '';
-    const probExito = resultado?.predicciones?.probPartoExitoso ?? null;
-    const confidence = resultado?.confidence ?? null;
-    const meta = resultado?.metadata ?? {};
+  // ── Tarjeta de una dimensión (con su evidencia: la "defensa" del dato) ─────
+  const DimensionCard = ({ dim }) => {
+    const [abierto, setAbierto] = useState(false);
+    const esRiesgo = DIMS_RIESGO.has(dim.id);
+    const Icono = ICONO_DIM[dim.id] || Activity;
+    return (
+      <div className="bg-white/70 rounded-xl border border-gray-100 p-3">
+        <div className="flex items-center gap-2">
+          <Icono className={`w-4 h-4 ${colorScoreDim(dim.score)} shrink-0`} />
+          <span className="flex-1 text-xs font-semibold text-gray-700">{dim.titulo}</span>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${colorConfianza(dim.confianza)}`}>
+            {dim.confianza === 'sin_datos' ? 'sin datos' : `conf. ${dim.confianza}`}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 mt-2">
+          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${dim.score}%`, background: colorBarraDim(dim.score) }} />
+          </div>
+          <span className={`text-sm font-bold ${colorScoreDim(dim.score)} tabular-nums w-9 text-right`}>{dim.score}</span>
+        </div>
+        <div className="flex items-center justify-between mt-1.5">
+          <span className="text-[11px] text-gray-500">
+            {dim.valor} · <span className="font-medium">{esRiesgo ? `riesgo ${dim.nivel}` : `nivel ${dim.nivel}`}</span>
+          </span>
+          {dim.evidencia?.length > 0 && (
+            <button onClick={() => setAbierto(v => !v)}
+              className="text-[10px] text-teal-600 hover:text-teal-800 flex items-center gap-0.5">
+              {abierto ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {abierto ? 'Ocultar evidencia' : 'Ver en qué se basa'}
+            </button>
+          )}
+        </div>
+        {abierto && dim.evidencia?.length > 0 && (
+          <ul className="mt-2 space-y-1 border-t border-gray-100 pt-2">
+            {dim.evidencia.map((e, i) => (
+              <li key={i} className="text-[11px] text-gray-500 flex gap-1.5">
+                <span className="text-teal-400 shrink-0">•</span>{e}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  };
+
+  // ── Render del resultado: evaluación multidimensional fundamentada ─────────
+  const ResultadoML = ({ evaluacion }) => {
+    const clasificacion = evaluacion?.clasificacion ?? 'Datos insuficientes';
+    const cfg = CONFIG_CLASIFICACION[clasificacion] ?? CONFIG_CLASIFICACION['Datos insuficientes'];
+    const score = evaluacion?.scoreGlobal ?? 0;
+    const confianza = evaluacion?.confianzaGlobal ?? 'baja';
+    const dims = evaluacion?.dimensiones ?? [];
 
     return (
       <div className={`rounded-2xl border-2 ${cfg.border} ${cfg.bg} p-6 shadow-sm`}>
-        {/* Cabecera: veredicto + score */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+        {/* Cabecera: veredicto + score global */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-8 h-8 rounded-lg bg-white/60 flex items-center justify-center">
-                <Brain className={`w-5 h-5 ${cfg.color}`} />
-              </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Score ML</span>
-            </div>
-            <div className="flex items-baseline gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Evaluación del cruce</span>
+            <div className="flex items-baseline gap-2 mt-1">
               {cfg.icon === 'ok'      && <CheckCircle2  className={`w-6 h-6 ${cfg.color} shrink-0`} />}
-              {cfg.icon === 'warning' && <AlertTriangle  className={`w-6 h-6 ${cfg.color} shrink-0`} />}
-              {cfg.icon === 'x'       && <XCircle        className={`w-6 h-6 ${cfg.color} shrink-0`} />}
-              {cfg.icon === 'info'    && <Info            className={`w-6 h-6 ${cfg.color} shrink-0`} />}
+              {cfg.icon === 'warning' && <AlertTriangle className={`w-6 h-6 ${cfg.color} shrink-0`} />}
+              {cfg.icon === 'x'       && <XCircle       className={`w-6 h-6 ${cfg.color} shrink-0`} />}
+              {cfg.icon === 'info'    && <Info          className={`w-6 h-6 ${cfg.color} shrink-0`} />}
               <h3 className={`text-xl font-bold ${cfg.color}`}>{clasificacion}</h3>
             </div>
-            <p className="text-sm text-gray-600 mt-1 leading-relaxed">{mensaje}</p>
+            <p className="text-sm text-gray-600 mt-1 leading-relaxed">{evaluacion?.recomendacionVeterinaria}</p>
           </div>
-
-          {!esInsuficiente && (
-            <div className="text-center shrink-0">
-              <div className={`text-5xl font-black ${cfg.color}`}>{score}</div>
-              <div className="text-xs text-gray-400 font-medium">/ 100</div>
-            </div>
-          )}
+          <div className="text-center shrink-0">
+            <div className={`text-5xl font-black ${cfg.color}`}>{score}</div>
+            <div className="text-xs text-gray-400 font-medium">/ 100</div>
+            <span className={`mt-1 inline-block text-[9px] font-bold px-2 py-0.5 rounded-full ${colorConfianza(confianza)}`}>
+              confianza {confianza}
+            </span>
+          </div>
         </div>
 
-        {/* Barra de score */}
-        {!esInsuficiente && (
-          <div className="mb-5">
-            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${score}%`, background: cfg.barra }} />
-            </div>
-            <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-              <span>0 — No rec.</span>
-              <span>50 — Precaución</span>
-              <span>72 — Recomendado</span>
-              <span>100</span>
-            </div>
+        {/* Barra de score global */}
+        <div className="mb-5">
+          <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${score}%`, background: cfg.barra }} />
           </div>
-        )}
-
-        {/* Cards de predicciones */}
-        {!esInsuficiente && (
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="bg-white/60 rounded-xl p-3 text-center">
-              <Baby className="w-5 h-5 text-teal-500 mx-auto mb-1" />
-              <p className={`text-xl font-bold ${cfg.color}`}>
-                {probExito !== null ? `${Math.round(probExito * 100)}%` : '—'}
-              </p>
-              <p className="text-[10px] text-gray-500">Prob. parto exitoso</p>
-            </div>
-            <div className="bg-white/60 rounded-xl p-3 text-center">
-              <Shield className="w-5 h-5 text-indigo-400 mx-auto mb-1" />
-              <p className={`text-xl font-bold ${confidence >= 0.7 ? 'text-emerald-600' : confidence >= 0.6 ? 'text-amber-600' : 'text-red-500'}`}>
-                {confidence !== null ? `${Math.round(confidence * 100)}%` : '—'}
-              </p>
-              <p className="text-[10px] text-gray-500">Confianza del modelo</p>
-            </div>
+          <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+            <span>0 — No rec.</span>
+            <span>50 — Precaución</span>
+            <span>72 — Recomendado</span>
+            <span>100</span>
           </div>
-        )}
+        </div>
 
-        {/* Top factores */}
-        {topFactores.length > 0 && (
-          <div className="mb-4">
-            <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5" /> Factores más influyentes
-            </h4>
-            <div className="space-y-1.5">
-              {topFactores.map((f, i) => (
-                <div key={i} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg
-                  ${f.impacto === 'negativo' ? 'bg-red-100/60 text-red-700'
-                    : f.impacto === 'positivo' ? 'bg-emerald-100/60 text-emerald-700'
-                    : 'bg-gray-100/60 text-gray-600'}`}>
-                  <IconoImpacto impacto={f.impacto} />
-                  <span className="flex-1">{f.label ?? f.feature}</span>
-                  <span className="font-mono font-semibold">{f.valor}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Dimensiones evaluadas (cada una con su evidencia) */}
+        <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <Zap className="w-3.5 h-3.5" /> Dimensiones evaluadas
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          {dims.map((d) => <DimensionCard key={d.id} dim={d} />)}
+        </div>
 
-        {/* Features raw (colapsable) */}
-        {features && (
-          <div className="mt-3">
-            <button
-              onClick={() => setMostrarFeatures(v => !v)}
-              className="flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-gray-600 transition-colors">
-              {mostrarFeatures ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              {mostrarFeatures ? 'Ocultar datos enviados al modelo' : 'Ver datos enviados al modelo'}
-            </button>
-            {mostrarFeatures && (
-              <div className="mt-2 grid grid-cols-2 gap-1">
-                {Object.entries(features).map(([k, v]) => (
-                  <div key={k} className="flex justify-between text-[10px] px-2 py-1 bg-white/50 rounded">
-                    <span className="text-gray-400 truncate pr-1">{k}</span>
-                    <span className="font-mono font-semibold text-gray-600">{typeof v === 'number' ? Math.round(v * 10) / 10 : v}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Metadata del modelo */}
-        {meta.modelVersion && (
-          <p className="mt-3 text-[10px] text-gray-400 text-right">
-            Modelo: {meta.modelVersion}
-            {meta.datasetVersion && ` · Dataset: ${meta.datasetVersion}`}
+        {confianza === 'baja' && (
+          <p className="mt-4 text-[11px] text-amber-700 bg-amber-50 border-l-2 border-amber-300 pl-3 py-1.5 rounded-r">
+            Confianza baja: faltan datos registrados de estos animales. Registra producción,
+            historial reproductivo y sanitario para una evaluación más fiable.
           </p>
         )}
       </div>
@@ -1133,11 +1213,28 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
             </div>
           )}
 
-          {/* Resultado ML */}
-          {mlResultado && !mlCargando && !mlError && (
-            <ResultadoML
-              resultado={mlResultado.resultado}
-              features={mlResultado.features}
+          {/* Resultado: evaluación multidimensional */}
+          {mlResultado && !mlCargando && !mlError && mlResultado.evaluacion && (
+            <ResultadoML evaluacion={mlResultado.evaluacion} />
+          )}
+
+          {/* Aviso (p. ej. mismo sexo) */}
+          {mlResultado && !mlCargando && !mlError && mlResultado.aviso && (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-700">{mlResultado.aviso}</p>
+            </div>
+          )}
+
+          {/* Análisis IA (paso 2, streaming) — solo si hubo evaluación real */}
+          {mlResultado && !mlCargando && !mlError &&
+           mlResultado.evaluacion &&
+           (iaCargando || iaTexto || iaError) && (
+            <AnalisisIA
+              texto={iaTexto}
+              cargando={iaCargando}
+              error={iaError}
+              onRegenerar={regenerarIA}
             />
           )}
 
@@ -1158,9 +1255,147 @@ const VistaComparar = ({ arbol1, animal1, allAnimals, onVolver }) => {
   );
 };
 
+// ── Vista: Ranking de candidatos ──────────────────────────────────────────────
+const VistaRanking = ({ animal1, onVolver }) => {
+  const [cargando,  setCargando]  = useState(false);
+  const [ranking,   setRanking]   = useState(null);   // { base, total, ranking[] } | null
+  const [error,     setError]     = useState(null);
+  const [soloRaza,  setSoloRaza]  = useState(false);
+  const [iaTexto,   setIaTexto]   = useState('');
+  const [iaCargando,setIaCargando]= useState(false);
+
+  const calcular = useCallback(async () => {
+    setCargando(true); setError(null); setRanking(null); setIaTexto('');
+    try {
+      const res = await apiHelpers.post('/genealogia/ranking', {
+        idAnimal: animal1.id, limite: 10, soloMismaRaza: soloRaza,
+        fechaReferencia: new Date().toISOString().split('T')[0],
+      });
+      setRanking(res);
+      // Resumen comparativo de la IA (streaming) si hay candidatos
+      if (res?.ranking?.length) {
+        setIaCargando(true);
+        try {
+          await apiHelpers.postStream('/genealogia/ranking/analisis-ia',
+            { idAnimal: animal1.id, soloMismaRaza: soloRaza,
+              fechaReferencia: new Date().toISOString().split('T')[0] },
+            (full) => setIaTexto(full));
+        } catch { /* la IA es complemento; el ranking ya se muestra */ }
+        finally { setIaCargando(false); }
+      }
+    } catch (err) {
+      setError(err?.response?.data?.error || err?.message || 'No se pudo calcular el ranking.');
+    } finally {
+      setCargando(false);
+    }
+  }, [animal1, soloRaza]);
+
+  const sexoObjetivo = animal1.sexo === 'hembra' ? 'machos' : 'hembras';
+
+  const colorScore = (s) =>
+    s >= 72 ? 'text-emerald-600' : s >= 50 ? 'text-amber-600' : 'text-red-500';
+  const bgClasif = (c) =>
+    c === 'Recomendado' ? 'bg-emerald-100 text-emerald-700'
+    : c === 'Precaución' ? 'bg-amber-100 text-amber-700'
+    : c === 'No recomendado' ? 'bg-red-100 text-red-600'
+    : 'bg-gray-100 text-gray-500';
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 p-5 mb-6">
+        <div className="flex items-center gap-3">
+          <button onClick={onVolver} className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">Mejor cruce para {animal1.codigo} — {animal1.nombre}</h2>
+            <p className="text-sm text-gray-500">Ranking de {sexoObjetivo} activos por compatibilidad (modelo ML)</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" checked={soloRaza} onChange={e => setSoloRaza(e.target.checked)}
+              className="rounded text-violet-600 focus:ring-violet-500" />
+            Solo de la misma raza
+          </label>
+          <button onClick={calcular} disabled={cargando}
+            className="ml-auto px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white font-bold rounded-xl flex items-center gap-2 transition-colors shadow-sm">
+            {cargando ? <><Loader2 className="w-4 h-4 animate-spin" /> Calculando...</>
+                      : <><Zap className="w-4 h-4" /> Calcular ranking</>}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 flex items-start gap-3 mb-6">
+          <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
+      {ranking && ranking.ranking.length === 0 && (
+        <div className="bg-white/60 border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center text-gray-400">
+          No se encontraron candidatos con datos suficientes para evaluar.
+        </div>
+      )}
+
+      {ranking && ranking.ranking.length > 0 && (
+        <div className="space-y-6">
+          {/* Tabla de ranking */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-white/70 overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-700">Candidatos ordenados ({ranking.total} evaluados)</h3>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {ranking.ranking.map((r, i) => (
+                <div key={r.candidato.id}
+                  className={`flex items-center gap-4 px-5 py-3 ${i === 0 ? 'bg-emerald-50/50' : ''}`}>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0
+                    ${i === 0 ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 text-sm truncate">
+                      {r.candidato.codigo} — {r.candidato.nombre}
+                      {i === 0 && <span className="ml-2 text-[10px] font-bold text-emerald-600 uppercase">★ Mejor opción</span>}
+                    </p>
+                    <p className="text-[11px] text-gray-400">{r.candidato.raza || 'raza desconocida'} · consanguinidad cría ≈ {Math.round((r.coi || 0) * 1000) / 10}%</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${bgClasif(r.clasificacion)}`}>{r.clasificacion}</span>
+                  <div className="text-right w-14 shrink-0">
+                    <span className={`text-2xl font-black ${colorScore(r.score)}`}>{r.score}</span>
+                    <span className="text-[10px] text-gray-400">/100</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Resumen comparativo IA */}
+          {(iaCargando || iaTexto) && (
+            <AnalisisIA texto={iaTexto} cargando={iaCargando} error={null} onRegenerar={calcular} />
+          )}
+        </div>
+      )}
+
+      {!ranking && !cargando && !error && (
+        <div className="bg-white/60 border-2 border-dashed border-gray-200 rounded-2xl p-10 flex flex-col items-center gap-3 text-gray-300">
+          <TrendingUp className="w-12 h-12" />
+          <p className="text-sm font-medium text-gray-400 text-center">
+            Pulsa &ldquo;Calcular ranking&rdquo; para evaluar todos los {sexoObjetivo} disponibles.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Componente principal ─────────────────────────────────────────────────────
 const ModuloGenealogia = () => {
-  const [vista, setVista] = useState('selector'); // 'selector' | 'arbol' | 'comparar'
+  const [vista, setVista] = useState('selector'); // 'selector' | 'arbol' | 'comparar' | 'ranking'
   const [allAnimals, setAllAnimals] = useState([]);
   const [cargandoAnimales, setCargandoAnimales] = useState(true);
   const [animalSeleccionado, setAnimalSeleccionado] = useState(null);
@@ -1215,6 +1450,15 @@ const ModuloGenealogia = () => {
     );
   }
 
+  if (vista === 'ranking' && animalSeleccionado) {
+    return (
+      <VistaRanking
+        animal1={animalSeleccionado}
+        onVolver={() => setVista('arbol')}
+      />
+    );
+  }
+
   if (vista === 'arbol' && animalSeleccionado) {
     return (
       <VistaArbol
@@ -1224,6 +1468,7 @@ const ModuloGenealogia = () => {
         animalBase={animalSeleccionado}
         onVolver={() => { setVista('selector'); setAnimalSeleccionado(null); setArbol(null); }}
         onComparar={() => setVista('comparar')}
+        onRankear={() => setVista('ranking')}
         onActualizar={actualizarArbol}
       />
     );

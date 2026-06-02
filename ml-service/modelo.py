@@ -7,13 +7,17 @@ Cuando se disponga de datos reales, se reentrenan combinando sintéticos + reale
 
 import os
 import json
+import logging
 import datetime
 import numpy as np
 import joblib
+import shap
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 
 from data_generator import generar_dataset, FEATURE_NAMES, FEATURE_LABELS_ES
+
+logger = logging.getLogger(__name__)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "modelo_guardado")
 MODEL_PATH = os.path.join(MODEL_DIR, "model.joblib")
@@ -88,48 +92,61 @@ def get_metrics() -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Inferencia
+# Explicabilidad por instancia (SHAP)
 # ---------------------------------------------------------------------------
+# TreeExplainer es exacto y rápido para RandomForest. Se cachea por modelo para
+# no reconstruirlo en cada predicción (importante para el ranking en lote).
 
-def _determinar_impacto(feature: str, valor: float) -> str:
-    if feature == "relacion_directa":
-        return "negativo" if valor else "neutro"
-    if feature in ("mismos_padres_completos", "mismo_padre", "misma_madre"):
-        return "negativo" if valor else "neutro"
-    if feature == "ancestros_comunes_count":
-        return "negativo" if valor > 0 else "positivo"
-    if feature == "edad_macho_meses":
-        return "positivo" if 12 <= valor <= 72 else "negativo"
-    if feature == "edad_hembra_meses":
-        return "positivo" if 10 <= valor <= 60 else "negativo"
-    if feature in ("eventos_salud_macho_12m", "eventos_salud_hembra_12m"):
-        if valor > 4:
-            return "negativo"
-        return "positivo" if valor == 0 else "neutro"
-    if feature == "partos_exitosos_hembra":
-        return "positivo" if valor > 0 else "neutro"
-    if feature == "num_crias_promedio":
-        return "positivo" if valor > 1.3 else "neutro"
-    return "neutro"
+_explainer = None
+_explainer_for = None  # id() del clf al que pertenece el explainer cacheado
 
 
-def _top_factores(clf: RandomForestClassifier, features: list) -> list:
-    importances = clf.feature_importances_
+def _get_explainer(clf: RandomForestClassifier):
+    global _explainer, _explainer_for
+    if _explainer is None or _explainer_for != id(clf):
+        _explainer = shap.TreeExplainer(clf)
+        _explainer_for = id(clf)
+    return _explainer
+
+
+def _shap_values_exito(clf: RandomForestClassifier, X: np.ndarray) -> np.ndarray:
+    """
+    Devuelve una matriz [n_muestras, n_features] con la contribución SHAP de
+    cada feature a la probabilidad de ÉXITO (clase 1), en espacio de probabilidad.
+    """
+    sv = np.array(_get_explainer(clf).shap_values(X))
+    # Según versión, sv puede venir como [n, f, n_clases] o [n_clases, n, f]
+    if sv.ndim == 3 and sv.shape[-1] == 2:
+        return sv[:, :, 1]
+    if sv.ndim == 3 and sv.shape[0] == 2:
+        return sv[1]
+    return sv  # modelo de salida única
+
+
+def _shap_factores(clf: RandomForestClassifier, features: list) -> list:
+    """
+    Top factores que explican ESTE cruce concreto, con su contribución (con signo)
+    al score. `contribucion` está en puntos de score (≈ % sobre 100).
+    """
+    X = np.array([features], dtype=float)
+    contribs = _shap_values_exito(clf, X)[0]   # un valor por feature
+
     factores = []
     for i, name in enumerate(FEATURE_NAMES):
-        imp = float(importances[i])
-        if imp < 0.025:
+        contrib = float(contribs[i])
+        if abs(contrib) < 0.005:               # descartar aportes insignificantes
             continue
         val = features[i]
         factores.append({
             "feature": name,
             "label": FEATURE_LABELS_ES.get(name, name),
-            "impacto": _determinar_impacto(name, val),
             "valor": round(val, 2) if isinstance(val, float) else int(val),
-            "importancia": round(imp, 3),
+            "contribucion": round(contrib, 4),                  # con signo, espacio prob.
+            "puntos": int(round(contrib * 100)),                # en puntos de score (±)
+            "impacto": "positivo" if contrib > 0 else "negativo",
         })
 
-    factores.sort(key=lambda x: x["importancia"], reverse=True)
+    factores.sort(key=lambda x: abs(x["contribucion"]), reverse=True)
     return factores[:5]
 
 
@@ -173,11 +190,50 @@ def predict(clf: RandomForestClassifier, features: list) -> dict:
             "probPartoExitoso": round(prob_exito, 3),
         },
         "explicacion": {
-            "topFactores": _top_factores(clf, features),
+            "topFactores": _shap_factores(clf, features),
             "mensaje": mensaje,
         },
         "metadata": {
             "modelVersion": MODEL_VERSION,
+            "explainer": "shap-treeexplainer",
             **get_metrics(),
         },
     }
+
+
+def _clasificar(score: int, confidence: float) -> tuple[str, str]:
+    """Misma lógica de etiquetado que predict(), reutilizable en lote."""
+    if confidence < CONFIDENCE_THRESHOLD:
+        return "Insuficiente información", (
+            "El modelo no tiene suficiente certeza para evaluar este cruce."
+        )
+    if score >= 72:
+        return "Recomendado", "Buena compatibilidad genética."
+    if score >= 50:
+        return "Precaución", "Compatibilidad moderada; conviene evaluación adicional."
+    return "No recomendado", "Alta probabilidad de complicaciones."
+
+
+def predict_batch(clf: RandomForestClassifier, filas: list[list[float]]) -> list[dict]:
+    """
+    Inferencia en lote para el ranking de candidatos. Una sola llamada a
+    predict_proba para todas las filas. NO calcula SHAP (se omite por velocidad;
+    la explicación detallada se obtiene con predict() sobre el par elegido).
+    """
+    if not filas:
+        return []
+    X = np.array(filas, dtype=float)
+    probas = clf.predict_proba(X)
+    resultados = []
+    for fila in probas:
+        prob_exito = float(fila[1])
+        confidence = float(max(fila))
+        score = int(round(prob_exito * 100))
+        clasificacion, _ = _clasificar(score, confidence)
+        resultados.append({
+            "scoreCompatibilidad": score,
+            "probExito": round(prob_exito, 4),
+            "confidence": round(confidence, 4),
+            "clasificacion": clasificacion,
+        })
+    return resultados

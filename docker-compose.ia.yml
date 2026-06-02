@@ -1,0 +1,45 @@
+# Stack de IA del módulo de Genealogía: microservicio ML + Ollama (LLM local).
+# La base de datos (Oracle Autonomous) y el backend Symfony NO se incluyen aquí:
+# Oracle es gestionado en la nube y Symfony se despliega aparte.
+#
+# Uso:
+#   docker compose -f docker-compose.ia.yml up -d
+#   docker compose -f docker-compose.ia.yml exec ollama ollama pull qwen2.5:3b-instruct
+#
+# El backend Symfony debe apuntar su ML_SERVICE_URL al servicio ml-service
+# (p. ej. http://localhost:8001 si corre en el mismo host).
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: caprino-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"          # quitar en producción si solo lo consume ml-service
+    volumes:
+      - ollama_models:/root/.ollama   # los modelos descargados persisten aquí
+    environment:
+      OLLAMA_KEEP_ALIVE: "10m"        # mantiene el modelo en RAM 10 min entre usos
+      OLLAMA_NUM_PARALLEL: "1"        # 1 generación a la vez (CPU/RAM limitada)
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    # En CPU no se necesita configuración extra. Para GPU NVIDIA, añadir:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+
+  ml-service:
+    build: ./ml-service
+    container_name: caprino-ml
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    ports:
+      - "8001:8001"
+    environment:
+      OLLAMA_URL: "http://ollama:11434"     # nombre del servicio en la red interna
+      OLLAMA_MODEL: "qwen2.5:3b-instruct"
+      OLLAMA_TIMEOUT: "120"
+
+volumes:
+  ollama_models:

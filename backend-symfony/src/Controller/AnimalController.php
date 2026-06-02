@@ -25,10 +25,15 @@ class AnimalController extends AbstractController
         $sexo   = $request->query->get('sexo');
         $estado = $request->query->get('estado');
 
-        $sql    = "SELECT a.id_animal, a.codigo_identificacion, a.nombre, a.fecha_nacimiento,
+        $sql    = "SELECT a.id_animal, a.codigo_identificacion, a.chapeta_nueva, a.chapeta_vieja,
+                          a.nombre, a.fecha_nacimiento,
                           a.sexo, a.id_raza, r.nombre_raza, a.color_pelaje,
-                          a.peso_nacimiento_kg, a.estado, a.observaciones, a.foto_url
-                   FROM ANIMAL a LEFT JOIN RAZA r ON a.id_raza = r.id_raza
+                          a.peso_nacimiento_kg, a.estado, a.motivo_estado, a.fecha_cambio_estado,
+                          a.id_corral, c.nombre AS nombre_corral, c.tipo AS tipo_corral, c.lote AS lote_corral,
+                          a.observaciones, a.foto_url
+                   FROM ANIMAL a
+                   LEFT JOIN RAZA r ON a.id_raza = r.id_raza
+                   LEFT JOIN CORRAL c ON a.id_corral = c.id_corral
                    WHERE 1=1";
         $params = [];
 
@@ -50,6 +55,8 @@ class AnimalController extends AbstractController
         $data = array_map(fn($row) => [
             'id'             => (int) $row['ID_ANIMAL'],
             'codigo'         => $row['CODIGO_IDENTIFICACION'],
+            'chapetaNueva'   => $row['CHAPETA_NUEVA'],
+            'chapetaVieja'   => $row['CHAPETA_VIEJA'],
             'nombre'         => $row['NOMBRE'],
             'fechaNacimiento'=> $row['FECHA_NACIMIENTO'],
             'sexo'           => $row['SEXO'],
@@ -58,6 +65,12 @@ class AnimalController extends AbstractController
             'colorPelaje'    => $row['COLOR_PELAJE'],
             'pesoNacimiento' => $row['PESO_NACIMIENTO_KG'] !== null ? (float) $row['PESO_NACIMIENTO_KG'] : null,
             'estado'         => $row['ESTADO'],
+            'motivoEstado'   => $row['MOTIVO_ESTADO'],
+            'fechaCambioEstado' => $row['FECHA_CAMBIO_ESTADO'],
+            'idCorral'       => $row['ID_CORRAL'] !== null ? (int) $row['ID_CORRAL'] : null,
+            'nombreCorral'   => $row['NOMBRE_CORRAL'],
+            'tipoCorral'     => $row['TIPO_CORRAL'],
+            'loteCorral'     => $row['LOTE_CORRAL'],
             'observaciones'  => $row['OBSERVACIONES'],
             'fotoUrl'        => $row['FOTO_URL'],
         ], $rows);
@@ -69,7 +82,11 @@ class AnimalController extends AbstractController
     public function show(int $id): JsonResponse
     {
         $row = $this->connection->fetchAssociative(
-            'SELECT a.*, r.nombre_raza FROM ANIMAL a LEFT JOIN RAZA r ON a.id_raza = r.id_raza WHERE a.id_animal = :id',
+            'SELECT a.*, r.nombre_raza, c.nombre AS nombre_corral, c.tipo AS tipo_corral, c.lote AS lote_corral
+             FROM ANIMAL a
+             LEFT JOIN RAZA r ON a.id_raza = r.id_raza
+             LEFT JOIN CORRAL c ON a.id_corral = c.id_corral
+             WHERE a.id_animal = :id',
             ['id' => $id]
         );
 
@@ -80,6 +97,8 @@ class AnimalController extends AbstractController
         return $this->json(['data' => [
             'id'             => (int) $row['ID_ANIMAL'],
             'codigo'         => $row['CODIGO_IDENTIFICACION'],
+            'chapetaNueva'   => $row['CHAPETA_NUEVA'],
+            'chapetaVieja'   => $row['CHAPETA_VIEJA'],
             'nombre'         => $row['NOMBRE'],
             'fechaNacimiento'=> $row['FECHA_NACIMIENTO'],
             'sexo'           => $row['SEXO'],
@@ -88,6 +107,12 @@ class AnimalController extends AbstractController
             'colorPelaje'    => $row['COLOR_PELAJE'],
             'pesoNacimiento' => $row['PESO_NACIMIENTO_KG'] !== null ? (float) $row['PESO_NACIMIENTO_KG'] : null,
             'estado'         => $row['ESTADO'],
+            'motivoEstado'   => $row['MOTIVO_ESTADO'],
+            'fechaCambioEstado' => $row['FECHA_CAMBIO_ESTADO'],
+            'idCorral'       => $row['ID_CORRAL'] !== null ? (int) $row['ID_CORRAL'] : null,
+            'nombreCorral'   => $row['NOMBRE_CORRAL'],
+            'tipoCorral'     => $row['TIPO_CORRAL'],
+            'loteCorral'     => $row['LOTE_CORRAL'],
             'observaciones'  => $row['OBSERVACIONES'],
             'fotoUrl'        => $row['FOTO_URL'],
         ]]);
@@ -97,18 +122,29 @@ class AnimalController extends AbstractController
     public function create(Request $request): JsonResponse
     {
         $data     = json_decode($request->getContent(), true) ?? [];
-        $codigo   = $data['codigo'] ?? $data['codigo_identificacion'] ?? $data['codigoIdentificacion'] ?? $data['identificacion'] ?? null;
+        $chapNueva = $data['chapetaNueva'] ?? $data['chapeta_nueva'] ?? null;
+        $chapVieja = $data['chapetaVieja'] ?? $data['chapeta_vieja'] ?? null;
+        $chapNueva = $chapNueva !== null ? trim($chapNueva) : null;
+        $chapVieja = $chapVieja !== null ? trim($chapVieja) : null;
+        $chapNueva = $chapNueva ?: null;
+        $chapVieja = $chapVieja ?: null;
+        // codigo principal: identificacion explícita, o la chapeta nueva, o la vieja
+        $codigo   = $data['codigo'] ?? $data['codigo_identificacion'] ?? $data['codigoIdentificacion'] ?? $data['identificacion'] ?? $chapNueva ?? $chapVieja ?? null;
         $nombre   = $data['nombre'] ?? null;
         $sexo     = $data['sexo']   ?? null;
         $idRaza   = $data['idRaza'] ?? $data['razaId'] ?? $data['id_raza'] ?? null;
-        $fechaNac = $data['fechaNacimiento'] ?? $data['fecha_nacimiento'] ?? date('Y-m-d');
+        $fechaNac = $data['fechaNacimiento'] ?? $data['fecha_nacimiento'] ?? null;
+        $fechaNac = $fechaNac ?: null;
         $color    = $data['colorPelaje'] ?? $data['color_pelaje'] ?? null;
         $pesoNac  = $data['pesoNacimiento'] ?? $data['peso_nacimiento_kg'] ?? null;
+        $estado   = $data['estado'] ?? 'activo';
+        $motivo   = $data['motivoEstado'] ?? $data['motivo_estado'] ?? null;
+        $idCorral = $data['idCorral'] ?? $data['id_corral'] ?? null;
         $obs      = $data['observaciones'] ?? null;
         $fotoData = $data['fotoUrl'] ?? $data['foto_url'] ?? null;
 
-        if (!$codigo || !$sexo || !$idRaza) {
-            return $this->json(['error' => 'Campos requeridos: codigo, sexo, idRaza'], Response::HTTP_BAD_REQUEST);
+        if ((!$chapNueva && !$chapVieja) || !$sexo || !$idRaza) {
+            return $this->json(['error' => 'Campos requeridos: al menos una chapeta, sexo e idRaza'], Response::HTTP_BAD_REQUEST);
         }
 
         if (!in_array($sexo, ['macho', 'hembra'])) {
@@ -120,22 +156,34 @@ class AnimalController extends AbstractController
         $user = $this->getUser();
         $usuarioReg = $user instanceof User ? $user->getId() : 1;
 
+        // La fecha de nacimiento es opcional
+        $fecExpr = $fechaNac ? "TO_DATE(:fec, 'YYYY-MM-DD')" : 'NULL';
+
         try {
+            $params = [
+                'codigo'   => $codigo,
+                'chapn'    => $chapNueva,
+                'chapv'    => $chapVieja,
+                'nombre'   => $nombre,
+                'sexo'     => $sexo,
+                'raza'     => $idRaza,
+                'color'    => $color,
+                'peso'     => $pesoNac,
+                'estado'   => $estado,
+                'motivo'   => $estado !== 'activo' ? $motivo : null,
+                'corral'   => $idCorral ?: null,
+                'obs'      => $obs,
+                'foto'     => $fotoUrl,
+                'ureg'     => $usuarioReg,
+            ];
+            if ($fechaNac) {
+                $params['fec'] = $fechaNac;
+            }
             $this->connection->executeStatement(
-                "INSERT INTO ANIMAL (codigo_identificacion, nombre, fecha_nacimiento, sexo, id_raza, color_pelaje, peso_nacimiento_kg, estado, observaciones, foto_url, usuario_registro)
-                 VALUES (:codigo, :nombre, TO_DATE(:fec, 'YYYY-MM-DD'), :sexo, :raza, :color, :peso, 'activo', :obs, :foto, :ureg)",
-                [
-                    'codigo' => $codigo,
-                    'nombre' => $nombre,
-                    'fec'    => $fechaNac,
-                    'sexo'   => $sexo,
-                    'raza'   => $idRaza,
-                    'color'  => $color,
-                    'peso'   => $pesoNac,
-                    'obs'    => $obs,
-                    'foto'   => $fotoUrl,
-                    'ureg'   => $usuarioReg,
-                ]
+                "INSERT INTO ANIMAL (codigo_identificacion, chapeta_nueva, chapeta_vieja, nombre, fecha_nacimiento, sexo, id_raza, color_pelaje, peso_nacimiento_kg, estado, motivo_estado, id_corral, observaciones, foto_url, usuario_registro, fecha_cambio_estado)
+                 VALUES (:codigo, :chapn, :chapv, :nombre, $fecExpr, :sexo, :raza, :color, :peso, :estado, :motivo, :corral, :obs, :foto, :ureg, "
+                 . ($estado !== 'activo' ? 'CURRENT_TIMESTAMP' : 'NULL') . ")",
+                $params
             );
         } catch (\Throwable $e) {
             $msg = $e->getMessage();
@@ -203,6 +251,11 @@ class AnimalController extends AbstractController
         $idRaza   = $data['idRaza'] ?? $data['razaId'] ?? $data['id_raza'] ?? null;
         $color    = $data['colorPelaje'] ?? $data['color_pelaje'] ?? null;
         $estado   = $data['estado'] ?? null;
+        $motivo   = $data['motivoEstado'] ?? $data['motivo_estado'] ?? null;
+        $idCorral = $data['idCorral'] ?? $data['id_corral'] ?? null;
+        $chapNueva = array_key_exists('chapetaNueva', $data) ? ($data['chapetaNueva'] ?: null) : null;
+        $chapVieja = array_key_exists('chapetaVieja', $data) ? ($data['chapetaVieja'] ?: null) : null;
+        $fechaNac = $data['fechaNacimiento'] ?? $data['fecha_nacimiento'] ?? null;
         $obs      = $data['observaciones'] ?? null;
         $fotoData = $data['fotoUrl'] ?? $data['foto_url'] ?? null;
 
@@ -218,6 +271,42 @@ class AnimalController extends AbstractController
             'nombre' => $nombre, 'sexo' => $sexo, 'raza' => $idRaza,
             'color' => $color, 'estado' => $estado, 'obs' => $obs, 'id' => $id,
         ];
+
+        // Chapetas (solo si vienen en la petición)
+        if (array_key_exists('chapetaNueva', $data)) {
+            $sets .= ', chapeta_nueva = :chapn';
+            $params['chapn'] = $chapNueva;
+        }
+        if (array_key_exists('chapetaVieja', $data)) {
+            $sets .= ', chapeta_vieja = :chapv';
+            $params['chapv'] = $chapVieja;
+        }
+
+        // Corral (permite asignar o desasignar enviando null)
+        if (array_key_exists('idCorral', $data) || array_key_exists('id_corral', $data)) {
+            $sets .= ', id_corral = :corral';
+            $params['corral'] = $idCorral ?: null;
+        }
+
+        // Fecha de nacimiento (opcional)
+        if (array_key_exists('fechaNacimiento', $data) || array_key_exists('fecha_nacimiento', $data)) {
+            if ($fechaNac) {
+                $sets .= ", fecha_nacimiento = TO_DATE(:fec, 'YYYY-MM-DD')";
+                $params['fec'] = $fechaNac;
+            } else {
+                $sets .= ', fecha_nacimiento = NULL';
+            }
+        }
+
+        // Estado: registrar motivo y fecha de cambio cuando cambia a un estado no-activo
+        if ($estado !== null) {
+            $sets .= ', motivo_estado = :motivo';
+            $params['motivo'] = $estado !== 'activo' ? $motivo : null;
+            $estadoAnterior = $oldRow['ESTADO'] ?? null;
+            if ($estado !== 'activo' && $estado !== $estadoAnterior) {
+                $sets .= ', fecha_cambio_estado = CURRENT_TIMESTAMP';
+            }
+        }
 
         // Actualizar foto solo si se envió una nueva imagen base64
         $fotoUrl = null;

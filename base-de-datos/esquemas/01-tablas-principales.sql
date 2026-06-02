@@ -36,7 +36,7 @@ CREATE TABLE ANIMAL (
     id_animal NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     codigo_identificacion VARCHAR2(50) NOT NULL UNIQUE,
     nombre VARCHAR2(100),
-    fecha_nacimiento DATE NOT NULL,
+    fecha_nacimiento DATE,
     sexo VARCHAR2(10) NOT NULL CHECK (sexo IN ('macho', 'hembra')),
     id_raza NUMBER NOT NULL,
     color_pelaje VARCHAR2(50),

@@ -553,11 +553,11 @@ const TabGenealogia = ({ animal }) => {
 // ── Tab: FAMACHA ─────────────────────────────────────────────────────────────
 
 const FAMACHA_INFO = [
-  { score: 1, label: 'Rojo',         bg: 'bg-red-600',    text: 'text-white',      accion: 'Sin tratamiento',       nivel: 'ok'      },
-  { score: 2, label: 'Rojo-Rosa',    bg: 'bg-rose-400',   text: 'text-white',      accion: 'Sin tratamiento',       nivel: 'ok'      },
-  { score: 3, label: 'Rosa',         bg: 'bg-pink-400',   text: 'text-white',      accion: 'Monitorear',            nivel: 'warn'    },
-  { score: 4, label: 'Rosa-Blanco',  bg: 'bg-pink-200',   text: 'text-pink-900',   accion: 'Desparasitar',          nivel: 'danger'  },
-  { score: 5, label: 'Blanco',       bg: 'bg-gray-100',   text: 'text-gray-700',   accion: 'Tratar urgentemente',   nivel: 'urgent'  },
+  { score: 1, label: 'Rojo',         significado: 'Óptimo · sin anemia',     bg: 'bg-red-600',    text: 'text-white',      accion: 'Sin tratamiento',       nivel: 'ok'      },
+  { score: 2, label: 'Rojo-Rosa',    significado: 'Bien · sana',             bg: 'bg-rose-400',   text: 'text-white',      accion: 'Sin tratamiento',       nivel: 'ok'      },
+  { score: 3, label: 'Rosa',         significado: 'Normal · vigilar',        bg: 'bg-pink-400',   text: 'text-white',      accion: 'Monitorear',            nivel: 'warn'    },
+  { score: 4, label: 'Rosa-Blanco',  significado: 'Mal · anémica',           bg: 'bg-pink-200',   text: 'text-pink-900',   accion: 'Desparasitar',          nivel: 'danger'  },
+  { score: 5, label: 'Blanco',       significado: 'Crítico · anemia grave',  bg: 'bg-gray-100',   text: 'text-gray-700',   accion: 'Tratar urgentemente',   nivel: 'urgent'  },
 ];
 
 const famachaColor = (score) => FAMACHA_INFO.find(f => f.score === score) || FAMACHA_INFO[0];
@@ -650,7 +650,7 @@ const FormFamacha = ({ animal, onGuardar, onCancelar }) => {
               </div>
               <div className="text-center">
                 <p className="text-sm font-black text-gray-800 leading-none">{f.score}</p>
-                <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{f.label}</p>
+                <p className="text-[10px] text-gray-600 leading-tight mt-0.5 font-medium">{f.significado}</p>
               </div>
             </button>
           ))}
@@ -660,7 +660,7 @@ const FormFamacha = ({ animal, onGuardar, onCancelar }) => {
           <div className={`mt-4 px-4 py-3 rounded-xl flex items-center gap-2.5 text-sm ${nivelBadge(info.nivel)}`}>
             <ShieldAlert className="w-4 h-4 shrink-0" />
             <span>
-              <span className="font-bold">Score {info.score} · {info.label}</span>
+              <span className="font-bold">Score {info.score} · {info.significado}</span>
               <span className="mx-1.5 opacity-50">—</span>
               {info.accion}
             </span>
@@ -790,7 +790,7 @@ const TabFamacha = ({ animal }) => {
             <div key={f.score} className="text-center">
               <div className={`h-6 rounded-lg ${f.bg} mb-1.5 border border-black/10`} />
               <p className="text-xs font-black text-gray-700">{f.score}</p>
-              <p className="text-[10px] text-gray-500 leading-tight">{f.label}</p>
+              <p className="text-[10px] text-gray-600 leading-tight font-medium">{f.significado}</p>
               <p className={`text-[9px] font-semibold mt-0.5 px-1 py-0.5 rounded-full ${nivelBadge(f.nivel)}`}>{f.accion}</p>
             </div>
           ))}
@@ -806,7 +806,7 @@ const TabFamacha = ({ animal }) => {
                 <span className={`text-lg font-black ${ultimoInfo.text}`}>{ultimoInfo.score}</span>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-800">Último: {ultimoInfo.label}</p>
+                <p className="text-sm font-semibold text-gray-800">Último: {ultimoInfo.significado}</p>
                 <p className="text-xs text-gray-500">{fmt(ultimo.fechaEvaluacion)} · {datos.length} evaluaciones</p>
               </div>
             </>
@@ -840,7 +840,7 @@ const TabFamacha = ({ animal }) => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-gray-800">{info.label}</p>
+                    <p className="text-sm font-semibold text-gray-800">{info.significado}</p>
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${nivelBadge(info.nivel)}`}>{info.accion}</span>
                   </div>
                   <p className="text-xs text-gray-500">{fmt(r.fechaEvaluacion)}{r.ojoEvaluado ? ` · Ojo ${r.ojoEvaluado}` : ''}</p>
@@ -941,13 +941,29 @@ const ExpedienteAnimal = () => {
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">{animal.nombre || <span className="text-gray-400 italic font-normal">Sin nombre</span>}</h1>
-                <p className="text-sm font-mono text-gray-500 mt-0.5">{animal.codigo || animal.codigoIdentificacion}</p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {animal.chapetaNueva && (
+                    <span className="text-xs font-mono bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded">Nueva: {animal.chapetaNueva}</span>
+                  )}
+                  {animal.chapetaVieja && (
+                    <span className="text-xs font-mono bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded">Vieja: {animal.chapetaVieja}</span>
+                  )}
+                  {!animal.chapetaNueva && !animal.chapetaVieja && (
+                    <span className="text-sm font-mono text-gray-500">{animal.codigo || animal.codigoIdentificacion}</span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${animal.sexo === 'macho' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
                   {animal.sexo === 'macho' ? '♂ Macho' : '♀ Hembra'}
                 </span>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${animal.estado === 'activo' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize ${
+                  animal.estado === 'activo'     ? 'bg-emerald-100 text-emerald-700' :
+                  animal.estado === 'vendido'    ? 'bg-blue-100 text-blue-700' :
+                  animal.estado === 'donado'     ? 'bg-purple-100 text-purple-700' :
+                  animal.estado === 'descartado' ? 'bg-amber-100 text-amber-700' :
+                  'bg-gray-200 text-gray-700'
+                }`}>
                   {animal.estado || 'activo'}
                 </span>
               </div>
@@ -958,6 +974,7 @@ const ExpedienteAnimal = () => {
                 { icon: <Tag className="w-3.5 h-3.5" />, label: 'Raza', value: animal.nombreRaza || animal.raza || '—' },
                 { icon: <Calendar className="w-3.5 h-3.5" />, label: 'Edad', value: calcEdad(animal.fechaNacimiento) },
                 { icon: <Weight className="w-3.5 h-3.5" />, label: 'Peso nac.', value: animal.pesoNacimiento ? `${animal.pesoNacimiento} kg` : '—' },
+                { icon: <Tag className="w-3.5 h-3.5" />, label: 'Corral', value: animal.nombreCorral ? `${animal.nombreCorral}${animal.loteCorral ? ` · ${animal.loteCorral}` : ''}` : '—' },
               ].map(({ icon, label, value }) => (
                 <div key={label} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                   <div className="flex items-center gap-1.5 text-gray-400 mb-1">{icon}<span className="text-xs">{label}</span></div>
@@ -979,6 +996,16 @@ const ExpedienteAnimal = () => {
             </button>
           </div>
         </div>
+
+        {animal.estado && animal.estado !== 'activo' && animal.motivoEstado && (
+          <div className="px-6 pb-2">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700">
+              <span className="font-semibold text-gray-600">
+                {animal.estado === 'muerto' ? 'Motivo de muerte: ' : 'Motivo / detalle del estado: '}
+              </span>{animal.motivoEstado}
+            </div>
+          </div>
+        )}
 
         {animal.observaciones && (
           <div className="px-6 pb-4">

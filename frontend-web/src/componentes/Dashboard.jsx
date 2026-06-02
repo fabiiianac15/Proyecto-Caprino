@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contextos/AuthContext';
 import {
   Users, Heart, Syringe, Milk, Weight,
-  GitBranch, FileText, Bell, ArrowRight
+  GitBranch, FileText, Bell, ArrowRight, Mountain
 } from 'lucide-react';
 
 const MODULOS = [
@@ -13,6 +13,7 @@ const MODULOS = [
   { id: 'produccion',     titulo: 'Producción de Leche',   descripcion: 'Registro diario de litros producidos por cada cabra. Analiza tendencias y optimiza la producción del rebaño.',           ruta: '/produccion',     Icono: Milk,      color: 'bg-amber-500',   colorCard: 'from-amber-50 to-yellow-100',    imagen: '/img/ModuloLeche.png',       ring: 'ring-amber-200',   btn: 'bg-amber-600 hover:bg-amber-700' },
   { id: 'peso',           titulo: 'Control de Peso',       descripcion: 'Seguimiento periódico del peso de cada animal. Monitorea el crecimiento y estado nutricional del rebaño.',               ruta: '/peso',           Icono: Weight,    color: 'bg-violet-500',  colorCard: 'from-violet-50 to-purple-100',   imagen: '/img/ModuloPeso.png',        ring: 'ring-violet-200',  btn: 'bg-violet-600 hover:bg-violet-700' },
   { id: 'genealogia',     titulo: 'Genealogía',            descripcion: 'Árbol genealógico completo de cada animal. Previene consanguinidad y mejora la genética del rebaño con trazabilidad.',   ruta: '/genealogia',     Icono: GitBranch, color: 'bg-teal-500',    colorCard: 'from-teal-50 to-cyan-100',       imagen: '/img/ModuloGenealogia.png',  ring: 'ring-teal-200',    btn: 'bg-teal-600 hover:bg-teal-700'   },
+  { id: 'corrales',       titulo: 'Corrales y Lotes',      descripcion: 'Distribución del rebaño por corral y lote. Controla la capacidad, el tipo de corral (gestantes, ordeño) y el peso de los animales.', ruta: '/corrales',       Icono: Mountain,  color: 'bg-lime-600',    colorCard: 'from-lime-50 to-emerald-100',    imagen: '/img/ModuloCorrales.png',    ring: 'ring-lime-200',    btn: 'bg-lime-600 hover:bg-lime-700'   },
   { id: 'reportes',       titulo: 'Reportes',              descripcion: 'Genera informes detallados con estadísticas completas. Exporta todos los registros con fecha, hora y responsable.',       ruta: '/reportes',       Icono: FileText,  color: 'bg-indigo-500',  colorCard: 'from-indigo-50 to-blue-100',     imagen: '/img/ModuloReportes.png',    ring: 'ring-indigo-200',  btn: 'bg-indigo-600 hover:bg-indigo-700' },
   { id: 'notificaciones', titulo: 'Alertas',               descripcion: 'Recordatorios de vacunas pendientes, partos próximos y eventos importantes del rebaño en tiempo real.',                  ruta: '/notificaciones', Icono: Bell,      color: 'bg-orange-500',  colorCard: 'from-orange-50 to-amber-100',    imagen: '/img/ModuloAlertas.png',     ring: 'ring-orange-200',  btn: 'bg-orange-600 hover:bg-orange-700' },
 ];
@@ -76,6 +77,7 @@ const Dashboard = () => {
                     <img
                       src={m.imagen}
                       alt={m.titulo}
+                      onError={e => { e.target.onerror = null; e.target.style.display = 'none'; }}
                       className="w-full max-w-[260px] h-52 object-contain drop-shadow-lg
                                  group-hover:scale-105 transition-transform duration-500"
                     />

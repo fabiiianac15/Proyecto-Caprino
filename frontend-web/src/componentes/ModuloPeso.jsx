@@ -259,10 +259,11 @@ export const FormularioPeso = ({ registroEditar, onGuardar, onCancelar, animalPr
     { value: 'cinta', label: 'Cinta Métrica (estimado)', icono: <Ruler />, colorFondo: 'bg-yellow-100', colorIcono: 'text-yellow-600' },
     { value: 'dinamometro', label: 'Dinamómetro', icono: <Zap />, colorFondo: 'bg-purple-100', colorIcono: 'text-purple-600' },
   ];
-  const opcionesMomentoAlimentacion = [
-    { value: 'antes', label: 'Antes de alimentar', icono: <Clock />, colorFondo: 'bg-yellow-100', colorIcono: 'text-yellow-600' },
-    { value: 'despues', label: 'Después de alimentar', icono: <CheckCircle />, colorFondo: 'bg-green-100', colorIcono: 'text-green-600' },
-    { value: 'intermedio', label: 'Intermedio', icono: <Meh />, colorFondo: 'bg-blue-100', colorIcono: 'text-blue-600' },
+  const opcionesMomentoPesaje = [
+    { value: 'manana', label: 'En la mañana', icono: <Clock />, colorFondo: 'bg-yellow-100', colorIcono: 'text-yellow-600' },
+    { value: 'tarde', label: 'En la tarde', icono: <Clock />, colorFondo: 'bg-orange-100', colorIcono: 'text-orange-600' },
+    { value: 'antes_alimentar', label: 'Antes de alimentar', icono: <Meh />, colorFondo: 'bg-blue-100', colorIcono: 'text-blue-600' },
+    { value: 'despues_alimentar', label: 'Después de alimentar', icono: <CheckCircle />, colorFondo: 'bg-green-100', colorIcono: 'text-green-600' },
   ];
 
   const [animales, setAnimales] = useState([]);
@@ -288,12 +289,8 @@ export const FormularioPeso = ({ registroEditar, onGuardar, onCancelar, animalPr
     estadoNutricional: registroEditar?.estadoNutricional || 'normal',
     estadoSalud: registroEditar?.estadoSalud || 'sano',
     ayunas: registroEditar?.ayunas || false,
-    momentoAlimentacion: registroEditar?.momentoAlimentacion || 'antes',
+    momentoPesaje: registroEditar?.momentoPesaje || 'manana',
     metodoPesaje: registroEditar?.metodoPesaje || 'bascula',
-    edadDias: registroEditar?.edadDias || '',
-    edadMeses: registroEditar?.edadMeses || '',
-    pesoEsperado: registroEditar?.pesoEsperado || '',
-    desviacionEstandar: registroEditar?.desviacionEstandar || '',
     responsablePesaje: registroEditar?.responsablePesaje || '',
     observaciones: registroEditar?.observaciones || '',
   });
@@ -331,8 +328,13 @@ export const FormularioPeso = ({ registroEditar, onGuardar, onCancelar, animalPr
     if (!formData.animalId) { setErrorGuardar('Debes seleccionar un animal.'); return; }
     setGuardando(true);
     try {
+      const momentoLabel = {
+        manana: 'mañana', tarde: 'tarde',
+        antes_alimentar: 'antes de alimentar', despues_alimentar: 'después de alimentar',
+      }[formData.momentoPesaje] || '';
       const extraObs = [
         formData.tipoPesaje ? `Tipo: ${formData.tipoPesaje}` : '',
+        momentoLabel ? `Momento del pesaje: ${momentoLabel}` : '',
         formData.responsablePesaje ? `Responsable: ${formData.responsablePesaje}` : '',
         formData.estadoNutricional && formData.estadoNutricional !== 'normal' ? `Estado nutricional: ${formData.estadoNutricional}` : '',
         formData.estadoSalud && formData.estadoSalud !== 'sano' ? `Estado salud: ${formData.estadoSalud}` : '',
@@ -428,6 +430,29 @@ export const FormularioPeso = ({ registroEditar, onGuardar, onCancelar, animalPr
             </div>
           </Section>
 
+          <Section color="bg-amber-50 border-amber-100" icon={<AlertCircle className="w-4 h-4 text-amber-500" />} title="Contexto del Pesaje">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className={lbl}>Momento del pesaje</label>
+                <SelectPersonalizado valor={formData.momentoPesaje}
+                  onChange={v => manejarCambio({ target: { name: 'momentoPesaje', value: v } })}
+                  opciones={opcionesMomentoPesaje} placeholder="Seleccionar..." />
+              </div>
+              <div>
+                <label className={lbl}>Método de Pesaje</label>
+                <SelectPersonalizado valor={formData.metodoPesaje}
+                  onChange={v => manejarCambio({ target: { name: 'metodoPesaje', value: v } })}
+                  opciones={opcionesMetodoPesaje} placeholder="Seleccionar..." />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input type="checkbox" name="ayunas" checked={formData.ayunas} onChange={manejarCambio} className="w-4 h-4 text-amber-600 rounded" />
+                  Animal en ayunas
+                </label>
+              </div>
+            </div>
+          </Section>
+
           <Section color="bg-blue-50 border-blue-100" icon={<BarChart3 className="w-4 h-4 text-blue-500" />} title="Medidas Corporales (Morfometría)">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
@@ -466,51 +491,6 @@ export const FormularioPeso = ({ registroEditar, onGuardar, onCancelar, animalPr
                 <SelectPersonalizado valor={formData.estadoSalud}
                   onChange={v => manejarCambio({ target: { name: 'estadoSalud', value: v } })}
                   opciones={opcionesEstadoSalud} placeholder="Seleccionar..." />
-              </div>
-            </div>
-          </Section>
-
-          <Section color="bg-amber-50 border-amber-100" icon={<AlertCircle className="w-4 h-4 text-amber-500" />} title="Contexto del Pesaje">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className={lbl}>Método de Pesaje</label>
-                <SelectPersonalizado valor={formData.metodoPesaje}
-                  onChange={v => manejarCambio({ target: { name: 'metodoPesaje', value: v } })}
-                  opciones={opcionesMetodoPesaje} placeholder="Seleccionar..." />
-              </div>
-              <div>
-                <label className={lbl}>Momento Alimentación</label>
-                <SelectPersonalizado valor={formData.momentoAlimentacion}
-                  onChange={v => manejarCambio({ target: { name: 'momentoAlimentacion', value: v } })}
-                  opciones={opcionesMomentoAlimentacion} placeholder="Seleccionar..." />
-              </div>
-              <div className="flex items-end pb-1">
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                  <input type="checkbox" name="ayunas" checked={formData.ayunas} onChange={manejarCambio} className="w-4 h-4 text-amber-600 rounded" />
-                  Animal en ayunas
-                </label>
-              </div>
-            </div>
-          </Section>
-
-          <Section color="bg-purple-50 border-purple-100" icon={<Calendar className="w-4 h-4 text-purple-500" />} title="Edad y Análisis">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className={lbl}>Edad en Días</label>
-                <input type="number" name="edadDias" value={formData.edadDias} onChange={manejarCambio} placeholder="90" min="0" className={inp} />
-              </div>
-              <div>
-                <label className={lbl}>Edad en Meses</label>
-                <input type="number" name="edadMeses" value={formData.edadMeses} onChange={manejarCambio} placeholder="3" step="0.1" min="0" className={inp} />
-              </div>
-              <div>
-                <label className={lbl}>Peso Esperado (kg)</label>
-                <input type="number" name="pesoEsperado" value={formData.pesoEsperado} onChange={manejarCambio} placeholder="26.0" step="0.1" min="0" className={inp} />
-                <p className="text-xs text-gray-400 mt-1">Según raza y edad</p>
-              </div>
-              <div>
-                <label className={lbl}>Desviación Estándar</label>
-                <input type="number" name="desviacionEstandar" value={formData.desviacionEstandar} onChange={manejarCambio} placeholder="±2.5" step="0.1" className={inp} />
               </div>
             </div>
           </Section>

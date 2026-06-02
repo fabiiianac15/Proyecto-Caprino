@@ -6,6 +6,25 @@ import {
 } from 'lucide-react';
 import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 
+// Estados para los botones de filtro rápido (value '' = todos los vigentes)
+const ESTADOS_FILTRO = [
+  { value: 'activo',     label: 'Activos',     activo: 'bg-green-600 text-white border-green-600',   inactivo: 'text-green-700 border-green-200 hover:bg-green-50' },
+  { value: 'vendido',    label: 'Vendidos',    activo: 'bg-blue-600 text-white border-blue-600',     inactivo: 'text-blue-700 border-blue-200 hover:bg-blue-50' },
+  { value: 'muerto',     label: 'Muertos',     activo: 'bg-gray-700 text-white border-gray-700',     inactivo: 'text-gray-700 border-gray-300 hover:bg-gray-100' },
+  { value: 'donado',     label: 'Donados',     activo: 'bg-purple-600 text-white border-purple-600', inactivo: 'text-purple-700 border-purple-200 hover:bg-purple-50' },
+  { value: 'descartado', label: 'Descartados', activo: 'bg-amber-600 text-white border-amber-600',   inactivo: 'text-amber-700 border-amber-200 hover:bg-amber-50' },
+  { value: '',           label: 'Todos',       activo: 'bg-gray-800 text-white border-gray-800',     inactivo: 'text-gray-600 border-gray-200 hover:bg-gray-50' },
+];
+
+// Color del badge de estado en la tarjeta/modal
+const estadoBadgeClase = (estado) => ({
+  activo:     'bg-green-100/90 text-green-700',
+  vendido:    'bg-blue-100/90 text-blue-700',
+  muerto:     'bg-gray-200/90 text-gray-700',
+  donado:     'bg-purple-100/90 text-purple-700',
+  descartado: 'bg-amber-100/90 text-amber-700',
+}[estado] || 'bg-gray-100/90 text-gray-600');
+
 const ListaAnimales = ({ onEditar, onNuevo }) => {
   const navigate = useNavigate();
   const [animales, setAnimales]   = useState([]);
@@ -20,7 +39,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
   const [filtros, setFiltros] = useState({ busqueda: '', sexo: '', raza: '', estado: 'activo' });
 
   useEffect(() => {
-    razasAPI.getAll().then(d => setRazas(d)).catch(() => setRazas([]));
+    razasAPI.getAll().then(d => setRazas(Array.isArray(d) ? d : (d.data || []))).catch(() => setRazas([]));
   }, []);
 
   useEffect(() => { cargarAnimales(); }, [filtros]);
@@ -29,8 +48,26 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
     setCargando(true);
     setError(null);
     try {
-      const res = await animalesAPI.search({ sexo: filtros.sexo, idRaza: filtros.raza, estadoGeneral: filtros.estado, busqueda: filtros.busqueda });
-      setAnimales(Array.isArray(res.data) ? res.data : []);
+      // El backend filtra por sexo y estado; la búsqueda de texto y la raza se filtran en cliente.
+      const params = {};
+      if (filtros.sexo) params.sexo = filtros.sexo;
+      if (filtros.estado) params.estado = filtros.estado;
+      const res = await animalesAPI.search(params);
+      let lista = Array.isArray(res.data) ? res.data : [];
+
+      if (filtros.raza) {
+        lista = lista.filter(a => String(a.idRaza) === String(filtros.raza));
+      }
+      if (filtros.busqueda.trim()) {
+        const q = filtros.busqueda.trim().toLowerCase();
+        lista = lista.filter(a =>
+          (a.codigo && a.codigo.toLowerCase().includes(q)) ||
+          (a.chapetaNueva && a.chapetaNueva.toLowerCase().includes(q)) ||
+          (a.chapetaVieja && a.chapetaVieja.toLowerCase().includes(q)) ||
+          (a.nombre && a.nombre.toLowerCase().includes(q))
+        );
+      }
+      setAnimales(lista);
     } catch {
       setError('No se pudo cargar la lista. Verifica la conexión.');
       setAnimales([]);
@@ -53,8 +90,12 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
 
   const exportarCSV = () => {
     const csv = [
-      ['Identificación', 'Nombre', 'Sexo', 'Raza', 'Estado'].join(','),
-      ...animales.map(a => [`"${a.codigo}"`, `"${a.nombre || ''}"`, `"${a.sexo}"`, `"${a.nombreRaza || ''}"`, `"${a.estado}"`].join(','))
+      ['Chapeta nueva', 'Chapeta vieja', 'Nombre', 'Sexo', 'Raza', 'Estado', 'Corral', 'Lote', 'Motivo estado'].join(','),
+      ...animales.map(a => [
+        `"${a.chapetaNueva || ''}"`, `"${a.chapetaVieja || ''}"`, `"${a.nombre || ''}"`,
+        `"${a.sexo}"`, `"${a.nombreRaza || ''}"`, `"${a.estado}"`,
+        `"${a.nombreCorral || ''}"`, `"${a.loteCorral || ''}"`, `"${(a.motivoEstado || '').replace(/"/g, '""')}"`
+      ].join(','))
     ].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
@@ -117,8 +158,21 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
         <div className="mt-4 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input type="text" name="busqueda" value={filtros.busqueda} onChange={cambioFiltro}
-            placeholder="Buscar por código o nombre..."
+            placeholder="Buscar por chapeta (nueva/vieja) o nombre..."
             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400 bg-gray-50" />
+        </div>
+
+        {/* Botones de filtro rápido por estado */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {ESTADOS_FILTRO.map(e => (
+            <button key={e.value || 'todos'}
+              onClick={() => setFiltros(p => ({ ...p, estado: e.value }))}
+              className={`px-3.5 py-1.5 rounded-full border text-xs font-semibold transition-colors ${
+                filtros.estado === e.value ? e.activo : `bg-white ${e.inactivo}`
+              }`}>
+              {e.label}
+            </button>
+          ))}
         </div>
 
         {/* Filtros avanzados */}
@@ -134,13 +188,13 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">Estado</label>
-              <select name="estado" value={filtros.estado} onChange={cambioFiltro}
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Raza</label>
+              <select name="raza" value={filtros.raza} onChange={cambioFiltro}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
-                <option value="">Todos</option>
-                <option value="activo">Activo</option>
-                <option value="vendido">Vendido</option>
-                <option value="muerto">Baja</option>
+                <option value="">Todas</option>
+                {(Array.isArray(razas) ? razas : []).map(r => (
+                  <option key={r.id_raza || r.id} value={r.id_raza || r.id}>{r.nombre_raza || r.nombre}</option>
+                ))}
               </select>
             </div>
             <div className="flex items-end">
@@ -218,13 +272,23 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
             <div className="flex items-start justify-between mb-5">
               <div>
                 <h3 className="text-xl font-bold text-gray-800">{modalDetalles.animal.nombre || 'Sin nombre'}</h3>
-                <p className="text-sm font-mono text-gray-500">{modalDetalles.animal.codigo}</p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {modalDetalles.animal.chapetaNueva && (
+                    <span className="text-xs font-mono bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded">Nueva: {modalDetalles.animal.chapetaNueva}</span>
+                  )}
+                  {modalDetalles.animal.chapetaVieja && (
+                    <span className="text-xs font-mono bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded">Vieja: {modalDetalles.animal.chapetaVieja}</span>
+                  )}
+                  {!modalDetalles.animal.chapetaNueva && !modalDetalles.animal.chapetaVieja && (
+                    <span className="text-sm font-mono text-gray-500">{modalDetalles.animal.codigo}</span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${modalDetalles.animal.sexo === 'macho' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
                   {modalDetalles.animal.sexo === 'macho' ? '♂ Macho' : '♀ Hembra'}
                 </span>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${modalDetalles.animal.estado === 'activo' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${estadoBadgeClase(modalDetalles.animal.estado)}`}>
                   {modalDetalles.animal.estado}
                 </span>
               </div>
@@ -250,6 +314,8 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
                 ['Edad',           calcularEdad(modalDetalles.animal.fechaNacimiento)],
                 ['Peso nacimiento',modalDetalles.animal.pesoNacimiento ? `${modalDetalles.animal.pesoNacimiento} kg` : '—'],
                 ['Color pelaje',   modalDetalles.animal.colorPelaje || '—'],
+                ['Corral',         modalDetalles.animal.nombreCorral ? `${modalDetalles.animal.nombreCorral}${modalDetalles.animal.loteCorral ? ` · ${modalDetalles.animal.loteCorral}` : ''}` : '—'],
+                ['Lote',           modalDetalles.animal.loteCorral || '—'],
               ].map(([k, v]) => (
                 <div key={k} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                   <p className="text-xs text-gray-400 mb-0.5">{k}</p>
@@ -257,6 +323,15 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
                 </div>
               ))}
             </div>
+
+            {modalDetalles.animal.estado !== 'activo' && modalDetalles.animal.motivoEstado && (
+              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-sm text-gray-700 mb-4">
+                <p className="font-medium text-gray-500 mb-0.5 text-xs uppercase tracking-wide">
+                  {modalDetalles.animal.estado === 'muerto' ? 'Motivo de muerte' : 'Motivo / detalle del estado'}
+                </p>
+                {modalDetalles.animal.motivoEstado}
+              </div>
+            )}
 
             {modalDetalles.animal.observaciones && (
               <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 text-sm text-blue-800 mb-4">
@@ -302,7 +377,7 @@ function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar, onPe
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm ${animal.sexo === 'macho' ? 'bg-blue-100/90 text-blue-700' : 'bg-pink-100/90 text-pink-700'}`}>
             {animal.sexo === 'macho' ? '♂' : '♀'} {animal.sexo === 'macho' ? 'Macho' : 'Hembra'}
           </span>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm ${animal.estado === 'activo' ? 'bg-green-100/90 text-green-700' : 'bg-gray-100/90 text-gray-600'}`}>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm capitalize ${estadoBadgeClase(animal.estado)}`}>
             {animal.estado}
           </span>
         </div>
@@ -312,14 +387,32 @@ function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar, onPe
       <div className="p-4">
         <div className="mb-3">
           <h3 className="font-bold text-gray-800 text-base truncate">{animal.nombre || <span className="text-gray-400 font-normal italic">Sin nombre</span>}</h3>
-          <p className="text-xs font-mono text-gray-400 mt-0.5">{animal.codigo}</p>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {animal.chapetaNueva && (
+              <span className="text-[10px] font-mono bg-green-50 text-green-700 border border-green-100 px-1.5 py-0.5 rounded">N: {animal.chapetaNueva}</span>
+            )}
+            {animal.chapetaVieja && (
+              <span className="text-[10px] font-mono bg-amber-50 text-amber-700 border border-amber-100 px-1.5 py-0.5 rounded">V: {animal.chapetaVieja}</span>
+            )}
+            {!animal.chapetaNueva && !animal.chapetaVieja && (
+              <span className="text-xs font-mono text-gray-400">{animal.codigo}</span>
+            )}
+          </div>
         </div>
 
         <div className="space-y-1.5 mb-4">
           <InfoRow icon={<Tag className="w-3.5 h-3.5" />}    label="Raza"  value={animal.nombreRaza || '—'} />
           <InfoRow icon={<Calendar className="w-3.5 h-3.5" />} label="Edad"  value={calcularEdad(animal.fechaNacimiento)} />
           <InfoRow icon={<Weight className="w-3.5 h-3.5" />}  label="Peso"  value={animal.pesoNacimiento ? `${animal.pesoNacimiento} kg` : '—'} />
+          {animal.nombreCorral && (
+            <InfoRow icon={<Filter className="w-3.5 h-3.5" />} label="Corral" value={`${animal.nombreCorral}${animal.loteCorral ? ` · ${animal.loteCorral}` : ''}`} />
+          )}
         </div>
+        {animal.estado === 'muerto' && animal.motivoEstado && (
+          <div className="mb-3 text-[11px] text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1.5">
+            <span className="font-semibold text-gray-600">Motivo de muerte:</span> {animal.motivoEstado}
+          </div>
+        )}
 
         {/* Botones */}
         <div className="pt-3 border-t border-gray-100 space-y-1.5">

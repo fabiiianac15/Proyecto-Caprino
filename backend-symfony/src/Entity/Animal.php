@@ -59,6 +59,22 @@ class Animal
     private ?string $codigoIdentificacion = null;
 
     /**
+     * Chapeta del nuevo esquema de identificación (crotal nuevo)
+     */
+    #[ORM\Column(name: 'chapeta_nueva', type: Types::STRING, length: 50, nullable: true, unique: true)]
+    #[Assert\Length(max: 50)]
+    #[Groups(['animal:read', 'animal:write'])]
+    private ?string $chapetaNueva = null;
+
+    /**
+     * Chapeta antigua (las cabras viejas conservan solo esta)
+     */
+    #[ORM\Column(name: 'chapeta_vieja', type: Types::STRING, length: 50, nullable: true, unique: true)]
+    #[Assert\Length(max: 50)]
+    #[Groups(['animal:read', 'animal:write'])]
+    private ?string $chapetaVieja = null;
+
+    /**
      * Nombre del animal (opcional pero recomendado)
      */
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
@@ -70,8 +86,7 @@ class Animal
      * Fecha de nacimiento del animal
      * Debe ser anterior o igual a la fecha actual
      */
-    #[ORM\Column(name: 'fecha_nacimiento', type: Types::DATE_MUTABLE)]
-    #[Assert\NotBlank(message: 'La fecha de nacimiento es obligatoria')]
+    #[ORM\Column(name: 'fecha_nacimiento', type: Types::DATE_MUTABLE, nullable: true)]
     #[Assert\LessThanOrEqual(
         'today',
         message: 'La fecha de nacimiento no puede ser futura'
@@ -222,9 +237,31 @@ class Animal
         return $this->fechaNacimiento;
     }
 
-    public function setFechaNacimiento(\DateTimeInterface $fechaNacimiento): self
+    public function setFechaNacimiento(?\DateTimeInterface $fechaNacimiento): self
     {
         $this->fechaNacimiento = $fechaNacimiento;
+        return $this;
+    }
+
+    public function getChapetaNueva(): ?string
+    {
+        return $this->chapetaNueva;
+    }
+
+    public function setChapetaNueva(?string $chapetaNueva): self
+    {
+        $this->chapetaNueva = $chapetaNueva;
+        return $this;
+    }
+
+    public function getChapetaVieja(): ?string
+    {
+        return $this->chapetaVieja;
+    }
+
+    public function setChapetaVieja(?string $chapetaVieja): self
+    {
+        $this->chapetaVieja = $chapetaVieja;
         return $this;
     }
 

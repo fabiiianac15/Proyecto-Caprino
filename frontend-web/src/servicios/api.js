@@ -139,6 +139,54 @@ export const apiHelpers = {
     const response = await api.delete(url);
     return response.data;
   },
+
+  /**
+   * POST con respuesta en streaming (text/plain).
+   * Invoca `onChunk(textoAcumulado, fragmento)` por cada fragmento recibido.
+   * Usa fetch nativo porque axios no expone el cuerpo como stream.
+   *
+   * @param {string} url           Ruta relativa (se antepone la baseURL)
+   * @param {object} data          Cuerpo JSON
+   * @param {(full:string, chunk:string)=>void} onChunk  Callback por fragmento
+   * @param {AbortSignal} [signal] Señal para cancelar la petición
+   * @returns {Promise<string>}    Texto completo acumulado
+   */
+  postStream: async (url, data = {}, onChunk = () => {}, signal) => {
+    const base = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace(/\/$/, '');
+    const token = localStorage.getItem('token');
+
+    const response = await fetch(`${base}${url}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+      signal,
+    });
+
+    if (!response.ok) {
+      let detalle = `Error ${response.status}`;
+      try {
+        const j = await response.json();
+        detalle = j.error || j.detalle || detalle;
+      } catch { /* respuesta no-JSON */ }
+      throw new Error(detalle);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let full = '';
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      full += chunk;
+      onChunk(full, chunk);
+    }
+    return full;
+  },
 };
 
 export default api;

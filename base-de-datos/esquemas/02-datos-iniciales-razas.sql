@@ -106,10 +106,10 @@ VALUES (
 -- RAZAS DE DOBLE PROPÓSITO
 -- ==================================================================
 
--- Raza Nubia o Anglo-Nubiana
+-- Raza Anglonubiana (antes registrada como "Nubia")
 INSERT INTO RAZA (nombre_raza, origen, aptitud, peso_adulto_promedio_kg, produccion_leche_dia_promedio, caracteristicas)
 VALUES (
-    'Nubia',
+    'Anglonubiana',
     'África del Norte',
     'doble_proposito',
     60.0,
@@ -117,11 +117,11 @@ VALUES (
     'Orejas largas y colgantes características. Leche con alto contenido graso y proteico. Buena conformación cárnica. Adaptada a climas cálidos. Temperamento activo.'
 );
 
--- Raza Criolla Local
+-- Raza Criolla Santandereana (criolla local de Santander)
 INSERT INTO RAZA (nombre_raza, origen, aptitud, peso_adulto_promedio_kg, produccion_leche_dia_promedio, caracteristicas)
 VALUES (
-    'Criolla',
-    'América Latina',
+    'Criolla Santandereana',
+    'Santander (Colombia)',
     'doble_proposito',
     45.0,
     2.0,
