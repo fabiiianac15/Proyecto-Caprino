@@ -156,14 +156,19 @@ export const animalesAPI = {
     try {
       const dataTransformada = {
         codigoIdentificacion: animalData.identificacion || animalData.numeroIdentificacion || animalData.codigo,
+        chapetaNueva: animalData.chapetaNueva,
+        chapetaVieja: animalData.chapetaVieja,
         nombre: animalData.nombre,
         fechaNacimiento: animalData.fechaNacimiento,
         sexo: animalData.sexo,
         idRaza: animalData.razaId || animalData.idRaza,
-        colorPelaje: animalData.colorPelaje,
+        colorPelaje: animalData.colorPelaje || animalData.color,
         pesoNacimiento: animalData.pesoNacimiento,
         observaciones: animalData.observaciones,
-        fotoUrl: animalData.foto || animalData.fotoUrl
+        fotoUrl: animalData.foto || animalData.fotoUrl,
+        estado: animalData.estado,
+        motivoEstado: animalData.motivoEstado,
+        idCorral: animalData.idCorral,
       };
 
       const response = await apiFetch(`${API_BASE_URL}/animales`, {
