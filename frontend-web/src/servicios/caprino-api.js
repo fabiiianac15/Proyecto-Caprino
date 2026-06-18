@@ -716,6 +716,106 @@ export const corralesAPI = {
   },
 };
 
+// ==================== BIENESTAR ANIMAL API (MEBA) ====================
+
+export const bienestarAPI = {
+  getCatalogo: async (especie = 'CAPRINO') => {
+    const response = await apiFetch(`${API_BASE_URL}/bienestar/catalogo?especie=${especie}`);
+    const data = await handleResponse(response);
+    return data.data || [];
+  },
+
+  getAll: async () => {
+    const response = await apiFetch(`${API_BASE_URL}/bienestar`);
+    const data = await handleResponse(response);
+    return { data: data.data || [], total: data.total || 0 };
+  },
+
+  getById: async (id) => {
+    const response = await apiFetch(`${API_BASE_URL}/bienestar/${id}`);
+    const data = await handleResponse(response);
+    return data.data;
+  },
+
+  getSugerencias: async () => {
+    const response = await apiFetch(`${API_BASE_URL}/bienestar/sugerencias`);
+    const data = await handleResponse(response);
+    return data.data || {};
+  },
+
+  create: async (datos) => {
+    const response = await apiFetch(`${API_BASE_URL}/bienestar`, {
+      method: 'POST',
+      body: JSON.stringify(datos),
+    });
+    return await handleResponse(response);
+  },
+
+  delete: async (id) => {
+    const response = await apiFetch(`${API_BASE_URL}/bienestar/${id}`, { method: 'DELETE' });
+    return await handleResponse(response);
+  },
+};
+
+// ==================== CLASIFICACIÓN LINEAL FENOTÍPICA API ====================
+
+export const clasificacionLinealAPI = {
+  getCatalogo: async () => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/catalogo`);
+    const data = await handleResponse(response);
+    return data.data || [];
+  },
+
+  getByAnimal: async (idAnimal) => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal?idAnimal=${idAnimal}`);
+    const data = await handleResponse(response);
+    return { data: data.data || [] };
+  },
+
+  getAll: async () => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal`);
+    const data = await handleResponse(response);
+    return { data: data.data || [], total: data.total || 0 };
+  },
+
+  getById: async (id) => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/${id}`);
+    const data = await handleResponse(response);
+    return data.data;
+  },
+
+  create: async (datos) => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal`, {
+      method: 'POST',
+      body: JSON.stringify(datos),
+    });
+    return await handleResponse(response);
+  },
+
+  // Subida multipart: NO usar apiFetch (forzaría Content-Type JSON).
+  subirFoto: async (id, file, tipoVista, descripcion = '') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('tipoVista', tipoVista);
+    if (descripcion) fd.append('descripcion', descripcion);
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/clasificacion-lineal/${id}/foto`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    return await handleResponse(response);
+  },
+
+  // URL absoluta de una foto (incluye token para que el backend la sirva).
+  urlFoto: (idFoto) => `${API_BASE_URL}/clasificacion-lineal/foto/${idFoto}`,
+
+  delete: async (id) => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/${id}`, { method: 'DELETE' });
+    return await handleResponse(response);
+  },
+};
+
 // Export configuration
 export const API_CONFIG = {
   baseUrl: API_BASE_URL,

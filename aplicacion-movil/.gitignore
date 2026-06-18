@@ -1,0 +1,19 @@
+# Dependencias
+node_modules/
+
+# Build
+dist/
+
+# Entorno (local)
+.env
+
+# Plataformas nativas generadas por Capacitor
+android/
+ios/
+
+# Logs y temporales
+*.log
+.DS_Store
+
+# APK compilado
+Gestion-Caprino.apk

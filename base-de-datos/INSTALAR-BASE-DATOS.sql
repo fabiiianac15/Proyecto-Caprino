@@ -24,8 +24,12 @@
 --   @<ruta>\base-de-datos\esquemas\04-perfil-usuario.sql
 --   @<ruta>\base-de-datos\esquemas\05-tabla-famacha.sql
 --   @<ruta>\base-de-datos\esquemas\06-parche-columnas-faltantes.sql
+--   @<ruta>\base-de-datos\esquemas\07-reformas-granja.sql
+--   @<ruta>\base-de-datos\esquemas\09-bienestar.sql
+--   @<ruta>\base-de-datos\esquemas\10-clasificacion-lineal.sql
 --   @<ruta>\base-de-datos\procedimientos\01-triggers-y-funciones.sql
 --   @<ruta>\base-de-datos\vistas\01-vistas-reportes.sql
+-- (08-limpieza-entrega.sql es opcional: vacía datos para una entrega limpia)
 
 -- ==================================================================
 -- NO EJECUTAR los siguientes scripts (obsoletos/conflictivos):
@@ -59,6 +63,7 @@
 -- NOTA PARA BD YA EXISTENTE (si las tablas principales ya están):
 -- ==================================================================
 -- Si la BD ya tiene las tablas del paso 01 pero le faltan las de
--- los pasos 04, 05, 06, ejecutar SOLO esos scripts adicionales.
--- El script 06 usa BEGIN/EXCEPTION para ignorar objetos ya existentes.
+-- los pasos 04, 05, 06, 07, 09, 10, ejecutar SOLO esos scripts adicionales.
+-- Los scripts 06, 07, 09 y 10 usan BEGIN/EXCEPTION e IF count=0 para
+-- ignorar objetos ya existentes (son idempotentes).
 -- ==================================================================

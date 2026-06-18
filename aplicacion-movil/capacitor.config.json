@@ -1,0 +1,16 @@
+{
+  "appId": "com.zootecnia.caprino",
+  "appName": "Gestión Caprino",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#16a34a",
+      "showSpinner": false
+    }
+  }
+}

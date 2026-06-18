@@ -25,6 +25,8 @@ import ModuloSalud from './componentes/ModuloSalud';
 import ModuloPeso from './componentes/ModuloPeso';
 import ModuloGenealogia from './componentes/ModuloGenealogia';
 import ModuloCorrales from './componentes/ModuloCorrales';
+import ModuloBienestar from './componentes/ModuloBienestar';
+import ModuloClasificacionLineal from './componentes/ModuloClasificacionLineal';
 import ModuloReportes from './componentes/ModuloReportes';
 import ModuloAuditoria from './componentes/ModuloAuditoria';
 import Notificaciones from './componentes/Notificaciones';
@@ -334,6 +336,10 @@ function App() {
           <Route path="/genealogia" element={<RutaProtegida><ModuloGenealogia /></RutaProtegida>} />
 
           <Route path="/corrales" element={<RutaProtegida><ModuloCorrales /></RutaProtegida>} />
+
+          <Route path="/bienestar" element={<RutaProtegida><ModuloBienestar /></RutaProtegida>} />
+
+          <Route path="/clasificacion-lineal" element={<RutaProtegida><ModuloClasificacionLineal /></RutaProtegida>} />
 
           <Route path="/animales/:id" element={<RutaProtegida><ExpedienteAnimal /></RutaProtegida>} />
           

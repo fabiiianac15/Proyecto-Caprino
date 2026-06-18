@@ -4,6 +4,47 @@
 
 Aplicación móvil desarrollada con Capacitor y React para el registro de datos zootécnicos en campo. Diseñada para uso en corrales con funcionalidad offline-first.
 
+---
+
+## ✅ Estado actual (v1 — implementada)
+
+Esta primera versión ya está **funcional** y reutiliza la misma API Symfony + JWT del frontend web.
+
+**Funcionalidades incluidas:**
+- 🔐 **Login** con JWT (`POST /api/auth/login`).
+- 🔍 **Buscar / escanear animal** por código, chapeta nueva/vieja o nombre. El escáner QR funciona en el dispositivo nativo; en navegador se usa la búsqueda manual.
+- 🐐 **Ficha del animal** (lectura offline desde caché local).
+- 💉 **Registrar salud** (vacuna, tratamiento, desparasitación, diagnóstico, cirugía) → `POST /api/salud`.
+- 📥 **Offline-first**: si no hay internet, el registro se guarda en una **cola local** y se **sincroniza automáticamente** al recuperar la conexión. Pantalla de Sincronización con control manual.
+
+**Cómo probarla en el navegador (desarrollo):**
+```bash
+cd aplicacion-movil
+npm install
+cp .env.example .env      # ya apunta a http://localhost:8000/api
+npm run dev               # abre http://localhost:5174
+```
+> Requiere el backend Symfony corriendo en `localhost:8000`.
+
+**Arquitectura de la v1:**
+- React 18 + Vite + Tailwind (mismo stack que el web) + React Router.
+- Capa offline en `src/servicios/almacenamientoLocal.js` usando `localStorage`
+  (cola de sincronización + caché de animales). Está aislada para poder
+  migrar a **SQLite** más adelante sin tocar el resto de la app.
+- Detección de red con `@capacitor/network`; escáner con
+  `@capacitor-community/barcode-scanner`.
+
+**Pendiente (próximas versiones):**
+- Módulos de Pesaje y Producción de leche (la mecánica offline ya está lista para reutilizar).
+- Migrar la cola a SQLite (`@capacitor-community/sqlite`).
+- Captura de fotos del animal con `@capacitor/camera`.
+- Generar el proyecto Android (`npx cap add android`) y el APK.
+
+> ⚠️ La descripción extensa más abajo es el **plan original de referencia**;
+> algunos nombres de archivos/dependencias (Ionic, SQLite) aún no se usan en la v1.
+
+---
+
 ## Tecnologías
 
 - Capacitor 5.x
