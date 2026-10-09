@@ -7,9 +7,11 @@ namespace App\Service;
  * Cedeño et al. 2024). Cuatro regiones con puntos máximos fijos:
  *   APARIENCIA 25, ESTRUCTURA 15, MAMARIO 40, PATAS 20 (total 100).
  *
- * Cada rasgo se califica 1 (bajo), 2 (intermedio) o 3 (alto). Dentro de
- * una región los puntos se reparten por igual entre sus rasgos y se
- * escalan por un factor según la calificación.
+ * Cada rasgo se califica 1 (bajo), 2 (intermedio) o 3 (alto). Cada rasgo
+ * aporta sus puntos máximos (ptsRasgo; si no tiene, la región se reparte por
+ * igual) escalados por un factor según la calificación. Los factores son el
+ * tope de cada rango de la escala 1-50 del artículo: bajo 5, intermedio 25,
+ * alto 50.
  */
 class ClasificacionLinealService
 {
@@ -20,7 +22,7 @@ class ClasificacionLinealService
 
     /**
      * @param array<int,array{idRasgo:int,calificacion:int}> $detalles
-     * @param array<int,array{region:string,ptsRegion:float}> $catalogo  indexado por idRasgo
+     * @param array<int,array{region:string,ptsRegion:float,ptsRasgo?:float|null}> $catalogo  indexado por idRasgo
      *
      * @return array{
      *   subtotales: array<string,float>,
@@ -50,8 +52,11 @@ class ClasificacionLinealService
             $factor = self::FACTOR[$cal] ?? 0.0;
             $n      = max(1, $rasgosPorRegion[$region] ?? 1);
 
-            $aporte = round(($catalogo[$idRasgo]['ptsRegion'] / $n) * $factor, 2);
-            $puntajes[$idRasgo] = $aporte;
+            $maximo = $catalogo[$idRasgo]['ptsRasgo'] ?? ($catalogo[$idRasgo]['ptsRegion'] / $n);
+            // Se suma sin redondear (40/7 por rasgo) y se redondea solo el subtotal,
+            // para que una cabra con todo en 3 sume exactamente 100.
+            $aporte = $maximo * $factor;
+            $puntajes[$idRasgo] = round($aporte, 2);
             $subtotales[$region] += $aporte;
         }
 

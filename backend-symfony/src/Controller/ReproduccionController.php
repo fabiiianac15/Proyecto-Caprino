@@ -216,17 +216,18 @@ class ReproduccionController extends AbstractController
                 $codigo = 'CRIA-' . $id . '-' . $n;
                 $estadoCria = $vivo ? 'activo' : 'muerto';
                 $motivoCria = $vivo ? null : 'Cría nacida muerta (mortinato)';
+                $estProdCria = $vivo && $sexo === 'hembra' ? 'cabrita' : null;
 
                 $this->connection->executeStatement(
                     "INSERT INTO ANIMAL
                         (codigo_identificacion, nombre, fecha_nacimiento, sexo, id_raza,
-                         estado, motivo_estado, fecha_cambio_estado, id_reproduccion_origen, usuario_registro)
+                         estado, motivo_estado, fecha_cambio_estado, estado_productivo, id_reproduccion_origen, usuario_registro)
                      VALUES
                         (:cod, :nom, TO_DATE(:fn, 'YYYY-MM-DD'), :sexo, :raza,
-                         :est, :mot, " . ($vivo ? 'NULL' : 'CURRENT_TIMESTAMP') . ", :repro, :ureg)",
+                         :est, :mot, " . ($vivo ? 'NULL' : 'CURRENT_TIMESTAMP') . ", :estprod, :repro, :ureg)",
                     [
                         'cod' => $codigo, 'nom' => $nombre, 'fn' => $fechaReal, 'sexo' => $sexo,
-                        'raza' => $idRazaMadre, 'est' => $estadoCria, 'mot' => $motivoCria,
+                        'raza' => $idRazaMadre, 'est' => $estadoCria, 'mot' => $motivoCria, 'estprod' => $estProdCria,
                         'repro' => $id, 'ureg' => $uReg,
                     ]
                 );
@@ -244,6 +245,12 @@ class ReproduccionController extends AbstractController
 
                 $criasCreadas[] = ['id' => $idCria, 'codigo' => $codigo, 'sexo' => $sexo, 'vivo' => $vivo];
             }
+
+            // 3. Tras el parto la madre entra en lactancia
+            $this->connection->executeStatement(
+                "UPDATE ANIMAL SET estado_productivo = 'produccion' WHERE id_animal = :h",
+                ['h' => $idHembra]
+            );
 
             $this->connection->commit();
         } catch (\Throwable $e) {
@@ -286,6 +293,7 @@ class ReproduccionController extends AbstractController
         $obs            = $data['observaciones']      ?? null;
 
         // Validar valores contra CHECK constraints
+        // tipo_parto: simple = sencillo, doble = gemelar, triple = trillizo
         $resultadosValidos  = ['exitoso', 'aborto', 'mortinato', 'pendiente'];
         $tiposPartoValidos  = ['simple', 'doble', 'triple', 'multiple'];
         $dificultadesValidas = ['normal', 'asistido', 'distocico', 'cesarea'];
@@ -323,6 +331,14 @@ class ReproduccionController extends AbstractController
                 'id'  => $id,
             ]
         );
+
+        // Diagnóstico de gestación positivo (aún sin parto): la hembra queda preñada
+        if ($resultado === 'exitoso' && !$fechaReal && $oldRow['FECHA_PARTO_REAL'] === null) {
+            $this->connection->executeStatement(
+                "UPDATE ANIMAL SET estado_productivo = 'prenada' WHERE id_animal = :h",
+                ['h' => (int) $oldRow['ID_HEMBRA']]
+            );
+        }
 
         try {
             $this->auditoria->registrar(

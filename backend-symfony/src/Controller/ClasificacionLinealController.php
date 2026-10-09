@@ -40,9 +40,11 @@ class ClasificacionLinealController extends AbstractController
     public function catalogo(): JsonResponse
     {
         $rows = $this->connection->fetchAllAssociative(
-            "SELECT id_rasgo, codigo, nombre, region, pts_region, orden
+            "SELECT id_rasgo, codigo, nombre, region, pts_region, pts_rasgo, orden,
+                    vista, que_mirar, desc_1, desc_2, desc_3
                FROM CLASIF_RASGO_CAT ORDER BY orden"
         );
+        $porRegion = array_count_values(array_column($rows, 'REGION'));
 
         return $this->json(['data' => array_map(fn($r) => [
             'idRasgo'   => (int) $r['ID_RASGO'],
@@ -50,7 +52,13 @@ class ClasificacionLinealController extends AbstractController
             'nombre'    => $r['NOMBRE'],
             'region'    => $r['REGION'],
             'ptsRegion' => (float) $r['PTS_REGION'],
+            'ptsRasgo'  => $r['PTS_RASGO'] !== null
+                ? (float) $r['PTS_RASGO']
+                : (float) $r['PTS_REGION'] / $porRegion[$r['REGION']],
             'orden'     => (int) $r['ORDEN'],
+            'vista'     => $r['VISTA'],
+            'queMirar'  => $r['QUE_MIRAR'],
+            'niveles'   => [1 => $r['DESC_1'], 2 => $r['DESC_2'], 3 => $r['DESC_3']],
         ], $rows)]);
     }
 
@@ -105,7 +113,7 @@ class ClasificacionLinealController extends AbstractController
 
         $det = $this->connection->fetchAllAssociative(
             "SELECT d.id_detalle, d.id_rasgo, c.codigo, c.nombre, c.region,
-                    d.calificacion, d.puntaje, d.observacion
+                    d.calificacion, d.puntaje, d.observacion, c.desc_1, c.desc_2, c.desc_3
                FROM EVAL_LINEAL_DETALLE d JOIN CLASIF_RASGO_CAT c ON d.id_rasgo = c.id_rasgo
               WHERE d.id_evaluacion = :id ORDER BY c.orden",
             ['id' => $id]
@@ -140,6 +148,7 @@ class ClasificacionLinealController extends AbstractController
                 'calificacion' => (int) $r['CALIFICACION'],
                 'puntaje'      => $r['PUNTAJE'] !== null ? (float) $r['PUNTAJE'] : null,
                 'observacion'  => $r['OBSERVACION'],
+                'nivelTexto'   => $r['DESC_' . (int) $r['CALIFICACION']] ?? null,
             ], $det),
             'fotos'           => array_map(fn($r) => [
                 'idFoto'      => (int) $r['ID_FOTO'],
@@ -174,9 +183,13 @@ class ClasificacionLinealController extends AbstractController
         // Catálogo indexado por id de rasgo.
         $catalogo = [];
         foreach ($this->connection->fetchAllAssociative(
-            'SELECT id_rasgo, region, pts_region FROM CLASIF_RASGO_CAT'
+            'SELECT id_rasgo, region, pts_region, pts_rasgo FROM CLASIF_RASGO_CAT'
         ) as $r) {
-            $catalogo[(int) $r['ID_RASGO']] = ['region' => $r['REGION'], 'ptsRegion' => (float) $r['PTS_REGION']];
+            $catalogo[(int) $r['ID_RASGO']] = [
+                'region'    => $r['REGION'],
+                'ptsRegion' => (float) $r['PTS_REGION'],
+                'ptsRasgo'  => $r['PTS_RASGO'] !== null ? (float) $r['PTS_RASGO'] : null,
+            ];
         }
 
         $detalles = [];

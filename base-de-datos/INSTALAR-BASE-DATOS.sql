@@ -27,6 +27,9 @@
 --   @<ruta>\base-de-datos\esquemas\07-reformas-granja.sql
 --   @<ruta>\base-de-datos\esquemas\09-bienestar.sql
 --   @<ruta>\base-de-datos\esquemas\10-clasificacion-lineal.sql
+--   @<ruta>\base-de-datos\esquemas\11-estado-productivo-y-raza-alpina.sql
+--   @<ruta>\base-de-datos\esquemas\12-bienestar-evidencias.sql
+--   @<ruta>\base-de-datos\esquemas\13-clasificacion-lineal-guia.sql
 --   @<ruta>\base-de-datos\procedimientos\01-triggers-y-funciones.sql
 --   @<ruta>\base-de-datos\vistas\01-vistas-reportes.sql
 -- (08-limpieza-entrega.sql es opcional: vacía datos para una entrega limpia)

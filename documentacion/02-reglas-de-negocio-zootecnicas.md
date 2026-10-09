@@ -10,17 +10,18 @@ Este documento define las reglas de negocio específicas del sector caprino que 
 
 **Regla RN-001: Identificador Único Obligatorio**
 - Cada animal debe tener un código de identificación único en el sistema
-- El código puede ser: crotal oficial, código QR, chip RFID o código interno
+- Se manejan dos chapetas: la **nueva** y la **vieja** (las cabras antiguas solo conservan la vieja). Debe existir al menos una y ninguna puede repetirse
 - No se permite duplicar códigos de identificación
 - Una vez asignado, el código solo puede modificarse con autorización especial
 
 **Regla RN-002: Datos Mínimos de Registro**
-- Campos obligatorios: código, fecha de nacimiento, sexo, raza
-- La fecha de nacimiento no puede ser posterior a la fecha actual
+- Campos obligatorios: al menos una chapeta, nombre, sexo, raza
+- La fecha de nacimiento es opcional (hay cabras viejas sin fecha conocida); si se registra, no puede ser posterior a la fecha actual
 - El peso al nacer debe estar entre 2 y 6 kg (rango normal para caprinos)
 
 **Regla RN-003: Estados del Animal**
-- Estados permitidos: activo, vendido, muerto, descartado
+- Estados permitidos: activo, vendido, muerto, descartado, donado
+- Las hembras tienen además un **tipo de estado** (estado productivo): producción, seca, preñada, cabretona o cabrita. Se actualiza solo: el diagnóstico de preñez positivo la pasa a "preñada", el parto pasa a la madre a "producción" y las crías hembra vivas nacen como "cabrita"
 - Solo animales con estado "activo" pueden tener registros nuevos (pesajes, producción, etc.)
 - El cambio de estado debe incluir motivo y fecha
 - Los cambios de estado son irreversibles (excepto errores administrativos)
@@ -45,15 +46,15 @@ Este documento define las reglas de negocio específicas del sector caprino que 
 - Los padres deben tener al menos 7 meses más que el hijo (edad mínima reproductiva)
 
 **Regla RN-006: Control de Consanguinidad**
-- El sistema debe advertir si se detecta consanguinidad cercana
-- No permitir cruces padre-hija o madre-hijo
-- No permitir cruces entre hermanos completos (mismo padre y madre)
-- Alertar si los padres comparten abuelos comunes
+- El coeficiente de consanguinidad (F) de la cría se calcula **exacto** con todo el pedigrí registrado (método tabular), y se muestran los ancestros comunes con su aporte (fórmula de Wright)
+- F ≥ 12,5 % (medios hermanos o más cercano): alerta y el cruce nunca pasa de "Precaución"
+- F ≥ 25 % (padre-hija, madre-hijo, hermanos completos): "No recomendado"
+- En el ranking de parejas se puede fijar una consanguinidad máxima (por defecto 6,25 %)
 
 **Regla RN-007: Trazabilidad Genética**
-- Mantener registro genealógico hasta 3 generaciones atrás como mínimo
-- Permitir consultar descendencia completa de un reproductor
-- Calcular coeficiente de consanguinidad según pedigrí
+- El árbol se registra y se consulta hasta 4 generaciones (animal, padres, abuelos, bisabuelos); el cálculo de consanguinidad usa todas las generaciones que existan
+- Los animales muertos o vendidos se conservan porque son ancestros del pedigrí
+- El valor genético de cada animal (leche, grasa, proteína) se estima por BLUP con los registros propios, de sus hijas y de sus padres
 
 ## 3. Control de Crecimiento (Pesajes)
 
@@ -155,10 +156,10 @@ Este documento define las reglas de negocio específicas del sector caprino que 
 - Preparación de área de parto 15 días antes de la fecha estimada
 
 **Regla RN-022: Tipos de Parto**
-- Simple: 1 cría (50-60% de los partos)
-- Doble: 2 crías (30-40% de los partos)
-- Triple o múltiple: 3+ crías (5-10% de los partos)
-- El número de crías debe coincidir con el tipo de parto
+- Sencillo: 1 cría (50-60% de los partos)
+- Gemelar: 2 crías (30-40% de los partos)
+- Trillizo: 3 crías (5-10% de los partos). En la granja el máximo registrado es 3
+- El tipo de parto define el número de crías; cada cría se registra automáticamente como animal con su genealogía (en BD se guarda como simple/doble/triple)
 
 **Regla RN-023: Resultado del Parto**
 - Exitoso: parto normal con crías vivas

@@ -12,7 +12,7 @@ esquemas con `IDENTITY`/`CHECK`/FK a `ANIMAL`, componentes en `frontend-web/src/
 
 ---
 
-## MÓDULO A — Bienestar Animal (MEBA)
+## MÓDULO A: Bienestar Animal (MEBA)
 
 ### Regla de cálculo (replicar exactamente el PDF)
 - Cada indicador puntúa **0, 20, 55 o 100**.
@@ -27,7 +27,7 @@ esquemas con `IDENTITY`/`CHECK`/FK a `ANIMAL`, componentes en `frontend-web/src/
 
 ### Modelo de datos (esquema `09-bienestar.sql`)
 
-**1. `BIENESTAR_INDICADOR_CAT`** — catálogo de los 36 indicadores caprinos (semilla fija).
+**1. `BIENESTAR_INDICADOR_CAT`**: catálogo de los 35 indicadores caprinos (semilla fija).
 ```
 id_indicador      NUMBER PK (IDENTITY)
 codigo            VARCHAR2(40)  -- 'AGUA_ACCESO', 'FAMACHA', 'PLAN_SANITARIO'...
@@ -40,7 +40,7 @@ es_binario        NUMBER(1) DEFAULT 0    -- intervenciones quirúrgicas / sacrif
 orden             NUMBER
 ```
 
-**2. `EVALUACION_BIENESTAR`** — cabecera por visita/predio (nivel **hato**, no por animal individual).
+**2. `EVALUACION_BIENESTAR`**: cabecera por visita/predio (nivel **hato**, no por animal individual).
 ```
 id_evaluacion     NUMBER PK (IDENTITY)
 especie           VARCHAR2(20) DEFAULT 'CAPRINO'  -- por ahora solo cabras; extensible a futuro
@@ -61,7 +61,7 @@ usuario_registro  NUMBER
 fecha_registro    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
-**3. `EVAL_BIENESTAR_DETALLE`** — un renglón por indicador.
+**3. `EVAL_BIENESTAR_DETALLE`**: un renglón por indicador.
 ```
 id_detalle        NUMBER PK (IDENTITY)
 id_evaluacion     NUMBER FK -> EVALUACION_BIENESTAR
@@ -73,16 +73,16 @@ observacion       VARCHAR2(500)
 ```
 
 ### Backend (`BienestarController` + `BienestarService`)
-- `GET  /api/bienestar` — lista de evaluaciones.
-- `GET  /api/bienestar/{id}` — cabecera + detalle.
-- `GET  /api/bienestar/catalogo` — los 36 indicadores (para armar el formulario).
-- `GET  /api/bienestar/sugerencias?sistema=...` — **autollenado** desde otros módulos:
+- `GET  /api/bienestar`: lista de evaluaciones.
+- `GET  /api/bienestar/{id}`: cabecera + detalle.
+- `GET  /api/bienestar/catalogo`: los 35 indicadores (para armar el formulario).
+- `GET  /api/bienestar/sugerencias?sistema=...`: **autollenado** desde otros módulos:
   - `FAMACHA` → % animales con calificación 1-2 → mapear a 0/20/55/100 (Tabla 24).
   - `SALUD` → lesiones/heridas (Tabla 27), mastitis (Tabla 28), ectoparásitos (Tabla 26).
   - `PESO`/ML → condición corporal 3-4 en escala 1-5 (Tabla 21).
   - `CORRAL` → sombra, espacio, piso/limpieza.
   El evaluador confirma o ajusta el score sugerido.
-- `POST /api/bienestar` — crea evaluación; el **service calcula** punt_recursos/animal/gestion/
+- `POST /api/bienestar`: crea evaluación; el **service calcula** punt_recursos/animal/gestion/
   total y clasificacion (con regla RSPP+ASI). Registra en `AuditoriaService`.
 - `BienestarService::calcular()`: promedio por grupo sobre `aplica=1`, pesos 35/55/10,
   suma, clasifica. Devuelve también “qué falta para Excelente” (lista de indicadores <100).
@@ -101,7 +101,7 @@ observacion       VARCHAR2(500)
 
 ---
 
-## MÓDULO B — Clasificación Lineal Fenotípica
+## MÓDULO B: Clasificación Lineal Fenotípica
 
 ### Estructura (100 puntos, método ADGA)
 | Región | Pts | Rasgos |
@@ -116,7 +116,7 @@ Cada rasgo se califica **1 (bajo) / 2 (intermedio) / 3 (alto)**. CFINAL → 6 ca
 
 ### Modelo de datos (esquema `10-clasificacion-lineal.sql`)
 
-**1. `CLASIF_RASGO_CAT`** — catálogo de rasgos (semilla).
+**1. `CLASIF_RASGO_CAT`**: catálogo de rasgos (semilla).
 ```
 id_rasgo    NUMBER PK (IDENTITY)
 codigo      VARCHAR2(20)   -- ESTAT, ANCPEC, ANGUL, INAU, COLPE, PTVP...
@@ -126,7 +126,7 @@ pts_region  NUMBER         -- 25/15/40/20 (peso de la región)
 orden       NUMBER
 ```
 
-**2. `EVALUACION_LINEAL`** — cabecera por animal.
+**2. `EVALUACION_LINEAL`**: cabecera por animal.
 ```
 id_evaluacion   NUMBER PK (IDENTITY)
 id_animal       NUMBER FK -> ANIMAL
@@ -144,7 +144,7 @@ usuario_registro NUMBER
 fecha_registro  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ```
 
-**3. `EVAL_LINEAL_DETALLE`** — un renglón por rasgo.
+**3. `EVAL_LINEAL_DETALLE`**: un renglón por rasgo.
 ```
 id_detalle    NUMBER PK (IDENTITY)
 id_evaluacion NUMBER FK -> EVALUACION_LINEAL
@@ -154,7 +154,7 @@ puntaje       NUMBER(5,2)   -- aporte del rasgo a su región
 observacion   VARCHAR2(500)
 ```
 
-**4. `EVAL_LINEAL_FOTO`** — evidencia fotográfica.
+**4. `EVAL_LINEAL_FOTO`**: evidencia fotográfica.
 ```
 id_foto       NUMBER PK (IDENTITY)
 id_evaluacion NUMBER FK -> EVALUACION_LINEAL
@@ -166,16 +166,16 @@ Las imágenes se guardan en disco (carpeta tipo `var/uploads/lineal/{id_animal}/
 la ruta en BD.
 
 ### Backend (`ClasificacionLinealController` + `ClasificacionLinealService`)
-- `GET  /api/clasificacion-lineal?idAnimal=` — lista por animal.
-- `GET  /api/clasificacion-lineal/catalogo` — rasgos por región.
-- `POST /api/clasificacion-lineal` — crea evaluación; el service calcula subtotales por región
+- `GET  /api/clasificacion-lineal?idAnimal=`: lista por animal.
+- `GET  /api/clasificacion-lineal/catalogo`: rasgos por región.
+- `POST /api/clasificacion-lineal`: crea evaluación; el service calcula subtotales por región
   (con su peso) y CFINAL, asigna categoría.
-- `POST /api/clasificacion-lineal/{id}/foto` — sube foto (multipart) y guarda ruta.
+- `POST /api/clasificacion-lineal/{id}/foto`: sube foto (multipart) y guarda ruta.
 - `GET  /api/clasificacion-lineal/{id}/fotos`.
 
 ### Frontend (`ModuloClasificacionLineal.jsx`)
 - Formulario por región con selector 1/2/3 por rasgo (apoyado en la guía visual del PDF Fig.1).
-- Subida/captura de fotos por tipo de vista (en móvil, cámara de Capacitor — ya disponible).
+- Subida/captura de fotos por tipo de vista (en móvil, cámara de Capacitor: ya disponible).
 - Resultado: subtotales por región, CFINAL y categoría; histórico por animal en su expediente.
 
 ### Conexión con Genealogía/ML (fase 2, opcional)
@@ -185,13 +185,24 @@ la ruta en BD.
 
 ---
 
-## Orden de trabajo — estado (impl. 2026-06-10)
+## Orden de trabajo: estado (impl. 2026-06-10)
 1. [x] Esquemas SQL `09-bienestar.sql` y `10-clasificacion-lineal.sql` (+ semillas). **Ejecutados en Oracle.**
 2. [x] Backend Bienestar (`BienestarService` + `BienestarController`, 6 rutas + sugerencias).
 3. [x] Frontend Bienestar (`ModuloBienestar.jsx`, cálculo en vivo + “qué falta para 100/Excelente”).
 4. [x] Backend Clasificación Lineal (`ClasificacionLinealService` + `ClasificacionLinealController`, 7 rutas + fotos).
 5. [x] Frontend Clasificación Lineal (`ModuloClasificacionLineal.jsx` + subida/visualización de fotos con token).
 6. [ ] IA: interpretación de bienestar (reusar ia_generativa) y, opcional, PCA en ml-service. **Pendiente/opcional.**
+7. [x] (2026-10-08) Bienestar para trabajo de campo con estudiantes: esquema `12-bienestar-evidencias.sql`:
+   - Catálogo con pregunta, método, tabla de referencia y texto de los criterios 100/55/20/0 de la MEBA v3.0.
+   - Indicadores de muestreo: se registra *n evaluados* y *n que cumplen / con hallazgo*; el puntaje se
+     calcula con los cortes de cada tabla (`medicion`, `corte_100/55/20` en el catálogo).
+   - Tamaño de muestra automático (Tabla 1) a partir del inventario de animales activos.
+   - Fotos de evidencia por indicador y generales (`EVAL_BIENESTAR_FOTO`, `var/uploads/bienestar/{id}`),
+     observación por indicador y nombre de los evaluadores.
+   - Estado BORRADOR (indicadores sin calificar no cuentan en el promedio) / FINALIZADA (exige todo calificado);
+     las evaluaciones se pueden editar (`PUT /api/bienestar/{id}`).
+   - Se agregó `symfony/mime` al backend: sin él fallaban la subida y visualización de fotos
+     (también en Clasificación Lineal).
 
 ## Decisiones confirmadas
 - **Alcance Bienestar:** evaluación a nivel de **hato**, por ahora solo **caprino**
@@ -212,3 +223,13 @@ Guardar en disco **sí funciona en servidor**, con dos cuidados:
 Esto cubre el despliegue actual. Solo si en el futuro el backend corre en contenedores
 efímeros/escalado horizontal habría que migrar a almacenamiento de objetos (S3/MinIO); el
 diseño con ruta en BD facilita ese cambio sin tocar el modelo.
+8. [x] (2026-10-08) Clasificación lineal revisada contra el artículo (Cedeño et al., 2024): esquema `13-clasificacion-lineal-guia.sql`:
+   - Puntos por rasgo (`pts_rasgo`): angulosidad 10 y calidad de hueso 5 (la Tabla 1 del artículo muestra
+     medias de angulosidad de 9,22 pts, imposibles con reparto 7,5/7,5). El resto reparte la región por igual.
+   - Los subtotales se redondean al final: antes una cabra con todo en 3 sumaba 99,98 en vez de 100.
+   - Guía en lenguaje sencillo por rasgo (desde dónde mirar, qué mirar, qué significa 1/2/3) y dibujos de
+     referencia de la Figura 1 (ADGA 2019) en `frontend-web/public/img/lineal/`.
+   - Solo se listan hembras; se muestra cuántos días lleva desde el último parto (ideal ≈ 45 días).
+   - Los rasgos empiezan sin calificar y no se puede guardar hasta calificarlos todos.
+   - Nota metodológica: en ángulo de grupa y patas vista lateral la ADGA considera ideal el punto
+     intermedio, pero el artículo suma 1/2/3 igual que el resto (3 = más puntos). Se respetó el artículo.

@@ -80,7 +80,10 @@ REGLAS ABSOLUTAS (el incumplimiento invalida tu respuesta):
 nivel, debe aparecer en el informe. Si te apoyas en un dato, menciónalo (p. ej. \
 "según los 60 registros de producción de la madre…").
 2. PROHIBIDO INVENTAR. No agregues cifras, porcentajes, nombres, enfermedades, \
-razas ni hechos que no estén en el informe. No estimes valores que no te dieron.
+razas ni hechos que no estén en el informe. No estimes valores que no te dieron. \
+Solo la leche esperada trae un rango (intervalo del 80 %); no inventes rangos para \
+otras cifras. "Crías esperadas por parto" es la camada de la madre, no algo que \
+produzca la cría.
 3. RESPETA los scores, niveles y clasificación del informe; no los contradigas ni \
 los recalcules.
 4. SÉ HONESTO CON LA INCERTIDUMBRE. Si una dimensión tiene confianza "baja" o \
@@ -115,6 +118,35 @@ def _formatear_dimensiones(evaluacion: dict) -> str:
     return "\n".join(lineas)
 
 
+def _formatear_alertas(evaluacion: dict) -> str:
+    alertas = evaluacion.get("alertas") or []
+    if not alertas:
+        return "- Ninguna."
+    return "\n".join(f"- ({a.get('nivel')}) {a.get('texto')}" for a in alertas)
+
+
+def _formatear_predicciones(evaluacion: dict) -> str:
+    p = evaluacion.get("predicciones") or {}
+    lineas = []
+    pe = p.get("partoExitoso") or {}
+    if pe.get("probabilidad") is not None:
+        lineas.append(f"- Probabilidad de parto exitoso: {round(pe['probabilidad'] * 100)} %")
+    le = p.get("leche")
+    if le:
+        lineas.append(
+            f"- Leche esperada de una hija en lactancia adulta: {le['esperado']} L/día "
+            f"(80 % de probabilidad entre {le['intervalo80'][0]} y {le['intervalo80'][1]}; "
+            f"media del rebaño {le['media_rebano']} L/día)"
+        )
+    for c in p.get("componentes") or []:
+        lineas.append(f"- {c['rasgo'].capitalize()} esperada: {c['esperado']} {c['unidad']}")
+    if p.get("camadaEsperada") is not None:
+        lineas.append(f"- Crías esperadas por parto: {p['camadaEsperada']}")
+    if p.get("consanguinidadCria") is not None:
+        lineas.append(f"- Consanguinidad de la cría: {round(p['consanguinidadCria'] * 100, 2)} %")
+    return "\n".join(lineas) or "- Sin predicciones disponibles."
+
+
 def construir_prompt_evaluacion(evaluacion: dict, animales: dict | None = None) -> str:
     animales = animales or {}
     macho = animales.get("macho", {})
@@ -133,6 +165,12 @@ def construir_prompt_evaluacion(evaluacion: dict, animales: dict | None = None) 
 - Confianza global (completitud de datos): {evaluacion.get('confianzaGlobal')}
 - Recomendación base del sistema: {evaluacion.get('recomendacionVeterinaria')}
 
+ALERTAS
+{_formatear_alertas(evaluacion)}
+
+PREDICCIONES PARA LA CRÍA
+{_formatear_predicciones(evaluacion)}
+
 DIMENSIONES EVALUADAS
 {_formatear_dimensiones(evaluacion)}
 
@@ -145,7 +183,9 @@ Redacta el análisis con estas secciones y estos títulos en Markdown (usa '##')
 ## Confianza de esta evaluación
 
 En "Resumen y recomendación" da el veredicto global citando el score y la \
-clasificación. En cada sección siguiente interpreta las dimensiones \
+clasificación, y menciona las ALERTAS si las hay (por ejemplo, si la hembra no \
+está disponible hoy). En "Producción y fertilidad esperadas" usa las \
+PREDICCIONES PARA LA CRÍA (leche esperada con su rango, crías por parto). En cada sección siguiente interpreta las dimensiones \
 correspondientes APOYÁNDOTE en su evidencia (menciona los datos concretos). En \
 "Confianza de esta evaluación" explica qué dimensiones tienen poca o ninguna \
 información y qué debería registrarse para mejorar el análisis. Sé concreto y \
@@ -160,6 +200,8 @@ def _numeros_de_evidencia(evaluacion: dict) -> set[int]:
         permitidos.add(int(d.get("score", 0)))
         textos.append(str(d.get("valor", "")))
         textos.extend(d.get("evidencia", []))
+    textos.extend(a.get("texto", "") for a in evaluacion.get("alertas") or [])
+    textos.append(_formatear_predicciones(evaluacion))
     blob = " ".join(textos)
     for m in re.findall(r"\d+", blob.replace(",", "")):   # quita separadores de miles
         try:
@@ -352,10 +394,19 @@ def construir_prompt_ranking(animal_base: dict, ranking: list[dict]) -> str:
         c = r.get("candidato", {})
         coi = r.get("coi")
         coi_txt = f", consanguinidad de la cría ≈ {round((coi or 0) * 100, 1)}%" if coi is not None else ""
+        extra = ""
+        if r.get("probParto") is not None:
+            extra += f", parto exitoso {round(r['probParto'] * 100)} %"
+        if r.get("lecheHija") is not None:
+            extra += f", leche esperada de una hija {r['lecheHija']} L/día"
+        if r.get("camada") is not None:
+            extra += f", {r['camada']} crías por parto"
+        if r.get("disponible") is False:
+            extra += " (NO disponible ahora)"
         lineas.append(
             f"{i}. {c.get('nombre') or 's/ nombre'} ({c.get('codigo') or 's/ código'}), "
             f"raza {c.get('raza') or 'desconocida'}: score {r.get('score')}/100, "
-            f"clasificación «{r.get('clasificacion')}»{coi_txt}"
+            f"clasificación «{r.get('clasificacion')}»{coi_txt}{extra}"
         )
     candidatos = "\n".join(lineas)
 
@@ -392,6 +443,8 @@ def _validar_ranking(texto: str, ranking: list[dict]) -> bool:
             permitidos.add(int(r.get("score", -1)))
         except (TypeError, ValueError):
             pass
+        if r.get("probParto") is not None:
+            permitidos.add(round(r["probParto"] * 100))
         coi = r.get("coi")
         if coi is not None:
             import math

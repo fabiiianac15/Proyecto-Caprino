@@ -1,148 +1,116 @@
-# GRANME — Sistema de Gestión Caprina
+# GRANME: Sistema de Gestión Caprina
 
-**GRANME** es un sistema web integral para la gestión zootécnica de hatos caprinos.
-Cubre el ciclo completo del animal —registro, genealogía, reproducción, salud,
-producción de leche, pesajes, corrales, auditoría y notificaciones— y suma una
-capa de **Inteligencia Artificial** que evalúa la compatibilidad de cruces y la
-explica en lenguaje natural.
+Sistema web para la gestión zootécnica del hato caprino de la Granja Experimental de la UFPSO. Registra cada animal desde su nacimiento (genealogía, reproducción, salud, producción de leche, pesajes, corrales) y suma dos capas de análisis: la evaluación de bienestar animal con la metodología MEBA del ICA y la selección de cruces con genética cuantitativa e inteligencia artificial.
 
----
-
-## Stack Tecnológico
+## Stack
 
 | Capa | Tecnología |
 |------|-----------|
-| Frontend | React 18 + Vite 5 + Tailwind CSS 3 + Recharts |
-| Backend | Symfony 6.4 LTS + Doctrine DBAL |
-| Autenticación | LexikJWT (HS256) |
-| Base de datos | Oracle Autonomous Database `DBCaprino` (cloud, wallet TNS) |
-| Microservicio ML | FastAPI + scikit-learn (RandomForest) · Python 3.11 |
-| IA generativa | Ollama (LLM local `qwen2.5:3b-instruct`) en streaming |
-| Orquestación IA | Docker Compose (`docker-compose.ia.yml`) |
-| App móvil | Capacitor (en desarrollo) |
-
----
+| Frontend | React 18, Vite 5, Tailwind CSS 3, Recharts |
+| Backend | Symfony 6.4 LTS con Doctrine DBAL (SQL directo, sin ORM) |
+| Autenticación | LexikJWT (HS256, token de 24 h) |
+| Base de datos | Oracle Autonomous Database `DBCaprino` en la nube, conexión por wallet TNS |
+| Microservicio ML | FastAPI, scikit-learn, SciPy, SHAP (Python 3.11) |
+| IA generativa | Ollama con `qwen2.5:3b-instruct`, local y en streaming |
+| App móvil | Capacitor + React, con trabajo sin conexión |
 
 ## Arquitectura
 
 ```
-┌──────────────┐   HTTPS/JWT   ┌────────────────────┐   wallet TNS   ┌──────────────────────┐
-│  Frontend    │ ────────────► │  Backend Symfony   │ ─────────────► │  Oracle Autonomous   │
-│  React (SPA) │ ◄──────────── │  API REST (8000)   │ ◄───────────── │  DBCaprino           │
-└──────────────┘   JSON/stream └─────────┬──────────┘                └──────────────────────┘
-                                         │  HTTP (ML_SERVICE_URL)
-                                         ▼
-                              ┌────────────────────┐   HTTP   ┌─────────────────────┐
-                              │  ml-service (8001) │ ───────► │  Ollama (11434)     │
-                              │  FastAPI + sklearn │ ◄─────── │  qwen2.5:3b (LLM)   │
-                              └────────────────────┘  stream  └─────────────────────┘
+┌──────────────┐  HTTPS/JWT  ┌────────────────────┐  wallet TNS  ┌─────────────────────┐
+│  Frontend    │ ──────────► │  Backend Symfony   │ ───────────► │  Oracle Autonomous  │
+│  React (SPA) │ ◄────────── │  API REST (8000)   │ ◄─────────── │  DBCaprino          │
+└──────────────┘  JSON/texto └─────────┬──────────┘              └─────────────────────┘
+                                       │ instantánea del rebaño (7 consultas)
+                                       ▼
+                            ┌────────────────────┐   HTTP   ┌────────────────────┐
+                            │  ml-service (8001) │ ───────► │  Ollama (11434)    │
+                            │  genética + modelo │ ◄─────── │  qwen2.5:3b        │
+                            └────────────────────┘  stream  └────────────────────┘
 ```
 
-- El **backend** recolecta los datos reales de las cabras (producción, salud,
-  reproducción, pedigrí, raza, pesaje) y los envía al microservicio ML.
-- El **ml-service** evalúa el cruce con un modelo `RandomForest` y un motor
-  multidimensional fundamentado (`evaluador.py`); cada dimensión incluye su
-  evidencia y nivel de confianza.
-- La **IA generativa local** (Ollama) interpreta ese resultado y redacta un
-  análisis profesional token a token. La IA **no** calcula ni inventa: solo
-  reescribe los hechos que produce el modelo.
+El backend arma una instantánea de todo el rebaño (pedigrí, producción por lactancia, servicios, salud, condición corporal, FAMACHA y clasificación lineal) y se la envía al microservicio. Ahí se calculan la consanguinidad exacta, los valores genéticos por BLUP y la probabilidad de parto. La IA local solo redacta lo que el motor ya calculó y un validador marca cualquier cifra que no esté en el informe. El detalle está en [`ml-service/IA-GENERATIVA.md`](ml-service/IA-GENERATIVA.md).
 
-> Detalle completo en [`ml-service/IA-GENERATIVA.md`](ml-service/IA-GENERATIVA.md).
+## Módulos
 
----
+- **Mis cabras**: registro con foto, doble chapeta (nueva y vieja), estado general (activo, vendido, muerto, donado, descartado) y, en hembras, tipo de estado (producción, seca, preñada, cabretona, cabrita). Expediente individual con todo su historial.
+- **Genealogía y mejoramiento genético**: árbol horizontal de 4 generaciones editable. Consanguinidad exacta con todo el pedigrí, leche esperada de las hijas por BLUP, probabilidad de parto con un modelo que aprende de la granja, árbol de la futura cría, ranking de la mejor pareja y análisis narrativo con IA.
+- **Reproducción**: monta o servicio, diagnóstico de gestación y parto (sencillo, gemelar o trillizo). Cada cría queda registrada como animal con su genealogía y el tipo de estado de la madre se actualiza solo.
+- **Salud y FAMACHA**: vacunas, tratamientos, diagnósticos y control de parásitos por color de mucosa.
+- **Producción de leche**: registros por ordeño con grasa, proteína y células somáticas.
+- **Pesajes**: peso y condición corporal con tendencias.
+- **Corrales**: capacidad, tipo (gestantes, ordeño, levante…) y asignación de animales.
+- **Bienestar animal**: evaluación MEBA del ICA (v3.0, 2026) con los criterios de cada puntaje en pantalla. Para los indicadores de muestreo basta escribir cuántos animales se revisaron y cuántos cumplen, y el puntaje sale solo. Admite fotos de evidencia por indicador, borradores y tamaño de muestra calculado con la Tabla 1.
+- **Clasificación lineal**: 17 rasgos del método ADGA (Cedeño et al., 2024) con la guía de qué mirar, los dibujos de referencia del artículo y fotos de evidencia.
+- **Reportes, notificaciones, auditoría y perfil de usuario**.
 
-## Módulos Implementados
+## Requisitos
 
-- **Animales** — CRUD con fotos, doble chapeta (vieja/nueva), filtros avanzados y expediente individual
-- **Genealogía** — Árbol genealógico **horizontal** (padre arriba, madre abajo) de 3 generaciones, con vinculación de progenitores y abuelos
-- **Compatibilidad de cruces (IA)** — Evaluación ML multidimensional + análisis narrativo generado por IA local; ranking del "mejor cruce"
-- **Reproducción y Montas** — Ciclos reproductivos, servicios, partos y trazabilidad de las crías nacidas en cada parto
-- **Salud** — Vacunas, tratamientos, enfermedades y control **FAMACHA** (parasitismo)
-- **Producción de Leche** — Registros por ordeño con indicadores físico-químicos
-- **Pesajes** — Control de peso periódico con tendencias
-- **Corrales** — Gestión de corrales y asignación de animales
-- **Reportes** — Fichas por categoría (producción, salud, auditoría, financiero…)
-- **Notificaciones** — Centro de alertas por prioridad
-- **Auditoría** — Trazabilidad de acciones del sistema
-- **Perfil de usuario** — Edición de datos y cambio de contraseña
-
----
-
-## Requisitos Previos
-
-- **PHP 8.1+** con extensión `oci8`
-- **Composer 2+**
-- **Node.js 18+** y npm
-- **Oracle Instant Client** (para la extensión OCI8)
-- **Wallet TNS** de Oracle Autonomous Database (carpeta `~/Caprino-Wallet`)
-- **Python 3.11+** *(solo para el microservicio ML)*
-- **Docker + Docker Compose** *(recomendado para la capa de IA: ml-service + Ollama)*
-
----
+- PHP 8.1 o superior con la extensión `oci8`
+- Composer 2
+- Node.js 18 o superior
+- Oracle Instant Client y el wallet del Autonomous Database (carpeta `~/Caprino-Wallet` en Linux, `C:\Caprino-Wallet` en Windows)
+- Python 3.11 para el microservicio ML
+- Ollama, o Docker para levantar la capa de IA con `docker-compose.ia.yml`
 
 ## Instalación
 
-### Linux (recomendado)
+Los scripts automatizan todo el proceso. En Linux:
 
 ```bash
-cd 01-SCRIPTS-LINUX/
-
-# Primera instalación completa (instala PHP, Node, OCI8, Composer, etc.)
-bash 00-INSTALACION-COMPLETA.sh
-
-# O paso a paso:
-bash 01-VERIFICAR-REQUISITOS.sh
-bash 02-INSTALAR-INSTANT-CLIENT.sh
-bash 03-INSTALAR-OCI8.sh
-bash 03b-INSTALAR-COMPOSER.sh
-bash 04-INSTALAR-DEPENDENCIAS-BACKEND.sh
-bash 05-INSTALAR-DEPENDENCIAS-FRONTEND.sh
+bash 01-SCRIPTS-LINUX/00-INSTALACION-COMPLETA.sh
 ```
 
-### Windows
-
-Abre PowerShell como administrador:
+En Windows, desde PowerShell como administrador:
 
 ```powershell
-cd 00-SCRIPTS-INSTALACION\
-
-# Instalación automática completa
+cd 00-SCRIPTS-INSTALACION
 powershell -ExecutionPolicy Bypass -File "00-INSTALACION-COMPLETA.ps1"
 ```
 
-El script instala: Visual C++ Runtime, PHP 8.2, Node.js, Composer, extensión OCI8, y todas las dependencias del proyecto.
-
-### Manual
+Cada carpeta de scripts tiene su README con el paso a paso. Para instalar a mano:
 
 ```bash
-# Backend
-cd backend-symfony
-composer install
-cp .env .env.local   # ajusta credenciales Oracle, JWT_SECRET y ML_SERVICE_URL
-
-# Frontend
-cd frontend-web
-npm install
+cd backend-symfony && composer install
+cd ../frontend-web && npm install
+cd ../ml-service && python -m venv venv && venv/bin/pip install -r requirements.txt
 ```
 
----
+## Base de datos
 
-## Variables de Entorno
+La base `DBCaprino` vive en Oracle Autonomous Database. El orden completo de los scripts está en `base-de-datos/INSTALAR-BASE-DATOS.sql`. Los parches de `base-de-datos/esquemas/` se ejecutan como `caprino_user`, en orden, y se pueden correr varias veces sin error:
 
-Archivo `backend-symfony/.env.local`:
+| Script | Contenido |
+|--------|-----------|
+| `01-tablas-principales.sql` | Tablas núcleo (ANIMAL, RAZA, GENEALOGIA, REPRODUCCION, SALUD…) |
+| `02-datos-iniciales-razas.sql` | Catálogo de razas |
+| `03` y `04` | Usuarios y perfil |
+| `05-tabla-famacha.sql` | Control FAMACHA |
+| `06-parche-columnas-faltantes.sql` | Columnas de auditoría y perfil |
+| `07-reformas-granja.sql` | Doble chapeta, corrales, trazabilidad de crías, estado "donado" |
+| `08-limpieza-entrega.sql` | Opcional: deja la base vacía para una entrega |
+| `09-bienestar.sql` | Módulo de bienestar animal (catálogo MEBA) |
+| `10-clasificacion-lineal.sql` | Módulo de clasificación lineal |
+| `11-estado-productivo-y-raza-alpina.sql` | Tipo de estado de la hembra y raza "Alpina" |
+| `12-bienestar-evidencias.sql` | Criterios del ICA, conteos de muestreo, fotos y borradores |
+| `13-clasificacion-lineal-guia.sql` | Guía en lenguaje sencillo y puntos por rasgo |
+
+## Configuración
+
+`backend-symfony/.env.local` (no se sube al repositorio):
 
 ```dotenv
 DATABASE_TNS_NAME=dbcaprino_high          # alias del tnsnames.ora del wallet
 DATABASE_USER=caprino_user
-DATABASE_PASSWORD=tu_password
+DATABASE_PASSWORD=...
 DATABASE_WALLET_PATH=/ruta/a/Caprino-Wallet
-JWT_SECRET=clave_secreta_larga
-APP_TIMEZONE=America/Bogota
+JWT_SECRET=...                            # cadena aleatoria larga
 CORS_ALLOW_ORIGIN='^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$'
-ML_SERVICE_URL=http://localhost:8001      # microservicio de IA (genealogía)
+ML_SERVICE_URL=http://localhost:8001
+APP_UPLOADS_DIR=/var/www/caprino-uploads  # opcional: fotos fuera del código
 ```
 
-El microservicio ML lee su configuración por variables de entorno:
+`ml-service/.env`:
 
 ```dotenv
 OLLAMA_URL=http://localhost:11434
@@ -150,231 +118,106 @@ OLLAMA_MODEL=qwen2.5:3b-instruct
 OLLAMA_TIMEOUT=120
 ```
 
----
+El backend necesita la variable `TNS_ADMIN` apuntando al wallet. Los scripts de inicio la configuran; si arrancas PHP a mano y no está definida, el backend se queda esperando al conectar con Oracle.
 
-## Ejecución en Desarrollo
+## Ejecución en desarrollo
 
-### Backend + Frontend (Linux)
+Se necesitan cuatro procesos. Con los scripts de Linux:
 
 ```bash
-# Terminal 1 — Backend (puerto 8000)
-bash 01-SCRIPTS-LINUX/07-INICIAR-BACKEND.sh
-
-# Terminal 2 — Frontend (puerto 5173)
-bash 01-SCRIPTS-LINUX/08-INICIAR-FRONTEND.sh
+bash 01-SCRIPTS-LINUX/07-INICIAR-BACKEND.sh      # http://localhost:8000
+bash 01-SCRIPTS-LINUX/08-INICIAR-FRONTEND.sh     # http://localhost:5173
 ```
 
-### Backend + Frontend (manual)
+La capa de IA se levanta con Docker:
 
 ```bash
-# Backend
-cd backend-symfony && php -S localhost:8000 -t public/
-
-# Frontend
-cd frontend-web && npm run dev
-```
-
-### Capa de IA (microservicio ML + Ollama)
-
-La forma recomendada es Docker Compose. El stack de IA es independiente de Oracle
-y de Symfony:
-
-```bash
-# Levantar ml-service (8001) + Ollama (11434)
 docker compose -f docker-compose.ia.yml up -d
-
-# Descargar el modelo LLM la primera vez
-docker compose -f docker-compose.ia.yml exec ollama ollama pull qwen2.5:3b-instruct
+docker compose -f docker-compose.ia.yml exec ollama ollama pull qwen2.5:3b-instruct   # solo la primera vez
 ```
 
-Alternativa sin Docker (solo el microservicio ML):
+O sin Docker:
 
 ```bash
-cd ml-service
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8001
+ollama serve &
+cd ml-service && venv/bin/uvicorn main:app --host 127.0.0.1 --port 8001
 ```
 
-**Acceso:**
-- Frontend: http://localhost:5173
-- API: http://localhost:8000/api
-- Microservicio ML: http://localhost:8001 (`/ml/health`)
+El servidor integrado de PHP atiende una petición a la vez, y el análisis de la IA puede tardar unos 3 minutos en CPU. Para que las demás pantallas no se bloqueen mientras tanto, arráncalo con varios procesos:
 
-**Credenciales de prueba:**
-- Email: `admin@caprino.com`
-- Contraseña: `Admin123!`
+```bash
+cd backend-symfony
+PHP_CLI_SERVER_WORKERS=4 TNS_ADMIN=~/Caprino-Wallet php -S localhost:8000 -t public
+```
 
----
-
-## Estructura del Proyecto
+## Estructura
 
 ```
 Proyecto-Caprino/
-│
-├── backend-symfony/              # API REST — Symfony 6.4 (Doctrine DBAL + JWT)
-│   ├── src/
-│   │   ├── Controller/           # Endpoints (un controller por módulo)
-│   │   ├── Security/             # JWT authenticator
-│   │   └── Service/              # Lógica de negocio (MlService, Auditoría…)
-│   ├── config/packages/          # lexik_jwt.yaml, security.yaml, cors…
-│   ├── public/uploads/animales/  # Fotos de animales
-│   └── .env                      # Variables de entorno
-│
-├── frontend-web/                 # SPA — React 18 + Vite
+├── backend-symfony/        API REST (Symfony 6.4)
 │   └── src/
-│       ├── componentes/          # Todos los módulos visuales
-│       ├── servicios/            # Clientes Axios por módulo
-│       ├── contextos/            # AuthContext (sesión JWT)
-│       └── utilidades/           # Validaciones, helpers
-│
-├── ml-service/                   # Microservicio de IA — FastAPI + scikit-learn
-│   ├── main.py                   # API FastAPI (endpoints /ml/*)
-│   ├── modelo.py                 # Entrenamiento/carga del RandomForest
-│   ├── evaluador.py              # Motor de evaluación multidimensional
-│   ├── ia_generativa.py          # Cliente Ollama (narrativa en streaming)
-│   ├── data_generator.py         # Generación de datos de entrenamiento
-│   ├── Dockerfile · start.sh
-│   └── IA-GENERATIVA.md          # Documentación de la capa de IA
-│
-├── aplicacion-movil/             # App Capacitor (en desarrollo)
-│
-├── base-de-datos/
-│   ├── esquemas/                 # DDL de tablas Oracle (incluye parches 04-07)
-│   ├── procedimientos/           # Triggers y funciones PL/SQL
-│   └── vistas/                   # Vistas para reportes
-│
-├── 01-SCRIPTS-LINUX/             # Scripts de instalación Linux/macOS
-├── 00-SCRIPTS-INSTALACION/       # Scripts de instalación Windows (PowerShell)
-├── 00-DOCS-CONFIGURACION/        # Documentación técnica detallada
-├── documentacion/                # Arquitectura y reglas de negocio
-│
-├── docker-compose.ia.yml         # Stack de IA: ml-service + Ollama
-├── INICIO-RAPIDO.md              # Guía resumida de puesta en marcha
-└── README.md                     # Este archivo
+│       ├── Controller/     un controlador por módulo
+│       ├── Service/        lógica compartida (RebanoService, MlService, BienestarService…)
+│       └── Doctrine/       conexión a Oracle por alias TNS
+├── frontend-web/           SPA en React
+│   ├── src/componentes/    módulos de la interfaz (genealogia/ agrupa el módulo de IA)
+│   └── public/img/lineal/  dibujos de referencia de la clasificación lineal
+├── ml-service/             microservicio de genética e IA (FastAPI)
+├── aplicacion-movil/       app de campo con Capacitor
+├── base-de-datos/          esquemas, triggers y vistas de Oracle
+├── documentacion/          reglas de negocio, plan de bienestar y lineal, PDF de MEBA y del artículo ADGA
+├── 00-SCRIPTS-INSTALACION/ instalación en Windows
+├── 01-SCRIPTS-LINUX/       instalación en Linux
+└── docker-compose.ia.yml   ml-service + Ollama
 ```
 
----
+## API
 
-## Endpoints de la API
+Todas las rutas, salvo login y registro, piden el encabezado `Authorization: Bearer <token>`.
 
-### Autenticación
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `POST` | `/api/auth/login` | Iniciar sesión → devuelve JWT |
-| `POST` | `/api/auth/register` | Registrar nuevo usuario |
-| `GET`  | `/api/me` | Datos del usuario autenticado |
+| Prefijo | Rutas principales |
+|---------|-------------------|
+| `/api/auth` | `POST login`, `POST register` |
+| `/api/me`, `/api/perfil` | datos del usuario, actualizar perfil y contraseña |
+| `/api/animales` | listar (filtros `sexo`, `estado`), detalle, crear, actualizar, dar de baja |
+| `/api/genealogia` | padres, vincular, `GET arbol/{id}`, `POST compatibilidad`, `POST analisis-ia`, `POST ranking`, `POST ranking/analisis-ia`, `GET modelo`, `POST modelo/entrenar` |
+| `/api/reproduccion` | listar, servicio, `POST {id}/parto`, actualizar (diagnóstico) |
+| `/api/salud`, `/api/famacha` | registros sanitarios y FAMACHA |
+| `/api/produccion`, `/api/pesaje` | producción de leche y pesajes |
+| `/api/corrales` | CRUD de corrales |
+| `/api/bienestar` | catálogo, sugerencias, evaluaciones (crear, editar, borrar) y fotos |
+| `/api/clasificacion-lineal` | catálogo, evaluaciones y fotos |
+| `/api/reportes` | resumen, producción, reproducción, salud, peso, inventario, auditoría |
+| `/api/notificaciones`, `/api/auditoria`, `/api/razas`, `/api/health` | |
 
-### Animales
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET`    | `/api/animales` | Listar (acepta filtros por query) |
-| `POST`   | `/api/animales` | Crear con foto |
-| `PUT`    | `/api/animales/{id}` | Actualizar |
-| `DELETE` | `/api/animales/{id}` | Eliminar |
+## Roles
 
-### Genealogía e IA
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET`  | `/api/genealogia/{id}` | Padres del animal |
-| `POST` | `/api/genealogia` | Vincular/actualizar progenitores |
-| `POST` | `/api/genealogia/compatibilidad` | Evaluación ML del cruce (score + dimensiones) |
-| `POST` | `/api/genealogia/analisis-ia` | Análisis narrativo IA (streaming) |
-| `POST` | `/api/genealogia/ranking` | Ranking del mejor cruce |
-| `POST` | `/api/genealogia/ranking/analisis-ia` | Análisis IA del ranking (streaming) |
+La tabla `USUARIO` admite cuatro roles: `administrador`, `zootecnista`, `veterinario` y `tecnico`. Solo los tres primeros pueden reentrenar el modelo de predicción de partos.
 
-### Módulos Productivos y de Manejo
-| Módulo | Prefijo |
-|--------|---------|
-| Salud | `/api/salud` |
-| FAMACHA | `/api/famacha` |
-| Producción | `/api/produccion` |
-| Pesaje | `/api/pesaje` |
-| Reproducción | `/api/reproduccion` |
-| Corrales | `/api/corrales` |
-| Notificaciones | `/api/notificaciones` |
-| Auditoría | `/api/auditoria` |
-| Reportes | `/api/reportes` |
-| Perfil | `/api/perfil` |
-| Razas | `/api/razas` |
+## Solución de problemas
 
-> Todos los endpoints (salvo login y register) requieren el header:
-> `Authorization: Bearer <token>`
+**El backend no responde o tarda indefinidamente.** Falta `TNS_ADMIN`. Verifica que apunte a la carpeta del wallet y que exista `tnsnames.ora`.
 
-### Microservicio ML (interno, puerto 8001)
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET`  | `/ml/health` · `/ml/ia-health` | Estado del modelo y de Ollama |
-| `POST` | `/ml/evaluar` · `/ml/evaluar-batch` | Evaluación multidimensional del cruce |
-| `POST` | `/ml/compatibilidad` · `/ml/compatibilidad-batch` | Predicción del RandomForest |
-| `POST` | `/ml/analisis-ia` · `/ml/analisis-ranking` | Narrativa generada por la IA (streaming) |
-| `POST` | `/ml/train` | Reentrenar el modelo |
+**`Call to undefined function oci_connect()`.** La extensión no está cargada: `php -m | grep oci8`. Si no aparece, ejecuta `03-INSTALAR-OCI8`.
 
----
+**Error 401.** El token venció (dura 24 h) o cambió `JWT_SECRET`. Vuelve a iniciar sesión.
 
-## Roles de Usuario
+**La genealogía dice que el servicio de IA no está encendido.** Comprueba `curl http://localhost:8001/ml/health` y `curl http://localhost:8001/ml/ia-health`, y que `ML_SERVICE_URL` del backend apunte al microservicio.
 
-| Rol | Permisos |
-|-----|----------|
-| `administrador_granja` | Acceso completo: CRUD, auditoría, reportes, gestión de usuarios |
-| `pasante` | Lectura y registro de datos productivos; sin acceso a auditoría ni eliminación |
+**Cambios en el código PHP que no se notan.** Con `opcache.revalidate_freq` alto, PHP guarda el código hasta 3 minutos. Reinicia el servidor.
 
----
+**No se ven las fotos.** La carpeta de subidas (`var/uploads` o `APP_UPLOADS_DIR`) y `public/uploads/animales/` deben tener permisos de escritura.
 
-## Base de Datos
+## Pendiente
 
-La base de datos `DBCaprino` corre en **Oracle Autonomous Database** (nube). Los
-esquemas y parches están en `base-de-datos/esquemas/` y deben ejecutarse como
-`caprino_user` en orden:
+- Cambiar las contraseñas por defecto del usuario de Oracle y de las cuentas iniciales antes de entregar.
+- Programar respaldos de la base (Data Pump o los respaldos automáticos del Autonomous Database).
+- Manual de usuario con capturas para el personal de la granja.
+- Generar el APK de la app móvil (`npx cap add android`).
+- Reentrenar el modelo de partos cuando se acumulen servicios nuevos: el botón está en la portada de Genealogía.
 
-| Script | Contenido |
-|--------|-----------|
-| `01-tablas-principales.sql` | Tablas núcleo (ANIMAL, RAZA, REPRODUCCION, SALUD…) |
-| `02-datos-iniciales-razas.sql` | Catálogo de razas |
-| `03/04-*usuarios / perfil` | Usuarios y perfil |
-| `05-tabla-famacha.sql` | Control FAMACHA |
-| `06-parche-columnas-faltantes.sql` | Correcciones de auditoría y perfil |
-| `07-reformas-granja.sql` | Doble chapeta, corrales, trazabilidad de crías, razas renombradas (idempotente) |
+## Información del proyecto
 
----
-
-## Troubleshooting
-
-**No se puede conectar a Oracle**
-```bash
-ls ~/Caprino-Wallet/tnsnames.ora     # el wallet debe estar en la ruta del .env
-tnsping dbcaprino_high               # probar conectividad
-```
-
-**`Call to undefined function oci_connect()`**
-```bash
-php -m | grep oci8                    # verificar extensión activa
-bash 01-SCRIPTS-LINUX/03-INSTALAR-OCI8.sh   # si falta
-```
-
-**Error 401 en la API**
-- El token JWT expiró (duración: 1 h). Volver a iniciar sesión.
-- Verificar que `JWT_SECRET` sea consistente.
-
-**La genealogía no muestra el análisis de IA**
-- Comprobar que el microservicio responda: `curl http://localhost:8001/ml/health`
-- Comprobar Ollama: `curl http://localhost:8001/ml/ia-health`
-- La primera vez hay que descargar el modelo: `ollama pull qwen2.5:3b-instruct`
-- Verificar que `ML_SERVICE_URL` en el backend apunte al microservicio.
-
-**Las fotos no se muestran**
-- Verificar permisos de escritura en `backend-symfony/public/uploads/animales/`
-- La columna `foto_url` debe ser `VARCHAR2(500)`.
-
-**CORS bloqueado en el navegador**
-- El backend solo acepta orígenes `localhost` / `127.0.0.1`.
-- Ajustar `CORS_ALLOW_ORIGIN` en `.env` si usas otro host.
-
----
-
-## Información del Proyecto
-
-- **Nombre**: GRANME — Sistema de Gestión Caprina
-- **Institución**: UFPSO — Universidad Francisco de Paula Santander Ocaña
-- **Versión**: 2.0.0
-- **Última actualización**: Junio 2026
+- **Institución**: Universidad Francisco de Paula Santander Ocaña (UFPSO)
+- **Versión**: 3.0.0
+- **Última actualización**: octubre de 2026

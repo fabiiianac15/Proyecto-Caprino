@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Save, X, Upload, Camera, AlertCircle, CheckCircle, CheckCircle2,
+  Save, X, Upload, Camera, AlertCircle, CheckCircle2,
   User, Calendar, Tag, Weight, Info, Sparkles, Heart, Palette,
   Target, Moon, Mountain, Droplet, Beef, Baby, Users as UsersIcon,
   Activity, DollarSign, Skull, Gift, Milk, CloudOff,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import SelectPersonalizado from './SelectPersonalizado';
 import { animalesAPI, razasAPI, corralesAPI } from '../servicios/caprino-api';
+import { ESTADOS_PRODUCTIVOS } from '../utilidades/formateo';
 
 // ── Estilos base ─────────────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
     estado: cabraEditar?.estado || 'activo',
     motivoEstado: cabraEditar?.motivoEstado || '',
     idCorral: cabraEditar?.idCorral || '',
-    estadoReproductivo: cabraEditar?.estadoReproductivo || '',
+    estadoProductivo: cabraEditar?.estadoProductivo || '',
     proposito: cabraEditar?.proposito || '',
     observaciones: cabraEditar?.observaciones || '',
     foto: cabraEditar?.fotoUrl || cabraEditar?.foto || null,
@@ -147,14 +148,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
     { value: 'donado',   label: 'Donado',   icono: <Gift />,       colorFondo: 'bg-purple-100',colorIcono: 'text-purple-600'},
   ];
 
-  const opcionesEstadoReproductivo = [
-    { value: '',         label: 'No aplica',            icono: <CloudOff />,     colorFondo: 'bg-gray-100',  colorIcono: 'text-gray-500'  },
-    { value: 'apta',     label: 'Apta para reproducción',icono: <CheckCircle />, colorFondo: 'bg-green-100', colorIcono: 'text-green-600' },
-    { value: 'gestante', label: 'Gestante',              icono: <Heart />,       colorFondo: 'bg-pink-100',  colorIcono: 'text-pink-600'  },
-    { value: 'lactante', label: 'Lactante',              icono: <Milk />,        colorFondo: 'bg-cyan-100',  colorIcono: 'text-cyan-600'  },
-    { value: 'seca',     label: 'Seca',                  icono: <CloudOff />,    colorFondo: 'bg-orange-100',colorIcono: 'text-orange-600'},
-    { value: 'joven',    label: 'Muy joven',             icono: <Baby />,        colorFondo: 'bg-yellow-100',colorIcono: 'text-yellow-600'},
-  ];
+  const iconoEstadoProductivo = { produccion: <Milk />, seca: <CloudOff />, prenada: <Heart />, cabretona: <Sparkles />, cabrita: <Baby /> };
 
   // ── Lógica ────────────────────────────────────────────────────────────────
 
@@ -239,6 +233,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
         fotoUrl: fotoBase64,
         estado: formData.estado,
         motivoEstado: formData.estado !== 'activo' ? (formData.motivoEstado || null) : null,
+        estadoProductivo: formData.sexo === 'hembra' ? (formData.estadoProductivo || null) : null,
         idCorral: formData.idCorral || null,
       };
 
@@ -533,6 +528,37 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                   <SelectPersonalizado valor={formData.estado}
                     onChange={v => cambiar({ target: { name: 'estado', value: v } })}
                     opciones={opcionesEstadoGeneral} placeholder="Seleccionar estado..." />
+                  <p className="text-xs text-gray-400 mt-1.5">"Activo" = el animal sigue en la granja. Usa los otros solo si se vendió, murió o se regaló.</p>
+                </div>
+                <div className="md:col-span-2">
+                  <label className={lbl}>Tipo de estado <span className="text-gray-400 font-normal">(solo hembras)</span></label>
+                  {formData.sexo === 'macho' ? (
+                    <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                      Este dato solo se llena para hembras. Como el animal es macho, no hace falta.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {[['', { texto: 'Sin definir', clase: 'bg-gray-100 text-gray-600', ayuda: 'Todavía no lo sé o no aplica.' }], ...Object.entries(ESTADOS_PRODUCTIVOS)].map(([value, e]) => {
+                          const activo = formData.estadoProductivo === value;
+                          return (
+                            <button key={value || 'ninguno'} type="button"
+                              onClick={() => cambiar({ target: { name: 'estadoProductivo', value } })}
+                              className={`text-left rounded-xl border-2 px-3 py-2.5 transition-all ${activo ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
+                              <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full ${e.clase}`}>
+                                <span className="w-3.5 h-3.5 [&>svg]:w-3.5 [&>svg]:h-3.5">{iconoEstadoProductivo[value] || <CloudOff />}</span>
+                                {e.texto}
+                              </span>
+                              <span className="block text-[11px] text-gray-500 mt-1 leading-snug">{e.ayuda}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1.5">
+                        {formData.sexo ? 'Cambia solo cuando registras en Reproducción que quedó preñada o que parió.' : 'Si es macho, deja este campo como está.'}
+                      </p>
+                    </>
+                  )}
                 </div>
                 {formData.estado === 'muerto' && (
                   <div className="md:col-span-2">
@@ -549,15 +575,6 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                     <textarea name="motivoEstado" value={formData.motivoEstado} onChange={cambiar} rows="2"
                       placeholder="Detalle del cambio de estado (comprador, motivo del descarte, etc.)"
                       className={`${inp} resize-none`} />
-                  </div>
-                )}
-                {formData.sexo === 'hembra' && (
-                  <div>
-                    <label className={lbl}>Estado reproductivo</label>
-                    <SelectPersonalizado valor={formData.estadoReproductivo}
-                      onChange={v => cambiar({ target: { name: 'estadoReproductivo', value: v } })}
-                      opciones={opcionesEstadoReproductivo} placeholder="Seleccionar..." />
-                    <p className="text-xs text-amber-600 mt-1.5">Regístralo en el módulo de Reproducción.</p>
                   </div>
                 )}
               </div>

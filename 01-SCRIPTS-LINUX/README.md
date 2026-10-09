@@ -22,7 +22,7 @@ bash 01-SCRIPTS-LINUX/00-INSTALACION-COMPLETA.sh
 
 | Script | Descripcion |
 |--------|-------------|
-| `00-INSTALACION-COMPLETA.sh` | **Script maestro** — ejecuta todos los pasos en orden |
+| `00-INSTALACION-COMPLETA.sh` | **Script maestro**: ejecuta todos los pasos en orden |
 | `00-INSTALAR-PHP.sh` | Instala PHP 8.2 (apt / dnf / pacman segun distro) |
 | `00-INSTALAR-NODE.sh` | Instala Node.js 20 LTS via nvm |
 | `01-VERIFICAR-REQUISITOS.sh` | Verifica que todos los componentes esten listos |
@@ -57,3 +57,21 @@ bash 01-SCRIPTS-LINUX/00-INSTALACION-COMPLETA.sh
 - `curl`, `unzip`, `sudo` disponibles
 - Acceso a internet para descargar paquetes
 - Wallet de Oracle Autonomous DB descargado y extraido en `~/caprino-wallet`
+
+---
+
+## Capa de IA (módulo de Genealogía)
+
+La evaluación de cruces necesita el microservicio ML (puerto 8001) y Ollama:
+
+```bash
+# Con Docker, desde la raíz del proyecto
+docker compose -f docker-compose.ia.yml up -d
+docker compose -f docker-compose.ia.yml exec ollama ollama pull qwen2.5:3b-instruct
+
+# Sin Docker
+ollama pull qwen2.5:3b-instruct && ollama serve &
+cd ml-service && bash start.sh        # crea el venv la primera vez y arranca en :8001
+```
+
+El backend lo encuentra por `ML_SERVICE_URL` en `backend-symfony/.env.local`. El árbol genealógico funciona sin la IA; la evaluación de cruces y el ranking no.

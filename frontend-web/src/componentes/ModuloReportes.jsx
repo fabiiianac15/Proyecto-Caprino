@@ -465,6 +465,8 @@ const CeldaBadge = ({ valor }) => {
   return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${style}`}>{valor}</span>;
 };
 
+const TIPO_PARTO_LABEL = { simple: 'Sencillo', doble: 'Gemelar', triple: 'Trillizo', multiple: 'Múltiple' };
+
 const BADGE_COLS = new Set(['estado','resultado','estadoVacuna','urgencia','operacion','sexo','tipo','tipoServicio','tipoRegistro']);
 
 const esBadgeCol = (header) => {
@@ -1004,7 +1006,7 @@ const ModuloReportes = () => {
                 >
                   <option value="">Todas</option>
                   <option value="saanen">Saanen</option>
-                  <option value="alpina">Alpina Francesa</option>
+                  <option value="alpina">Alpina</option>
                   <option value="toggenburg">Toggenburg</option>
                   <option value="murciana">Murciana-Granadina</option>
                 </select>
@@ -1392,7 +1394,7 @@ const VisualizadorReporte = ({ reporte, categoria, filtros, onCerrar }) => {
                             <td className="px-4 py-2.5 text-gray-700">{r.nombre ?? '—'}</td>
                             <td className="px-4 py-2.5 text-gray-500">{r.raza}</td>
                             <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">{r.fechaPartoReal}</td>
-                            <td className="px-4 py-2.5"><CeldaBadge valor={r.tipoParto} /></td>
+                            <td className="px-4 py-2.5"><CeldaBadge valor={TIPO_PARTO_LABEL[r.tipoParto] ?? r.tipoParto} /></td>
                             <td className="px-4 py-2.5 text-center font-semibold text-gray-700">{r.numeroCrias ?? '—'}</td>
                             <td className="px-4 py-2.5"><CeldaBadge valor={r.dificultadParto} /></td>
                             <td className="px-4 py-2.5"><CeldaBadge valor={r.resultado} /></td>

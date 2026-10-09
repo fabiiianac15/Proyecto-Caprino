@@ -12,27 +12,28 @@ const hdrs = () => ({ 'Content-Type': 'application/json', Authorization: `Bearer
 
 // ── Constantes alineadas con CHECK constraints de Oracle ──────────────────────
 const TIPO_SERVICIO_OPTS = [
-  { value: 'monta_natural',         label: 'Monta Natural' },
-  { value: 'inseminacion_artificial', label: 'Inseminación Artificial' },
-  { value: 'transferencia_embrion',  label: 'Transferencia de Embrión' },
+  { value: 'monta_natural',           label: 'Monta Natural',            ayuda: 'El macho montó a la hembra.' },
+  { value: 'inseminacion_artificial', label: 'Inseminación Artificial',  ayuda: 'Se le aplicó semen con pajilla, sin macho.' },
+  { value: 'transferencia_embrion',   label: 'Transferencia de Embrión', ayuda: 'El veterinario le implantó un embrión de otra cabra.' },
 ];
 const RESULTADO_OPTS = [
   { value: 'pendiente',  label: 'Pendiente' },
   { value: 'exitoso',    label: 'Exitoso (Gestante)' },
   { value: 'aborto',     label: 'Aborto' },
-  { value: 'mortinato',  label: 'Mortinato' },
+  { value: 'mortinato',  label: 'Mortinato (cría nació muerta)' },
 ];
+// En BD se guardan como simple/doble/triple; en la granja se llaman sencillo/gemelar/trillizo
 const TIPO_PARTO_OPTS = [
-  { value: 'simple',   label: 'Simple (1 cría)' },
-  { value: 'doble',    label: 'Doble (2 crías)' },
-  { value: 'triple',   label: 'Triple (3 crías)' },
+  { value: 'simple',   label: 'Sencillo', crias: 1 },
+  { value: 'doble',    label: 'Gemelar',  crias: 2 },
+  { value: 'triple',   label: 'Trillizo', crias: 3 },
   { value: 'multiple', label: 'Múltiple (4-5 crías)' },
 ];
 const DIFICULTAD_OPTS = [
-  { value: 'normal',    label: 'Normal' },
-  { value: 'asistido',  label: 'Asistido' },
-  { value: 'distocico', label: 'Distócico' },
-  { value: 'cesarea',   label: 'Cesárea' },
+  { value: 'normal',    label: 'Normal',             ayuda: 'Parió sola, sin ayuda.' },
+  { value: 'asistido',  label: 'Asistido',           ayuda: 'Hubo que ayudarla a sacar la cría.' },
+  { value: 'distocico', label: 'Difícil (distócico)', ayuda: 'La cría venía mal o atascada; costó mucho.' },
+  { value: 'cesarea',   label: 'Cesárea',            ayuda: 'El veterinario tuvo que operarla.' },
 ];
 
 // ── Helpers de presentación ───────────────────────────────────────────────────
@@ -382,7 +383,7 @@ export function FormMonta({ hembras, machos, onGuardar, onCancelar, animalPresel
               onBusqueda={setBusquedaMacho}
               colorFocus="focus:ring-pink-400"
             />
-            {form.tipoServicio !== 'monta_natural' && <p className="text-xs text-gray-400 mt-1">No aplica para {labelOpt(TIPO_SERVICIO_OPTS, form.tipoServicio)}</p>}
+            {form.tipoServicio !== 'monta_natural' && <p className="text-xs text-gray-400 mt-1">Opcional: si se conoce, elija el macho dueño del semen o embrión.</p>}
           </Campo>
 
           <Campo label="Tipo de servicio" requerido>
@@ -390,6 +391,7 @@ export function FormMonta({ hembras, machos, onGuardar, onCancelar, animalPresel
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400">
               {TIPO_SERVICIO_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+            <p className="text-xs text-gray-400 mt-1">{TIPO_SERVICIO_OPTS.find(o => o.value === form.tipoServicio)?.ayuda}</p>
           </Campo>
 
           <Campo label="Fecha de servicio" requerido>
@@ -462,6 +464,11 @@ function FormDiagnostico({ pendientes, onGuardar, onCancelar, editando }) {
       ) : (
         <form onSubmit={guardar} className="space-y-5">
           {error && <Alerta mensaje={error} />}
+
+          <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+            El diagnóstico dice si la cabra quedó preñada. Se confirma con ecografía (a partir de unos 30 días de la monta)
+            o, si no hay ecógrafo, porque no volvió a entrar en celo a los 21 días.
+          </p>
 
           <Campo label="Monta a diagnosticar" requerido>
             <select value={idReg} onChange={e => setIdReg(e.target.value)}
@@ -623,26 +630,27 @@ function FormParto({ gestantes, onGuardar, onCancelar, editando }) {
                     <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${dificultad === op.value ? 'border-green-500' : 'border-gray-300'}`}>
                       {dificultad === op.value && <div className="w-1.5 h-1.5 rounded-full bg-green-500" />}
                     </div>
-                    {op.label}
+                    <span>{op.label}<span className="block text-[11px] text-gray-400 font-normal">{op.ayuda}</span></span>
                   </label>
                 ))}
               </div>
             </Campo>
           </div>
 
-          {/* Número de crías */}
-          <Campo label="Número de crías" requerido>
+          {/* Tipo de parto (define el número de crías) */}
+          <Campo label="Tipo de parto" requerido>
             <div className="flex gap-2">
-              {[1, 2, 3].map(n => (
-                <button key={n} type="button" onClick={() => setNumCrias(n)}
+              {TIPO_PARTO_OPTS.filter(o => o.crias).map(o => (
+                <button key={o.value} type="button" onClick={() => setNumCrias(o.crias)}
                   className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all ${
-                    crias.length === n ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    crias.length === o.crias ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}>
-                  {n} {n === 1 ? 'cría' : 'crías'}
+                  {o.label}
+                  <span className="block text-[11px] font-normal opacity-70">{o.crias} {o.crias === 1 ? 'cría' : 'crías'}</span>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-1">Máximo {MAX_CRIAS} crías por parto. Cada cría se registrará automáticamente como animal.</p>
+            <p className="text-xs text-gray-400 mt-1">Cada cría se registrará automáticamente como animal.</p>
           </Campo>
 
           {/* Estado de cada cría */}

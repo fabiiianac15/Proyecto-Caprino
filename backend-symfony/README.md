@@ -1,344 +1,82 @@
-# Backend API - Sistema de Gestión Zootécnica Caprina
+# Backend: API REST de GRANME
 
-## Descripción
+API en Symfony 6.4 LTS sobre Oracle Autonomous Database. Los controladores escriben SQL directo con Doctrine DBAL y parámetros enlazados; no se usa el ORM. Las entidades de `src/Entity/` quedaron del diseño inicial y ninguna ruta las usa.
 
-API REST desarrollada con Symfony 6.4 y API Platform para la gestión integral de datos zootécnicos de ganado caprino.
+## Requisitos
 
-## Tecnologías
-
-- PHP 8.1+
-- Symfony 6.4 LTS
-- API Platform 3.x
-- Doctrine ORM
-- Oracle Database
-- JWT Authentication
-- PHPUnit para testing
-
-## Requisitos Previos
-
-- PHP 8.1 o superior
-- Composer 2.x
+- PHP 8.1 o superior con `oci8`
+- Composer 2
 - Oracle Instant Client
-- Extensión PHP OCI8
-- Oracle Database 19c o superior
+- Wallet del Autonomous Database y la variable `TNS_ADMIN` apuntando a él
 
 ## Instalación
 
-### 1. Clonar el repositorio e instalar dependencias
-
 ```bash
-cd backend-symfony
 composer install
+cp .env .env.local      # credenciales reales solo en .env.local
 ```
 
-### 2. Configurar variables de entorno
+Variables que hay que revisar en `.env.local`:
 
-Copiar el archivo `.env` y configurar las credenciales de Oracle:
+| Variable | Uso |
+|----------|-----|
+| `DATABASE_TNS_NAME` | alias del `tnsnames.ora` (por ejemplo `dbcaprino_high`) |
+| `DATABASE_USER`, `DATABASE_PASSWORD` | usuario de la aplicación (`caprino_user`) |
+| `DATABASE_WALLET_PATH` | carpeta del wallet |
+| `JWT_SECRET` | secreto HS256; el token dura 24 h (`token_ttl` en `config/packages/lexik_jwt_authentication.yaml`) |
+| `ML_SERVICE_URL` | microservicio de genética e IA, por defecto `http://localhost:8001` |
+| `APP_UPLOADS_DIR` | opcional; carpeta persistente para las fotos de bienestar y clasificación lineal. Si no se define se usa `var/uploads` |
+| `CORS_ALLOW_ORIGIN` | expresión regular de orígenes permitidos |
+
+## Ejecución
 
 ```bash
-cp .env .env.local
+PHP_CLI_SERVER_WORKERS=4 TNS_ADMIN=~/Caprino-Wallet php -S localhost:8000 -t public
 ```
 
-Editar `.env.local`:
+Sin `TNS_ADMIN` la conexión a Oracle se queda esperando. Con un solo proceso, el análisis en streaming de la IA (unos 3 minutos en CPU) bloquea las demás peticiones; por eso `PHP_CLI_SERVER_WORKERS`.
 
-```env
-DATABASE_URL="oci8://usuario:password@localhost:1521/XEPDB1"
-JWT_SECRET_KEY=%kernel.project_dir%/config/jwt/private.pem
-JWT_PUBLIC_KEY=%kernel.project_dir%/config/jwt/public.pem
-JWT_PASSPHRASE=tu_passphrase_segura
+Para comprobar que responde: `curl http://localhost:8000/api/health`.
+
+## Estructura
+
+```
+src/
+├── Controller/        un controlador por módulo (Animal, Genealogia, Reproduccion, Bienestar…)
+├── Service/
+│   ├── RebanoService.php               instantánea del rebaño para el microservicio ML (7 consultas)
+│   ├── MlService.php                   cliente HTTP del microservicio (JSON y streaming)
+│   ├── BienestarService.php            cálculo MEBA: 35 % recursos, 55 % animal, 10 % gestión
+│   ├── ClasificacionLinealService.php  puntaje ADGA por rasgo y categoría final
+│   ├── AuditoriaService.php            registro de acciones
+│   └── NotificacionService.php
+├── Doctrine/          middleware que conecta por alias TNS
+└── EventListener/     respuesta del login con los datos del usuario
 ```
 
-### 3. Generar claves JWT
+## Rutas
+
+Todas exigen `Authorization: Bearer <token>` salvo `POST /api/auth/login`, `POST /api/auth/register` y `GET /api/health`. La lista completa sale con:
 
 ```bash
-php bin/console lexik:jwt:generate-keypair
+php bin/console debug:router | grep /api
 ```
 
-### 4. Crear estructura de base de datos
-
-Ejecutar los scripts SQL ubicados en `/base-de-datos/`:
-
-```bash
-# Conectar a Oracle y ejecutar en orden:
-# 1. esquemas/01-tablas-principales.sql
-# 2. procedimientos/01-triggers-y-funciones.sql
-# 3. vistas/01-vistas-reportes.sql
-```
-
-### 5. Cargar datos iniciales (opcional)
-
-```bash
-php bin/console doctrine:fixtures:load
-```
-
-## Estructura del Proyecto
-
-```
-backend-symfony/
-├── config/                 # Configuración de Symfony
-│   ├── packages/          # Configuración de bundles
-│   ├── routes/            # Definición de rutas
-│   └── services.yaml      # Contenedor de servicios
-├── src/
-│   ├── Entity/            # Entidades Doctrine (mapeo de tablas)
-│   │   ├── Animal.php
-│   │   ├── Raza.php
-│   │   ├── Genealogia.php
-│   │   ├── Pesaje.php
-│   │   ├── ProduccionLeche.php
-│   │   ├── Reproduccion.php
-│   │   ├── Salud.php
-│   │   └── Usuario.php
-│   ├── Repository/        # Repositorios para consultas personalizadas
-│   ├── Controller/        # Controladores adicionales (si necesarios)
-│   ├── Service/           # Lógica de negocio
-│   │   ├── AnimalService.php
-│   │   ├── ReproduccionService.php
-│   │   └── ProduccionService.php
-│   ├── Validator/         # Validadores personalizados
-│   │   ├── ConsanguinidadValidator.php
-│   │   └── EdadReproductivaValidator.php
-│   ├── Security/          # Autenticación y autorización
-│   │   ├── JWTAuthenticator.php
-│   │   └── Voter/         # Voters para permisos
-│   ├── EventSubscriber/   # Eventos del sistema
-│   └── DataFixtures/      # Datos de prueba
-├── tests/                 # Pruebas unitarias y funcionales
-│   ├── Unit/
-│   └── Functional/
-├── migrations/            # Migraciones de BD (si se usan)
-├── var/                   # Cache y logs
-└── composer.json          # Dependencias PHP
-```
-
-## Endpoints Principales
-
-### Autenticación
-
-```
-POST /api/login
-Body: {"username": "email", "password": "password"}
-Response: {"token": "JWT_TOKEN"}
-```
-
-### Animales
-
-```
-GET    /api/animales                    # Listar animales con filtros
-GET    /api/animales/{id}               # Detalle de un animal
-POST   /api/animales                    # Registrar nuevo animal
-PUT    /api/animales/{id}               # Actualizar animal
-DELETE /api/animales/{id}               # Eliminar (cambiar estado)
-GET    /api/animales/{id}/genealogia    # Árbol genealógico
-```
-
-### Pesajes
-
-```
-GET    /api/pesajes                     # Listar pesajes
-POST   /api/pesajes                     # Registrar pesaje
-GET    /api/pesajes?animal={id}         # Pesajes de un animal
-```
-
-### Producción de Leche
-
-```
-GET    /api/produccion                  # Listar producciones
-POST   /api/produccion                  # Registrar producción
-GET    /api/produccion/estadisticas     # Estadísticas generales
-GET    /api/produccion?animal={id}      # Producción de un animal
-```
-
-### Reproducción
-
-```
-GET    /api/reproduccion                # Listar eventos reproductivos
-POST   /api/reproduccion                # Registrar servicio/parto
-GET    /api/reproduccion/calendario     # Calendario de partos próximos
-```
-
-### Salud
-
-```
-GET    /api/salud                       # Historial sanitario
-POST   /api/salud                       # Registrar evento sanitario
-GET    /api/salud/vacunacion            # Plan de vacunación
-GET    /api/salud/retiros               # Animales en retiro
-```
-
-### Reportes
-
-```
-GET    /api/reportes/produccion         # Reporte de producción
-GET    /api/reportes/reproduccion       # Reporte reproductivo
-GET    /api/reportes/crecimiento        # Reporte de crecimiento
-GET    /api/reportes/dashboard          # Indicadores generales
-```
-
-## Validaciones Implementadas
-
-### Validaciones de Entidad (Assert)
-
-Cada entidad implementa validaciones con atributos de Symfony Validator:
-
-- `@Assert\NotBlank`: Campo obligatorio
-- `@Assert\Positive`: Número positivo
-- `@Assert\Range`: Rango de valores
-- `@Assert\Choice`: Valores permitidos (enums)
-- `@Assert\Email`: Formato de email
-- `@Assert\Length`: Longitud de string
-
-### Validadores Personalizados
-
-- **ConsanguinidadValidator**: Valida cruces no consanguíneos
-- **EdadReproductivaValidator**: Valida edad mínima para reproducción
-- **FechaCoherenteValidator**: Valida coherencia de fechas (parto > servicio)
-- **AnimalActivoValidator**: Valida que el animal esté activo
-
-## Seguridad
-
-### Roles de Usuario
-
-- `ROLE_ADMIN`: Acceso total al sistema
-- `ROLE_ZOOTECNISTA`: Lectura total, escritura en datos operativos
-- `ROLE_TECNICO`: Solo lectura
-- `ROLE_VETERINARIO`: Lectura total, escritura en salud
-
-### Configuración de Seguridad
-
-La seguridad se configura en `config/packages/security.yaml`:
-
-- Autenticación mediante JWT
-- Firewall para rutas `/api/*`
-- Control de acceso por rol
-- Rate limiting en endpoints sensibles
-
-## Testing
-
-### Ejecutar todas las pruebas
-
-```bash
-php bin/phpunit
-```
-
-### Ejecutar pruebas específicas
-
-```bash
-# Pruebas unitarias
-php bin/phpunit tests/Unit
-
-# Pruebas funcionales
-php bin/phpunit tests/Functional
-
-# Prueba específica
-php bin/phpunit tests/Unit/Service/AnimalServiceTest.php
-```
-
-### Coverage de código
-
-```bash
-XDEBUG_MODE=coverage php bin/phpunit --coverage-html var/coverage
-```
-
-## Comandos Útiles
-
-### Limpiar caché
-
-```bash
-php bin/console cache:clear
-```
-
-### Ver rutas disponibles
-
-```bash
-php bin/console debug:router
-```
-
-### Validar esquema de base de datos
-
-```bash
-php bin/console doctrine:schema:validate
-```
-
-### Crear nueva entidad
-
-```bash
-php bin/console make:entity
-```
-
-## Desarrollo
-
-### Convenciones de Código
-
-- PSR-12 para estilo de código PHP
-- Comentarios en español para lógica de negocio zootécnica
-- Nombres de variables descriptivos
-- Métodos cortos y con responsabilidad única
-
-### Commits
-
-Usar mensajes descriptivos en español:
-
-```
-feat: agregar endpoint de calendario reproductivo
-fix: corregir validación de edad en reproducción
-refactor: optimizar consulta de producción por raza
-docs: actualizar documentación de API
-test: agregar pruebas para servicio de genealogía
-```
-
-## Despliegue
-
-Ver documentación completa en `/documentacion/manual-despliegue.md`
-
-### Pasos Básicos
-
-1. Configurar servidor con PHP 8.1 y Oracle Client
-2. Clonar repositorio y configurar `.env.local`
-3. Instalar dependencias: `composer install --no-dev --optimize-autoloader`
-4. Generar claves JWT
-5. Configurar Nginx/Apache como reverse proxy
-6. Configurar HTTPS con certificado SSL
-7. Configurar backups automáticos de base de datos
-
-## Troubleshooting
-
-### Error de conexión a Oracle
-
-```bash
-# Verificar extensión OCI8
-php -m | grep oci8
-
-# Verificar variables de entorno de Oracle
-echo $ORACLE_HOME
-echo $LD_LIBRARY_PATH
-```
-
-### Error de permisos JWT
-
-```bash
-# Dar permisos correctos a las claves
-chmod 644 config/jwt/public.pem
-chmod 600 config/jwt/private.pem
-```
-
-### Lentitud en consultas
-
-```bash
-# Ver queries lentas en logs
-tail -f var/log/dev.log | grep "doctrine"
-
-# Optimizar con índices en Oracle
-# Ver: base-de-datos/esquemas/01-tablas-principales.sql
-```
-
-## Soporte
-
-Para dudas o problemas:
-1. Revisar documentación en `/documentacion/`
-2. Revisar logs en `var/log/`
-3. Contactar al equipo de desarrollo
-
-## Licencia
-
-Proyecto académico - Universidad [Nombre]
+Las rutas de genealogía que dependen del microservicio:
+
+| Ruta | Qué hace |
+|------|----------|
+| `GET /api/genealogia/arbol/{id}?generaciones=3` | árbol completo en una sola respuesta |
+| `POST /api/genealogia/compatibilidad` | evaluación del cruce `{idMacho, idHembra}` |
+| `POST /api/genealogia/analisis-ia` | narrativa de la IA, texto en streaming |
+| `POST /api/genealogia/ranking` | mejores parejas `{idAnimal, limite, soloMismaRaza, soloDisponibles, maxConsanguinidad}` |
+| `POST /api/genealogia/ranking/analisis-ia` | resumen comparativo en streaming |
+| `GET /api/genealogia/modelo` | métricas del modelo y partos que aún no conoce |
+| `POST /api/genealogia/modelo/entrenar` | reentrena con los partos de la granja (administrador, zootecnista o veterinario) |
+
+## Fotos
+
+- Animales: `public/uploads/animales/`, servidas como archivos estáticos.
+- Bienestar y clasificación lineal: `var/uploads/` o `APP_UPLOADS_DIR`. Se entregan por la API con JWT, nunca como estáticos.
+
+La carpeta tiene que existir y PHP debe poder escribir en ella.

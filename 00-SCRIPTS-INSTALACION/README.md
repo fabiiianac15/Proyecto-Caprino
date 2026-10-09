@@ -1,4 +1,4 @@
-# Scripts de Instalación — Proyecto Caprino
+# Scripts de Instalación: Proyecto Caprino
 
 Guía de instalación para conectar el sistema a **Oracle Autonomous Database** (nube).
 
@@ -12,7 +12,7 @@ Guía de instalación para conectar el sistema a **Oracle Autonomous Database** 
 
 ---
 
-## Opción A — Instalación automática (recomendada)
+## Opción A: Instalación automática (recomendada)
 
 Ejecuta el script maestro; él corre todos los pasos en orden:
 
@@ -22,7 +22,7 @@ powershell -ExecutionPolicy Bypass -File "00-INSTALACION-COMPLETA.ps1"
 
 ---
 
-## Opción B — Instalación paso a paso
+## Opción B: Instalación paso a paso
 
 | Script | Qué hace | Admin |
 |--------|----------|-------|
@@ -78,8 +78,30 @@ Oracle Autonomous Database (nube)
 - Corre `02-CONFIGURAR-ORACLE-ENV.ps1` de nuevo como Administrador
 
 **"ORA-12541: TNS sin listener"**
-- El alias TNS no es correcto — abre `C:\Caprino-Wallet\tnsnames.ora` y verifica los nombres
+- El alias TNS no es correcto: abre `C:\Caprino-Wallet\tnsnames.ora` y verifica los nombres
 - Actualiza `DATABASE_TNS_NAME` en `backend-symfony\.env`
 
 **"ORA-01017: usuario/contrasena no validos"**
 - Verifica `DATABASE_USER` y `DATABASE_PASSWORD` en `backend-symfony\.env`
+
+---
+
+## Capa de IA (módulo de Genealogía)
+
+La evaluación de cruces necesita el microservicio ML (puerto 8001) y Ollama. Con Docker Desktop, desde la raíz del proyecto:
+
+```
+docker compose -f docker-compose.ia.yml up -d
+docker compose -f docker-compose.ia.yml exec ollama ollama pull qwen2.5:3b-instruct
+```
+
+Sin Docker: instala Ollama desde ollama.com, ejecuta `ollama pull qwen2.5:3b-instruct` y luego:
+
+```
+cd ml-service
+python -m venv venv
+venv\Scripts\pip install -r requirements.txt
+venv\Scripts\uvicorn main:app --host 127.0.0.1 --port 8001
+```
+
+El backend lo encuentra por `ML_SERVICE_URL` en `backend-symfony\.env.local`. El árbol genealógico funciona sin la IA; la evaluación de cruces y el ranking no.

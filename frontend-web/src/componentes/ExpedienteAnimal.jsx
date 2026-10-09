@@ -13,6 +13,7 @@ import { FormularioProduccion } from './ModuloProduccion';
 import { FormularioSalud } from './ModuloSalud';
 import { FormularioPeso } from './ModuloPeso';
 import { FormMonta } from './ModuloReproduccion';
+import { ESTADOS_PRODUCTIVOS } from '../utilidades/formateo';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -966,6 +967,11 @@ const ExpedienteAnimal = () => {
                 }`}>
                   {animal.estado || 'activo'}
                 </span>
+                {ESTADOS_PRODUCTIVOS[animal.estadoProductivo] && (
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${ESTADOS_PRODUCTIVOS[animal.estadoProductivo].clase}`}>
+                    {ESTADOS_PRODUCTIVOS[animal.estadoProductivo].texto}
+                  </span>
+                )}
               </div>
             </div>
 

@@ -21,15 +21,15 @@ VALUES (
     'Raza suiza de gran tamaño y color blanco uniforme. Excelente productora de leche con bajo contenido graso. Muy adaptable a diferentes climas. Carácter dócil y fácil manejo.'
 );
 
--- Raza Alpina Francesa
+-- Raza Alpina
 INSERT INTO RAZA (nombre_raza, origen, aptitud, peso_adulto_promedio_kg, produccion_leche_dia_promedio, caracteristicas)
 VALUES (
-    'Alpina Francesa',
-    'Francia',
+    'Alpina',
+    'Alpes (Francia/Suiza)',
     'lechera',
     55.0,
     3.8,
-    'Origen en los Alpes franceses. Pelaje variado con colores desde beige hasta negro. Buena producción lechera con mayor contenido graso que Saanen. Muy resistente a diferentes condiciones climáticas.'
+    'Origen en los Alpes. Pelaje variado con colores desde beige hasta negro. Buena producción lechera con mayor contenido graso que Saanen. Muy resistente a diferentes condiciones climáticas.'
 );
 
 -- Raza Toggenburg

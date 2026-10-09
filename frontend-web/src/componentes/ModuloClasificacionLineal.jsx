@@ -1,30 +1,33 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Ruler, Plus, ArrowLeft, RefreshCw, Trash2, Eye, Camera,
-  CheckCircle, AlertTriangle, ImageOff,
+  CheckCircle, AlertTriangle, ImageOff, Info, X, ChevronDown,
 } from 'lucide-react';
-import { clasificacionLinealAPI, animalesAPI } from '../servicios/caprino-api';
+import { clasificacionLinealAPI, animalesAPI, reproduccionAPI } from '../servicios/caprino-api';
 import SelectAnimal from './SelectAnimal';
 
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent bg-white';
 const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
 
+// Tope de cada rango de la escala 1-50 del artículo: bajo 5, intermedio 25, alto 50
 const FACTOR = { 1: 0.10, 2: 0.50, 3: 1.00 };
 const REGIONES = [
-  { key: 'APARIENCIA', titulo: 'Apariencia general y capacidad', pts: 25 },
-  { key: 'ESTRUCTURA', titulo: 'Estructura y fortaleza lechera', pts: 15 },
-  { key: 'MAMARIO',    titulo: 'Sistema mamario',                pts: 40 },
-  { key: 'PATAS',      titulo: 'Patas y pezuñas',                pts: 20 },
+  { key: 'APARIENCIA', titulo: 'Apariencia general y capacidad', ayuda: 'Tamaño y forma del cuerpo.', pts: 25 },
+  { key: 'ESTRUCTURA', titulo: 'Estructura y fortaleza lechera', ayuda: 'Qué tanto "se ve lechera": fina, angulosa y con buen hueso.', pts: 15 },
+  { key: 'MAMARIO',    titulo: 'Sistema mamario',                ayuda: 'La ubre y los pezones. Es la parte que más puntos da.', pts: 40 },
+  { key: 'PATAS',      titulo: 'Patas y pezuñas',                ayuda: 'Cómo son las patas y cómo camina.', pts: 20 },
 ];
 const VISTAS = [
-  { key: 'FRONTAL',   label: 'Frontal' },
-  { key: 'LATERAL',   label: 'Lateral' },
-  { key: 'POSTERIOR', label: 'Posterior' },
-  { key: 'UBRE_POST', label: 'Ubre posterior' },
-  { key: 'UBRE_LAT',  label: 'Ubre lateral' },
-  { key: 'PATAS',     label: 'Patas' },
+  { key: 'FRONTAL',   label: 'De frente',      ayuda: 'La cabra completa, de frente.' },
+  { key: 'LATERAL',   label: 'De lado',        ayuda: 'El cuerpo completo, de lado.' },
+  { key: 'POSTERIOR', label: 'Desde atrás',    ayuda: 'El cuerpo completo, desde atrás.' },
+  { key: 'UBRE_POST', label: 'Ubre de atrás',  ayuda: 'De cerca: la ubre vista desde atrás.' },
+  { key: 'UBRE_LAT',  label: 'Ubre de lado',   ayuda: 'De cerca: la ubre vista de lado.' },
+  { key: 'PATAS',     label: 'Patas',          ayuda: 'Las patas de atrás, parada en piso plano.' },
 ];
 const CAL_LABEL = { 1: 'Bajo', 2: 'Intermedio', 3: 'Alto' };
+// Rasgos con dibujo de referencia (Figura 1 del artículo, ADGA 2019) en /public/img/lineal
+const CON_DIBUJO = new Set(['ANCPEC', 'ANGUL', 'ANGRU', 'ANCHGRU', 'PTVL', 'INAU', 'LSM', 'DIAPE', 'COLPE', 'AILPU', 'PROFUB']);
 const COLOR_CAT = {
   EXCELENTE: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   MUY_BUENO: 'bg-teal-100 text-teal-700 border-teal-200',
@@ -32,6 +35,23 @@ const COLOR_CAT = {
   ACEPTABLE: 'bg-amber-100 text-amber-700 border-amber-200',
   REGULAR:   'bg-orange-100 text-orange-700 border-orange-200',
   POBRE:     'bg-red-100 text-red-700 border-red-200',
+};
+const GLOSARIO = [
+  ['Cruz', 'La parte más alta de la espalda, encima de las patas delanteras.'],
+  ['Grupa', 'La cadera: la parte de atrás, arriba de la cola.'],
+  ['Corvejón', 'La articulación que dobla en la pata de atrás (parece una rodilla al revés).'],
+  ['Inserción de la ubre', 'El lugar donde la ubre se pega al cuerpo.'],
+  ['Ligamento suspensor', 'El "tirante" que sostiene la ubre; se ve como una rayita en el centro.'],
+  ['Aplomos', 'La forma en que la cabra apoya las patas en el piso.'],
+];
+
+const hoy = () => new Date().toISOString().slice(0, 10);
+const cabVacia = () => ({ idAnimal: null, fechaEvaluacion: hoy(), edadMeses: '', numLactancia: '', observaciones: '' });
+
+const mesesDesde = (fecha) => {
+  const d = new Date(fecha);
+  if (isNaN(d)) return '';
+  return Math.max(0, Math.floor((Date.now() - d) / (30.44 * 86400000)));
 };
 
 // Imagen protegida: se descarga con el token y se muestra como blob.
@@ -52,15 +72,19 @@ const FotoProtegida = ({ idFoto, alt }) => {
   return <img src={src} alt={alt} className="w-full h-28 object-cover rounded-lg" />;
 };
 
+const Visor = ({ src, onCerrar }) => src ? (
+  <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onCerrar}>
+    <img src={src} alt="Referencia" className="max-w-full max-h-full rounded-lg bg-white" />
+    <button onClick={onCerrar} className="absolute top-4 right-4 text-white"><X className="w-7 h-7" /></button>
+  </div>
+) : null;
+
 const calcular = (catalogo, valores) => {
-  const porRegion = {};
-  catalogo.forEach((r) => { porRegion[r.region] = (porRegion[r.region] || 0) + 1; });
   const subtotales = { APARIENCIA: 0, ESTRUCTURA: 0, MAMARIO: 0, PATAS: 0 };
   catalogo.forEach((r) => {
     const cal = valores[r.idRasgo];
     if (!cal) return;
-    const n = Math.max(1, porRegion[r.region]);
-    subtotales[r.region] += Math.round((r.ptsRegion / n) * (FACTOR[cal] || 0) * 100) / 100;
+    subtotales[r.region] += r.ptsRasgo * (FACTOR[cal] || 0); // se redondea solo el subtotal
   });
   Object.keys(subtotales).forEach((k) => { subtotales[k] = Math.round(subtotales[k] * 100) / 100; });
   const puntFinal = Math.round(Object.values(subtotales).reduce((a, b) => a + b, 0) * 100) / 100;
@@ -78,12 +102,15 @@ const ModuloClasificacionLineal = () => {
   const [cargando, setCargando] = useState(false);
   const [evaluaciones, setEvaluaciones] = useState([]);
   const [detalle, setDetalle] = useState(null);
+  const [visor, setVisor] = useState(null);
 
   const [animales, setAnimales] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [catalogo, setCatalogo] = useState([]);
   const [valores, setValores] = useState({});
-  const [cab, setCab] = useState({ idAnimal: null, fechaEvaluacion: new Date().toISOString().slice(0, 10), edadMeses: '', numLactancia: '', observaciones: '' });
+  const [cab, setCab] = useState(cabVacia());
+  const [partoInfo, setPartoInfo] = useState(null); // { dias, partos } de la hembra elegida
+  const [verGlosario, setVerGlosario] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const fileRefs = useRef({});
@@ -92,6 +119,9 @@ const ModuloClasificacionLineal = () => {
     cargarLista();
     animalesAPI.getAll().then((r) => setAnimales(r.data || [])).catch(() => setAnimales([]));
   }, []);
+
+  // Solo se evalúan hembras (el método es para cabras lecheras en lactancia)
+  const hembras = useMemo(() => animales.filter((a) => a.sexo === 'hembra'), [animales]);
 
   const cargarLista = async () => {
     setCargando(true);
@@ -104,20 +134,39 @@ const ModuloClasificacionLineal = () => {
     setCargando(true);
     try {
       const cat = await clasificacionLinealAPI.getCatalogo();
-      const init = {};
-      cat.forEach((r) => { init[r.idRasgo] = 2; }); // por defecto intermedio
       setCatalogo(cat);
-      setValores(init);
-      setCab({ idAnimal: null, fechaEvaluacion: new Date().toISOString().slice(0, 10), edadMeses: '', numLactancia: '', observaciones: '' });
+      setValores({}); // sin calificar: obliga a revisar cada rasgo
+      setCab(cabVacia());
+      setPartoInfo(null);
       setVista('nueva');
     } catch (e) { setError(e.message || 'No se pudo cargar el catálogo'); }
     finally { setCargando(false); }
   };
 
+  // Al elegir la cabra: edad y último parto para orientar al evaluador
+  const elegirAnimal = async (id) => {
+    const a = hembras.find((x) => x.id === id);
+    setCab((c) => ({ ...c, idAnimal: id, edadMeses: a?.fechaNacimiento ? String(mesesDesde(a.fechaNacimiento)) : c.edadMeses }));
+    setPartoInfo(null);
+    try {
+      const r = await reproduccionAPI.getAll({ idHembra: id });
+      const partos = (r.data || []).filter((x) => x.fechaPartoReal).sort((x, y) => new Date(y.fechaPartoReal) - new Date(x.fechaPartoReal));
+      const dias = partos.length ? Math.floor((Date.now() - new Date(partos[0].fechaPartoReal)) / 86400000) : null;
+      setPartoInfo({ dias, partos: partos.length });
+      if (partos.length) setCab((c) => ({ ...c, numLactancia: c.numLactancia || String(partos.length) }));
+    } catch { /* la orientación es opcional */ }
+  };
+
   const resultado = useMemo(() => calcular(catalogo, valores), [catalogo, valores]);
+  const faltantes = catalogo.filter((r) => !valores[r.idRasgo]);
 
   const guardar = async () => {
-    if (!cab.idAnimal) { setError('Selecciona un animal'); return; }
+    if (!cab.idAnimal) { setError('Primero elige la cabra que vas a evaluar (arriba).'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (faltantes.length) {
+      setError(`Faltan ${faltantes.length} rasgo(s) por calificar: ${faltantes.map((f) => f.nombre).join(', ')}.`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     setGuardando(true);
     setError('');
     try {
@@ -161,18 +210,20 @@ const ModuloClasificacionLineal = () => {
   if (vista === 'lista') {
     return (
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-rose-100 rounded-xl"><Ruler className="w-6 h-6 text-rose-600" /></div>
             <div>
               <h1 className="text-2xl font-bold text-gray-800">Clasificación Lineal</h1>
-              <p className="text-sm text-gray-500">Evaluación fenotípica morfológica (método ADGA)</p>
+              <p className="text-sm text-gray-500">Calificar la forma del cuerpo y la ubre de cada cabra lechera (método ADGA)</p>
             </div>
           </div>
           <button onClick={iniciarNueva} className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium">
             <Plus className="w-4 h-4" /> Nueva evaluación
           </button>
         </div>
+
+        {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{error}</div>}
 
         {cargando ? (
           <div className="text-center py-12 text-gray-400"><RefreshCw className="w-6 h-6 animate-spin mx-auto" /></div>
@@ -220,6 +271,11 @@ const ModuloClasificacionLineal = () => {
               <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${COLOR_CAT[detalle.categoria] || ''}`}>{detalle.categoria?.replace('_', ' ')}</span>
               <span className="text-3xl font-bold text-gray-800">{detalle.puntFinal} <span className="text-base font-normal text-gray-400">/ 100</span></span>
             </div>
+            <p className="text-xs text-gray-400 mt-1">
+              {detalle.fechaEvaluacion?.slice(0, 10)}
+              {detalle.edadMeses != null && ` · ${detalle.edadMeses} meses`}
+              {detalle.numLactancia != null && ` · ${detalle.numLactancia} parto(s)`}
+            </p>
           </div>
           <div className="text-right text-sm text-gray-600 space-y-1">
             <p>Apariencia: <b>{detalle.puntApariencia}</b> / 25</p>
@@ -228,21 +284,24 @@ const ModuloClasificacionLineal = () => {
             <p>Patas: <b>{detalle.puntPatas}</b> / 20</p>
           </div>
         </div>
+        {detalle.observaciones && <p className="mb-4 text-sm text-gray-600 bg-white border border-gray-100 rounded-xl p-4 whitespace-pre-line">{detalle.observaciones}</p>}
 
         {/* Fotos */}
         <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
-          <h3 className="flex items-center gap-2 font-semibold text-gray-700 mb-3"><Camera className="w-4 h-4" /> Fotos de evidencia</h3>
+          <h3 className="flex items-center gap-2 font-semibold text-gray-700 mb-1"><Camera className="w-4 h-4" /> Fotos de evidencia</h3>
+          <p className="text-xs text-gray-500 mb-3">Con la cabra parada en piso plano, tome una foto de cada vista. En el celular el botón abre la cámara.</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {VISTAS.map((v) => {
               const foto = (detalle.fotos || []).find((f) => f.tipoVista === v.key);
               return (
                 <div key={v.key} className="border border-gray-100 rounded-lg p-2">
-                  <p className="text-xs font-medium text-gray-500 mb-1">{v.label}</p>
+                  <p className="text-xs font-medium text-gray-600">{v.label}</p>
+                  <p className="text-[11px] text-gray-400 mb-1">{v.ayuda}</p>
                   {foto ? (
                     <FotoProtegida idFoto={foto.idFoto} alt={v.label} />
                   ) : (
                     <button onClick={() => fileRefs.current[v.key]?.click()} className="w-full h-28 flex flex-col items-center justify-center bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-500 rounded-lg border border-dashed border-gray-200">
-                      <Camera className="w-5 h-5 mb-1" /><span className="text-xs">Subir</span>
+                      <Camera className="w-5 h-5 mb-1" /><span className="text-xs">Tomar / subir foto</span>
                     </button>
                   )}
                   <input ref={(el) => (fileRefs.current[v.key] = el)} type="file" accept="image/*" capture="environment" className="hidden"
@@ -259,12 +318,16 @@ const ModuloClasificacionLineal = () => {
           if (!items.length) return null;
           return (
             <div key={g.key} className="bg-white rounded-xl border border-gray-100 p-4 mb-3">
-              <h3 className="font-semibold text-gray-700 mb-2">{g.titulo}</h3>
+              <h3 className="font-semibold text-gray-700">{g.titulo}</h3>
+              <p className="text-xs text-gray-400 mb-2">{g.ayuda}</p>
               <div className="divide-y divide-gray-50">
                 {items.map((d) => (
-                  <div key={d.idDetalle} className="flex items-center justify-between py-2 text-sm">
-                    <span className="text-gray-700">{d.nombre}</span>
-                    <span className="text-gray-500">{CAL_LABEL[d.calificacion]} · <b className="text-gray-800">{d.puntaje}</b></span>
+                  <div key={d.idDetalle} className="py-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-gray-700">{d.nombre}</span>
+                      <span className="text-gray-500 shrink-0">{d.calificacion} · {CAL_LABEL[d.calificacion]} · <b className="text-gray-800">{d.puntaje} pts</b></span>
+                    </div>
+                    {d.nivelTexto && <p className="text-xs text-gray-400 mt-0.5">{d.nivelTexto}</p>}
                   </div>
                 ))}
               </div>
@@ -277,49 +340,104 @@ const ModuloClasificacionLineal = () => {
 
   // ---------------- NUEVA ----------------
   return (
-    <div className="p-6 max-w-5xl mx-auto pb-32">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto pb-36">
+      <Visor src={visor} onCerrar={() => setVisor(null)} />
       <button onClick={() => setVista('lista')} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm mb-4"><ArrowLeft className="w-4 h-4" /> Cancelar</button>
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">Nueva clasificación lineal</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-3">Nueva clasificación lineal</h1>
 
-      {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{error}</div>}
+      {/* Cómo hacerlo */}
+      <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 mb-4 text-sm text-rose-900">
+        <p className="font-semibold flex items-center gap-1.5 mb-1.5"><Info className="w-4 h-4" /> Cómo hacer la evaluación</p>
+        <ol className="list-decimal ml-5 space-y-0.5 text-rose-800">
+          <li>Se evalúan <b>hembras adultas</b>, idealmente unos <b>45 días después de parir</b> (así la ubre está bien desarrollada).</li>
+          <li>Ponga la cabra <b>parada en piso plano</b>, tranquila, con la cabeza en posición normal.</li>
+          <li>En cada rasgo verá desde dónde mirarla (de lado, desde atrás…). Compárela con el dibujo y elija <b>1, 2 o 3</b>: 1 = bajo, 2 = intermedio, 3 = alto.</li>
+          <li>Al guardar podrá tomar las fotos de evidencia.</li>
+        </ol>
+        <button type="button" onClick={() => setVerGlosario((v) => !v)} className="mt-2 text-xs text-rose-700 hover:text-rose-900 flex items-center gap-1">
+          <ChevronDown className={`w-3 h-3 transition-transform ${verGlosario ? 'rotate-180' : ''}`} /> Palabras que quizá no conozca
+        </button>
+        {verGlosario && (
+          <dl className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            {GLOSARIO.map(([t, d]) => <div key={t}><dt className="inline font-semibold">{t}:</dt> <dd className="inline">{d}</dd></div>)}
+          </dl>
+        )}
+      </div>
+
+      {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-start gap-2"><AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />{error}</div>}
 
       <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="md:col-span-2">
-          <label className={lbl}>Animal <span className="text-red-500">*</span></label>
-          <SelectAnimal animales={animales} value={cab.idAnimal} onChange={(id) => setCab({ ...cab, idAnimal: id })} busqueda={busqueda} onBusqueda={setBusqueda} colorFocus="focus:ring-rose-500" />
+          <label className={lbl}>Cabra a evaluar <span className="text-red-500">*</span></label>
+          <SelectAnimal animales={hembras} value={cab.idAnimal} onChange={elegirAnimal} busqueda={busqueda} onBusqueda={setBusqueda} colorFocus="focus:ring-rose-500" />
+          <p className="text-[11px] text-gray-400 mt-1">Solo aparecen hembras.</p>
+          {partoInfo && (
+            partoInfo.dias === null ? (
+              <p className="text-xs text-amber-600 mt-1">No tiene partos registrados en Reproducción. El método está pensado para cabras que ya han parido.</p>
+            ) : (
+              <p className={`text-xs mt-1 ${partoInfo.dias < 30 || partoInfo.dias > 90 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                Último parto hace {partoInfo.dias} días.{partoInfo.dias < 30 ? ' Es pronto: lo ideal es cerca de los 45 días.' : partoInfo.dias > 90 ? ' Lo ideal es evaluarla cerca de los 45 días después del parto.' : ' Buen momento para evaluarla.'}
+              </p>
+            )
+          )}
         </div>
         <div>
           <label className={lbl}>Fecha</label>
           <input type="date" className={inp} value={cab.fechaEvaluacion} onChange={(e) => setCab({ ...cab, fechaEvaluacion: e.target.value })} />
         </div>
-        <div>
-          <label className={lbl}>Edad (meses)</label>
-          <input type="number" className={inp} value={cab.edadMeses} onChange={(e) => setCab({ ...cab, edadMeses: e.target.value })} />
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className={lbl}>Edad (meses)</label>
+            <input type="number" min="0" className={inp} value={cab.edadMeses} onChange={(e) => setCab({ ...cab, edadMeses: e.target.value })} />
+          </div>
+          <div>
+            <label className={lbl}>N° de partos</label>
+            <input type="number" min="0" className={inp} value={cab.numLactancia} onChange={(e) => setCab({ ...cab, numLactancia: e.target.value })} />
+          </div>
         </div>
       </div>
 
       {REGIONES.map((g) => {
         const items = catalogo.filter((c) => c.region === g.key);
+        const hechos = items.filter((r) => valores[r.idRasgo]).length;
         return (
           <div key={g.key} className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-700">{g.titulo}</h3>
-              <span className="text-xs text-gray-400">{g.pts} pts · subtotal {resultado.subtotales[g.key]}</span>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h3 className="font-semibold text-gray-700">{g.titulo} <span className="text-xs font-normal text-gray-400">({g.pts} pts)</span></h3>
+                <p className="text-xs text-gray-500">{g.ayuda}</p>
+              </div>
+              <span className="text-xs text-gray-400 shrink-0 text-right">{hechos}/{items.length} calificados<br />subtotal {resultado.subtotales[g.key]}</span>
             </div>
-            <div className="space-y-2">
-              {items.map((r) => (
-                <div key={r.idRasgo} className="flex items-center justify-between gap-3">
-                  <span className="text-sm text-gray-700 flex-1">{r.nombre}</span>
-                  <div className="flex items-center gap-1.5">
-                    {[1, 2, 3].map((c) => (
-                      <button key={c} onClick={() => setValores((v) => ({ ...v, [r.idRasgo]: c }))}
-                        className={`px-3 h-9 rounded-lg text-xs font-semibold border transition ${valores[r.idRasgo] === c ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-gray-500 border-gray-200 hover:border-rose-300'}`}>
-                        {CAL_LABEL[c]}
-                      </button>
-                    ))}
+            <div className="space-y-3">
+              {items.map((r) => {
+                const sel = valores[r.idRasgo];
+                return (
+                  <div key={r.idRasgo} className={`rounded-lg border p-3 ${sel ? 'border-gray-100' : 'border-amber-200'}`}>
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{r.nombre}</p>
+                        {r.vista && <span className="inline-block text-[10px] px-1.5 py-0.5 mt-0.5 bg-rose-50 text-rose-600 rounded">Mírela: {r.vista}</span>}
+                      </div>
+                      <span className="text-[11px] text-gray-400">hasta {Math.round(r.ptsRasgo * 100) / 100} pts</span>
+                    </div>
+                    {r.queMirar && <p className="text-xs text-gray-600 mt-1.5">{r.queMirar}</p>}
+                    {CON_DIBUJO.has(r.codigo) && (
+                      <img src={`/img/lineal/${r.codigo}.jpg`} alt={`Referencia ${r.nombre}`} onClick={() => setVisor(`/img/lineal/${r.codigo}.jpg`)}
+                        className="mt-2 w-full max-w-sm rounded-lg border border-gray-100 cursor-zoom-in" />
+                    )}
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {[1, 2, 3].map((c) => (
+                        <button key={c} type="button" onClick={() => setValores((v) => ({ ...v, [r.idRasgo]: c }))}
+                          className={`text-left rounded-lg border-2 px-3 py-2 transition ${sel === c ? 'border-rose-500 bg-rose-50' : 'border-gray-200 hover:border-rose-300 bg-white'}`}>
+                          <span className={`text-sm font-bold ${sel === c ? 'text-rose-700' : 'text-gray-700'}`}>{c} · {CAL_LABEL[c]}</span>
+                          {r.niveles?.[c] && <span className="block text-[11px] text-gray-500 leading-snug mt-0.5">{r.niveles[c]}</span>}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );
@@ -327,12 +445,12 @@ const ModuloClasificacionLineal = () => {
 
       <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
         <label className={lbl}>Observaciones</label>
-        <textarea className={inp} rows={2} value={cab.observaciones} onChange={(e) => setCab({ ...cab, observaciones: e.target.value })} />
+        <textarea className={inp} rows={2} placeholder="Algo que llame la atención: cojera, ubre desigual, una lesión…" value={cab.observaciones} onChange={(e) => setCab({ ...cab, observaciones: e.target.value })} />
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 shadow-lg z-40">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div>
               <p className="text-xs text-gray-400">Calificación final</p>
               <div className="flex items-center gap-2">
@@ -340,10 +458,12 @@ const ModuloClasificacionLineal = () => {
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${COLOR_CAT[resultado.categoria]}`}>{resultado.categoria.replace('_', ' ')}</span>
               </div>
             </div>
-            <span className="text-xs text-gray-400 hidden sm:flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Podrás añadir fotos tras guardar</span>
+            {faltantes.length > 0
+              ? <span className="text-xs text-amber-600 flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" /> Faltan {faltantes.length} de {catalogo.length} rasgos</span>
+              : <span className="text-xs text-emerald-600 flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Todos los rasgos calificados</span>}
           </div>
           <button onClick={guardar} disabled={guardando} className="bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg text-sm font-medium">
-            {guardando ? 'Guardando…' : 'Guardar y añadir fotos'}
+            {guardando ? 'Guardando…' : 'Guardar y tomar fotos'}
           </button>
         </div>
       </div>

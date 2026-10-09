@@ -14,6 +14,9 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/animales')]
 class AnimalController extends AbstractController
 {
+    /** Estado productivo de la hembra (complementa al estado general). */
+    public const ESTADOS_PRODUCTIVOS = ['produccion', 'seca', 'prenada', 'cabretona', 'cabrita'];
+
     public function __construct(
         private Connection $connection,
         private AuditoriaService $auditoria,
@@ -29,7 +32,7 @@ class AnimalController extends AbstractController
                           a.nombre, a.fecha_nacimiento,
                           a.sexo, a.id_raza, r.nombre_raza, a.color_pelaje,
                           a.peso_nacimiento_kg, a.estado, a.motivo_estado, a.fecha_cambio_estado,
-                          a.id_corral, c.nombre AS nombre_corral, c.tipo AS tipo_corral, c.lote AS lote_corral,
+                          a.estado_productivo, a.id_corral, c.nombre AS nombre_corral, c.tipo AS tipo_corral, c.lote AS lote_corral,
                           a.observaciones, a.foto_url
                    FROM ANIMAL a
                    LEFT JOIN RAZA r ON a.id_raza = r.id_raza
@@ -67,6 +70,7 @@ class AnimalController extends AbstractController
             'estado'         => $row['ESTADO'],
             'motivoEstado'   => $row['MOTIVO_ESTADO'],
             'fechaCambioEstado' => $row['FECHA_CAMBIO_ESTADO'],
+            'estadoProductivo'  => $row['ESTADO_PRODUCTIVO'],
             'idCorral'       => $row['ID_CORRAL'] !== null ? (int) $row['ID_CORRAL'] : null,
             'nombreCorral'   => $row['NOMBRE_CORRAL'],
             'tipoCorral'     => $row['TIPO_CORRAL'],
@@ -109,6 +113,7 @@ class AnimalController extends AbstractController
             'estado'         => $row['ESTADO'],
             'motivoEstado'   => $row['MOTIVO_ESTADO'],
             'fechaCambioEstado' => $row['FECHA_CAMBIO_ESTADO'],
+            'estadoProductivo'  => $row['ESTADO_PRODUCTIVO'],
             'idCorral'       => $row['ID_CORRAL'] !== null ? (int) $row['ID_CORRAL'] : null,
             'nombreCorral'   => $row['NOMBRE_CORRAL'],
             'tipoCorral'     => $row['TIPO_CORRAL'],
@@ -139,6 +144,7 @@ class AnimalController extends AbstractController
         $pesoNac  = $data['pesoNacimiento'] ?? $data['peso_nacimiento_kg'] ?? null;
         $estado   = $data['estado'] ?? 'activo';
         $motivo   = $data['motivoEstado'] ?? $data['motivo_estado'] ?? null;
+        $estProd  = $data['estadoProductivo'] ?? $data['estado_productivo'] ?? null;
         $idCorral = $data['idCorral'] ?? $data['id_corral'] ?? null;
         $obs      = $data['observaciones'] ?? null;
         $fotoData = $data['fotoUrl'] ?? $data['foto_url'] ?? null;
@@ -150,6 +156,9 @@ class AnimalController extends AbstractController
         if (!in_array($sexo, ['macho', 'hembra'])) {
             return $this->json(['error' => "sexo debe ser 'macho' o 'hembra'"], Response::HTTP_BAD_REQUEST);
         }
+
+        // El estado productivo solo aplica a hembras
+        $estProd = $sexo === 'hembra' && in_array($estProd, self::ESTADOS_PRODUCTIVOS, true) ? $estProd : null;
 
         $fotoUrl = $this->guardarFoto($fotoData);
 
@@ -171,6 +180,7 @@ class AnimalController extends AbstractController
                 'peso'     => $pesoNac,
                 'estado'   => $estado,
                 'motivo'   => $estado !== 'activo' ? $motivo : null,
+                'estprod'  => $estProd,
                 'corral'   => $idCorral ?: null,
                 'obs'      => $obs,
                 'foto'     => $fotoUrl,
@@ -180,8 +190,8 @@ class AnimalController extends AbstractController
                 $params['fec'] = $fechaNac;
             }
             $this->connection->executeStatement(
-                "INSERT INTO ANIMAL (codigo_identificacion, chapeta_nueva, chapeta_vieja, nombre, fecha_nacimiento, sexo, id_raza, color_pelaje, peso_nacimiento_kg, estado, motivo_estado, id_corral, observaciones, foto_url, usuario_registro, fecha_cambio_estado)
-                 VALUES (:codigo, :chapn, :chapv, :nombre, $fecExpr, :sexo, :raza, :color, :peso, :estado, :motivo, :corral, :obs, :foto, :ureg, "
+                "INSERT INTO ANIMAL (codigo_identificacion, chapeta_nueva, chapeta_vieja, nombre, fecha_nacimiento, sexo, id_raza, color_pelaje, peso_nacimiento_kg, estado, motivo_estado, estado_productivo, id_corral, observaciones, foto_url, usuario_registro, fecha_cambio_estado)
+                 VALUES (:codigo, :chapn, :chapv, :nombre, $fecExpr, :sexo, :raza, :color, :peso, :estado, :motivo, :estprod, :corral, :obs, :foto, :ureg, "
                  . ($estado !== 'activo' ? 'CURRENT_TIMESTAMP' : 'NULL') . ")",
                 $params
             );
@@ -227,6 +237,7 @@ class AnimalController extends AbstractController
                     'nombre'         => $nombre,
                     'fechaNacimiento'=> $fechaNac,
                     'sexo'           => $sexo,
+                    'estadoProductivo' => $estProd,
                     'idRaza'         => $idRaza,
                     'colorPelaje'    => $color,
                     'pesoNacimiento' => $pesoNac,
@@ -280,6 +291,14 @@ class AnimalController extends AbstractController
         if (array_key_exists('chapetaVieja', $data)) {
             $sets .= ', chapeta_vieja = :chapv';
             $params['chapv'] = $chapVieja;
+        }
+
+        // Estado productivo (permite limpiarlo enviando null; solo aplica a hembras)
+        if (array_key_exists('estadoProductivo', $data)) {
+            $estProd = $data['estadoProductivo'];
+            $sexoFinal = $sexo ?? ($oldRow['SEXO'] ?? null);
+            $sets .= ', estado_productivo = :estprod';
+            $params['estprod'] = $sexoFinal === 'hembra' && in_array($estProd, self::ESTADOS_PRODUCTIVOS, true) ? $estProd : null;
         }
 
         // Corral (permite asignar o desasignar enviando null)

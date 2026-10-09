@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -14,12 +15,12 @@ import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 
 import modelo as ml
 import ia_generativa as ia
 import evaluador as evalmod
-from data_generator import FEATURE_NAMES
+from rebano import FEATURE_NAMES, Rebano, dataset_real
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="ML Compatibilidad Caprina",
-    version="1.0.0",
+    version="3.0.0",
     lifespan=lifespan,
 )
 
@@ -57,56 +58,25 @@ app.add_middleware(
 # Schemas de entrada / salida
 # ---------------------------------------------------------------------------
 
-class CompatibilidadInput(BaseModel):
-    """
-    Todos los valores deben enviarse como números.
-    Los booleanos se codifican como 0 o 1.
-    """
-    ancestros_comunes_count: float
-    relacion_directa: float
-    mismos_padres_completos: float
-    mismo_padre: float
-    misma_madre: float
-    edad_macho_meses: float
-    edad_hembra_meses: float
-    misma_raza: float
-    eventos_salud_macho_12m: float
-    eventos_salud_hembra_12m: float
-    partos_exitosos_hembra: float
-    total_partos_hembra: float
-    num_crias_promedio: float
-    generaciones_conocidas_macho: float
-    generaciones_conocidas_hembra: float
-
-    def to_feature_list(self) -> list[float]:
-        return [getattr(self, name) for name in FEATURE_NAMES]
+class CruceInput(BaseModel):
+    """Evaluación de un cruce. `rebano` es la instantánea completa del rebaño
+    (ver rebano.Rebano) que arma el backend en pocas consultas."""
+    rebano: dict
+    macho: int
+    hembra: int
 
 
-class BatchInput(BaseModel):
-    """
-    Lote de cruces para el ranking de candidatos.
-    `items`: lista de cruces, cada uno con las 15 features (mismo esquema que
-    CompatibilidadInput). Devuelve un score por cada item, en el mismo orden.
-    """
-    items: list[CompatibilidadInput]
+class RankingInput(BaseModel):
+    rebano: dict
+    animal: int
+    limite: int = 10
+    solo_misma_raza: bool = False
+    max_consanguinidad: float | None = None
+    solo_disponibles: bool = False
 
 
-class EvaluarInput(BaseModel):
-    """
-    Entrada del motor de evaluación multidimensional.
-
-    - datos: registros crudos recolectados por el backend desde Oracle
-      (producción, salud, reproducción, pedigrí, raza…). Ver evaluador._DATOS_EJEMPLO.
-    - ml_features: las 15 features para el RandomForest (probabilidad de parto
-      exitoso). Opcional: si no llega, esa dimensión usa solo el historial.
-    """
-    datos: dict
-    ml_features: list[float] | None = None
-
-
-class EvaluarBatchInput(BaseModel):
-    """Lote de cruces para el ranking (cada item con datos + ml_features)."""
-    items: list[EvaluarInput]
+class EntrenarInput(BaseModel):
+    rebano: dict
 
 
 class AnalisisIaInput(BaseModel):
@@ -126,35 +96,6 @@ class AnalisisRankingInput(BaseModel):
     ranking: list[dict]
 
 
-class TrainInput(BaseModel):
-    """
-    Datos reales para reentrenamiento.
-    X: lista de muestras, cada una con 15 features en el orden de FEATURE_NAMES.
-    y: etiquetas binarias (1=éxito, 0=fallo).
-    """
-    X: list[list[float]]
-    y: list[int]
-
-    @field_validator("y")
-    @classmethod
-    def check_binary(cls, v: list[int]) -> list[int]:
-        if any(val not in (0, 1) for val in v):
-            raise ValueError("y solo puede contener 0 o 1")
-        return v
-
-    @field_validator("X")
-    @classmethod
-    def check_features(cls, v: list[list[float]]) -> list[list[float]]:
-        expected = len(FEATURE_NAMES)
-        for row in v:
-            if len(row) != expected:
-                raise ValueError(
-                    f"Cada fila de X debe tener {expected} features; "
-                    f"se recibieron {len(row)}"
-                )
-        return v
-
-
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -171,26 +112,6 @@ def health() -> dict[str, Any]:
     }
 
 
-@app.post("/ml/compatibilidad")
-def compatibilidad(body: CompatibilidadInput) -> dict[str, Any]:
-    if _clf is None:
-        raise HTTPException(status_code=503, detail="Modelo no disponible aún")
-
-    features = body.to_feature_list()
-    result = ml.predict(_clf, features)
-    return result
-
-
-@app.post("/ml/compatibilidad-batch")
-def compatibilidad_batch(body: BatchInput) -> dict[str, Any]:
-    """Inferencia en lote para el ranking de candidatos (sin SHAP, por velocidad)."""
-    if _clf is None:
-        raise HTTPException(status_code=503, detail="Modelo no disponible aún")
-    filas = [item.to_feature_list() for item in body.items]
-    resultados = ml.predict_batch(_clf, filas)
-    return {"resultados": resultados, "total": len(resultados)}
-
-
 @app.get("/ml/ia-health")
 async def ia_health() -> dict[str, Any]:
     """Estado de la capa de IA generativa (Ollama)."""
@@ -198,39 +119,73 @@ async def ia_health() -> dict[str, Any]:
     return {"status": "ok", "ia": estado}
 
 
-def _ml_prob_conf(features: list[float] | None) -> tuple[float | None, float | None]:
-    """Probabilidad de parto exitoso y confianza del RandomForest (o None)."""
-    if not features or _clf is None:
-        return None, None
-    proba = _clf.predict_proba(np.array([features], dtype=float))[0]
-    return float(proba[1]), float(max(proba))
+# ---------------------------------------------------------------------------
+# Evaluación con la instantánea del rebaño (v3)
+# ---------------------------------------------------------------------------
+# El BLUP y el parentesco se calculan una vez por instantánea; se guardan las
+# últimas para que la evaluación y su análisis de IA no repitan el cálculo.
+_CACHE: "OrderedDict[str, evalmod.Contexto]" = OrderedDict()
+_CACHE_MAX = 4
 
 
-@app.post("/ml/evaluar")
-def evaluar(body: EvaluarInput) -> dict[str, Any]:
-    """Evaluación multidimensional fundamentada en los datos reales del cruce."""
-    prob, conf = _ml_prob_conf(body.ml_features)
-    return evalmod.evaluar(body.datos, ml_prob=prob, ml_conf=conf)
+def _contexto(snap: dict) -> evalmod.Contexto:
+    if _clf is None:
+        raise HTTPException(status_code=503, detail="Modelo no disponible aún")
+    clave = Rebano.huella(snap)
+    if clave in _CACHE:
+        _CACHE.move_to_end(clave)
+        return _CACHE[clave]
+    ctx = evalmod.Contexto(Rebano(snap), _clf)
+    _CACHE[clave] = ctx
+    while len(_CACHE) > _CACHE_MAX:
+        _CACHE.popitem(last=False)
+    return ctx
 
 
-@app.post("/ml/evaluar-batch")
-def evaluar_batch(body: EvaluarBatchInput) -> dict[str, Any]:
-    """Evaluación en lote para el ranking. Devuelve el resumen de cada cruce."""
-    resumenes = []
-    for it in body.items:
-        prob, conf = _ml_prob_conf(it.ml_features)
-        ev = evalmod.evaluar(it.datos, ml_prob=prob, ml_conf=conf)
-        # Niveles clave para mostrar en la fila del ranking, sin todo el detalle.
-        niveles = {d["id"]: d["nivel"] for d in ev["dimensiones"]}
-        resumenes.append({
-            "scoreGlobal": ev["scoreGlobal"],
-            "clasificacion": ev["clasificacion"],
-            "confianzaGlobal": ev["confianzaGlobal"],
-            "nivelConsanguinidad": niveles.get("consanguinidad"),
-            "nivelFertilidad": niveles.get("fertilidad"),
-            "nivelPartoExitoso": niveles.get("parto_exitoso"),
-        })
-    return {"resultados": resumenes, "total": len(resumenes)}
+def _validar_par(ctx: evalmod.Contexto, macho: int, hembra: int) -> None:
+    for a, sexo in ((macho, "macho"), (hembra, "hembra")):
+        info = ctx.r.info(a)
+        if not info:
+            raise HTTPException(status_code=404, detail=f"Animal {a} no está en el rebaño")
+        if info.get("sexo") != sexo:
+            raise HTTPException(status_code=400, detail=f"El animal {info.get('codigo') or a} no es {sexo}")
+    if macho == hembra:
+        raise HTTPException(status_code=400, detail="El macho y la hembra no pueden ser el mismo animal")
+
+
+@app.post("/ml/cruce")
+def evaluar_cruce(body: CruceInput) -> dict[str, Any]:
+    """Evaluación completa de un cruce (dimensiones, predicciones, árbol de la cría)."""
+    ctx = _contexto(body.rebano)
+    _validar_par(ctx, body.macho, body.hembra)
+    return evalmod.evaluar(ctx, body.macho, body.hembra, detalle=True)
+
+
+@app.post("/ml/ranking")
+def ranking(body: RankingInput) -> dict[str, Any]:
+    """Mejores parejas para un animal entre los activos del sexo opuesto."""
+    ctx = _contexto(body.rebano)
+    if not ctx.r.info(body.animal):
+        raise HTTPException(status_code=404, detail="Animal no encontrado en el rebaño")
+    return evalmod.ranking(ctx, body.animal, max(1, min(body.limite, 100)), body.solo_misma_raza,
+                           body.max_consanguinidad, body.solo_disponibles)
+
+
+@app.get("/ml/modelo")
+def estado_modelo() -> dict[str, Any]:
+    return {"modelo_cargado": _clf is not None, "metricas": ml.get_metrics()}
+
+
+@app.post("/ml/entrenar")
+def entrenar(body: EntrenarInput) -> dict[str, Any]:
+    """Reentrena con el historial real de servicios de la granja."""
+    global _clf
+    X, y, _ = dataset_real(Rebano(body.rebano))
+    logger.info("Reentrenando con %d servicios reales…", len(y))
+    metrics = ml.train(np.array(X, dtype=float) if X else None, np.array(y, dtype=int) if y else None)
+    _clf = ml.load_or_train()
+    _CACHE.clear()
+    return {"status": "reentrenado", "metricas": metrics}
 
 
 @app.post("/ml/analisis-ia")
@@ -268,24 +223,3 @@ async def analisis_ranking(body: AnalisisRankingInput):
         media_type="text/plain; charset=utf-8",
         headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
     )
-
-
-@app.post("/ml/train")
-def retrain(body: TrainInput) -> dict[str, Any]:
-    """
-    Reentrenar el modelo incorporando datos reales.
-    Solo accessible para administradores (proteger en producción con JWT).
-    """
-    global _clf
-
-    X_real = np.array(body.X, dtype=float)
-    y_real = np.array(body.y, dtype=int)
-
-    if len(X_real) != len(y_real):
-        raise HTTPException(status_code=400, detail="X e y deben tener la misma longitud")
-
-    logger.info(f"Reentrenando con {len(y_real)} muestras reales…")
-    metrics = ml.train(X_real=X_real, y_real=y_real)
-    _clf = ml.load_or_train()
-
-    return {"status": "reentrenado", "metrics": metrics}

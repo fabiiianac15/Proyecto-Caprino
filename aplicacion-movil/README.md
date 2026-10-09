@@ -6,42 +6,36 @@ Aplicación móvil desarrollada con Capacitor y React para el registro de datos 
 
 ---
 
-## ✅ Estado actual (v1 — implementada)
+## Estado actual (v1)
 
-Esta primera versión ya está **funcional** y reutiliza la misma API Symfony + JWT del frontend web.
+La app ya funciona y usa la misma API Symfony y el mismo JWT del frontend web.
 
-**Funcionalidades incluidas:**
-- 🔐 **Login** con JWT (`POST /api/auth/login`).
-- 🔍 **Buscar / escanear animal** por código, chapeta nueva/vieja o nombre. El escáner QR funciona en el dispositivo nativo; en navegador se usa la búsqueda manual.
-- 🐐 **Ficha del animal** (lectura offline desde caché local).
-- 💉 **Registrar salud** (vacuna, tratamiento, desparasitación, diagnóstico, cirugía) → `POST /api/salud`.
-- 📥 **Offline-first**: si no hay internet, el registro se guarda en una **cola local** y se **sincroniza automáticamente** al recuperar la conexión. Pantalla de Sincronización con control manual.
+Pantallas:
+- Login con JWT (`POST /api/auth/login`).
+- Buscar o escanear un animal por código, chapeta nueva o vieja, o nombre. El escáner QR funciona en el dispositivo; en el navegador se busca a mano.
+- Ficha del animal, que se puede leer sin conexión desde la caché local.
+- Registrar salud (`POST /api/salud`), pesaje (`POST /api/pesaje`) y producción de leche (`POST /api/produccion`).
+- Sincronización: sin internet, cada registro queda en una cola local y se envía solo cuando vuelve la conexión. La pantalla de sincronización permite forzarlo.
 
-**Cómo probarla en el navegador (desarrollo):**
+Para probarla en el navegador:
+
 ```bash
 cd aplicacion-movil
 npm install
-cp .env.example .env      # ya apunta a http://localhost:8000/api
-npm run dev               # abre http://localhost:5174
+cp .env.example .env      # apunta a http://localhost:8000/api
+npm run dev               # http://localhost:5174
 ```
-> Requiere el backend Symfony corriendo en `localhost:8000`.
 
-**Arquitectura de la v1:**
-- React 18 + Vite + Tailwind (mismo stack que el web) + React Router.
-- Capa offline en `src/servicios/almacenamientoLocal.js` usando `localStorage`
-  (cola de sincronización + caché de animales). Está aislada para poder
-  migrar a **SQLite** más adelante sin tocar el resto de la app.
-- Detección de red con `@capacitor/network`; escáner con
-  `@capacitor-community/barcode-scanner`.
+Necesita el backend corriendo en `localhost:8000`.
 
-**Pendiente (próximas versiones):**
-- Módulos de Pesaje y Producción de leche (la mecánica offline ya está lista para reutilizar).
-- Migrar la cola a SQLite (`@capacitor-community/sqlite`).
-- Captura de fotos del animal con `@capacitor/camera`.
+La capa sin conexión está en `src/servicios/almacenamientoLocal.js` sobre `localStorage` (cola y caché de animales). Está aislada para poder pasarla a SQLite sin tocar el resto. La red se detecta con `@capacitor/network` y el escáner usa `@capacitor-community/barcode-scanner`.
+
+Pendiente:
+- Pasar la cola a SQLite (`@capacitor-community/sqlite`).
+- Capturar la foto del animal con `@capacitor/camera` (la dependencia ya está instalada).
 - Generar el proyecto Android (`npx cap add android`) y el APK.
 
-> ⚠️ La descripción extensa más abajo es el **plan original de referencia**;
-> algunos nombres de archivos/dependencias (Ionic, SQLite) aún no se usan en la v1.
+> La descripción larga que sigue es el plan original de referencia. Algunos nombres que menciona (Ionic, SQLite) todavía no se usan.
 
 ---
 

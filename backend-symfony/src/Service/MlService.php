@@ -2,72 +2,95 @@
 
 namespace App\Service;
 
+/**
+ * Cliente del microservicio ML (FastAPI). Todas las evaluaciones reciben la
+ * instantánea completa del rebaño (ver RebanoService) y el microservicio
+ * calcula consanguinidad exacta, BLUP, el modelo predictivo y el ranking.
+ */
 class MlService
 {
     public function __construct(private string $mlServiceUrl) {}
 
-    /**
-     * Llama a POST /ml/compatibilidad en el microservicio Python.
-     *
-     * @param array<string,float|int> $features  Mapa feature_name => valor numérico
-     * @return array{ok:bool, data:array|null, error:string|null}
-     */
-    public function evaluarCompatibilidad(array $features): array
+    /** POST /ml/cruce — evaluación completa de un cruce. */
+    public function cruce(array $rebano, int $idMacho, int $idHembra): array
     {
-        $url  = rtrim($this->mlServiceUrl, '/') . '/ml/compatibilidad';
-        $body = json_encode($features, JSON_THROW_ON_ERROR);
+        return $this->postJson('/ml/cruce', [
+            'rebano' => $rebano, 'macho' => $idMacho, 'hembra' => $idHembra,
+        ], 60);
+    }
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $body,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 8,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Accept: application/json'],
-        ]);
+    /** POST /ml/ranking — mejores parejas para un animal. */
+    public function ranking(array $rebano, int $idAnimal, array $opciones): array
+    {
+        return $this->postJson('/ml/ranking', [
+            'rebano'             => $rebano,
+            'animal'             => $idAnimal,
+            'limite'             => (int) ($opciones['limite'] ?? 10),
+            'solo_misma_raza'    => (bool) ($opciones['soloMismaRaza'] ?? false),
+            'max_consanguinidad' => isset($opciones['maxConsanguinidad']) ? (float) $opciones['maxConsanguinidad'] : null,
+            'solo_disponibles'   => (bool) ($opciones['soloDisponibles'] ?? false),
+        ], 120);
+    }
 
+    /** GET /ml/modelo — estado y métricas del modelo predictivo. */
+    public function modelo(): array
+    {
+        $url = rtrim($this->mlServiceUrl, '/') . '/ml/modelo';
+        $ch  = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5]);
         $raw  = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err  = curl_error($ch);
         curl_close($ch);
-
-        if ($err || $raw === false) {
-            return ['ok' => false, 'data' => null, 'error' => "No se pudo contactar el servicio ML: $err"];
+        if ($err || $raw === false || $code !== 200) {
+            return ['ok' => false, 'data' => null, 'error' => 'Servicio ML no disponible' . ($err ? ": $err" : '')];
         }
+        return ['ok' => true, 'data' => json_decode($raw, true), 'error' => null];
+    }
 
-        $decoded = json_decode($raw, true);
-        if ($code !== 200 || !is_array($decoded)) {
-            $detail = is_array($decoded) ? ($decoded['detail'] ?? $raw) : $raw;
-            return ['ok' => false, 'data' => null, 'error' => "Error del servicio ML ($code): $detail"];
-        }
-
-        return ['ok' => true, 'data' => $decoded, 'error' => null];
+    /** POST /ml/entrenar — reentrena con el historial real de la granja. */
+    public function entrenar(array $rebano): array
+    {
+        return $this->postJson('/ml/entrenar', ['rebano' => $rebano], 300);
     }
 
     /**
-     * Llama a POST /ml/evaluar — motor de evaluación multidimensional.
+     * POST /ml/analisis-ia — narrativa de la IA en streaming.
      *
-     * @param array $datos     Registros crudos del cruce (producción, salud, etc.)
-     * @param array|null $features  Las 15 features para el RandomForest (o null)
-     * @return array{ok:bool, data:array|null, error:string|null}
+     * @param callable(string):void $onChunk
      */
-    public function evaluar(array $datos, ?array $features): array
+    public function analisisIaStream(array $evaluacion, array $animales, callable $onChunk): bool
     {
-        return $this->postJson('/ml/evaluar', [
-            'datos'       => $datos,
-            'ml_features' => $features !== null ? array_values($features) : null,
-        ], 15);
+        return $this->stream('/ml/analisis-ia', ['evaluacion' => $evaluacion, 'animales' => $animales], $onChunk);
     }
 
     /**
-     * Llama a POST /ml/evaluar-batch para el ranking (un resumen por item).
+     * POST /ml/analisis-ranking — resumen comparativo del ranking en streaming.
      *
-     * @param array<int,array{datos:array,ml_features:array}> $items
-     * @return array{ok:bool, data:array|null, error:string|null}
+     * @param callable(string):void $onChunk
      */
-    public function evaluarBatch(array $items): array
+    public function analisisRankingStream(array $payload, callable $onChunk): bool
     {
-        return $this->postJson('/ml/evaluar-batch', ['items' => array_values($items)], 30);
+        return $this->stream('/ml/analisis-ranking', $payload, $onChunk);
+    }
+
+    /** Verifica que el microservicio ML esté disponible. */
+    public function health(): array
+    {
+        $url = rtrim($this->mlServiceUrl, '/') . '/ml/health';
+        $ch  = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 3,
+        ]);
+        $raw  = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($code !== 200) {
+            return ['status' => 'unavailable'];
+        }
+        return json_decode($raw, true) ?? ['status' => 'unknown'];
     }
 
     /** Helper genérico para POST JSON con respuesta JSON. */
@@ -90,99 +113,26 @@ class MlService
         curl_close($ch);
 
         if ($err || $raw === false) {
-            return ['ok' => false, 'data' => null, 'error' => "No se pudo contactar el servicio ML: $err"];
+            return ['ok' => false, 'code' => 503, 'data' => null, 'error' => "No se pudo contactar el servicio ML: $err"];
         }
         $decoded = json_decode($raw, true);
         if ($code !== 200 || !is_array($decoded)) {
             $detail = is_array($decoded) ? ($decoded['detail'] ?? $raw) : $raw;
-            return ['ok' => false, 'data' => null, 'error' => "Error del servicio ML ($code): $detail"];
+            if (is_array($detail)) {
+                $detail = json_encode($detail, JSON_UNESCAPED_UNICODE);
+            }
+            // Los 400/404 del servicio son errores de datos (p. ej. sexo incorrecto)
+            return ['ok' => false, 'code' => in_array($code, [400, 404], true) ? $code : 503,
+                    'data' => null, 'error' => (string) $detail];
         }
-        return ['ok' => true, 'data' => $decoded, 'error' => null];
+        return ['ok' => true, 'code' => 200, 'data' => $decoded, 'error' => null];
     }
 
-    /**
-     * Llama a POST /ml/compatibilidad-batch para el ranking de candidatos.
-     *
-     * @param array<int,array<string,float|int>> $items  Lista de mapas de features
-     * @return array{ok:bool, data:array|null, error:string|null}
-     */
-    public function evaluarCompatibilidadBatch(array $items): array
+    /** Helper genérico para reenviar una respuesta en streaming. */
+    private function stream(string $path, array $payload, callable $onChunk): bool
     {
-        $url  = rtrim($this->mlServiceUrl, '/') . '/ml/compatibilidad-batch';
-        $body = json_encode(['items' => array_values($items)], JSON_THROW_ON_ERROR);
-
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $body,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 20,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json', 'Accept: application/json'],
-        ]);
-
-        $raw  = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err  = curl_error($ch);
-        curl_close($ch);
-
-        if ($err || $raw === false) {
-            return ['ok' => false, 'data' => null, 'error' => "No se pudo contactar el servicio ML: $err"];
-        }
-        $decoded = json_decode($raw, true);
-        if ($code !== 200 || !is_array($decoded)) {
-            return ['ok' => false, 'data' => null, 'error' => "Error del servicio ML ($code)"];
-        }
-        return ['ok' => true, 'data' => $decoded, 'error' => null];
-    }
-
-    /**
-     * Stream del análisis comparativo del ranking (POST /ml/analisis-ranking).
-     *
-     * @param callable(string):void $onChunk
-     */
-    public function analisisRankingStream(array $payload, callable $onChunk): bool
-    {
-        $url  = rtrim($this->mlServiceUrl, '/') . '/ml/analisis-ranking';
+        $url  = rtrim($this->mlServiceUrl, '/') . $path;
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
-
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST          => true,
-            CURLOPT_POSTFIELDS    => $body,
-            CURLOPT_HTTPHEADER    => ['Content-Type: application/json', 'Accept: text/plain'],
-            CURLOPT_TIMEOUT       => 180,
-            CURLOPT_WRITEFUNCTION => function ($ch, string $data) use ($onChunk): int {
-                if ($data !== '') {
-                    $onChunk($data);
-                }
-                return strlen($data);
-            },
-        ]);
-        $ok  = curl_exec($ch);
-        $err = curl_error($ch);
-        curl_close($ch);
-
-        return $ok !== false && $err === '';
-    }
-
-    /**
-     * Llama a POST /ml/analisis-ia y reenvía el stream de la IA chunk a chunk.
-     *
-     * El microservicio devuelve texto plano (tokens del LLM) narrando el informe
-     * de evaluación. Cada fragmento se entrega al callback `$onChunk`.
-     *
-     * @param array $evaluacion  Informe que devolvió POST /ml/evaluar
-     * @param array $animales    {macho:{nombre,codigo}, hembra:{...}}
-     * @param callable(string):void $onChunk
-     * @return bool  true si la conexión con el servicio ML fue correcta
-     */
-    public function analisisIaStream(array $evaluacion, array $animales, callable $onChunk): bool
-    {
-        $url  = rtrim($this->mlServiceUrl, '/') . '/ml/analisis-ia';
-        $body = json_encode(
-            ['evaluacion' => $evaluacion, 'animales' => $animales],
-            JSON_THROW_ON_ERROR
-        );
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -197,32 +147,10 @@ class MlService
                 return strlen($data);
             },
         ]);
-
         $ok  = curl_exec($ch);
         $err = curl_error($ch);
         curl_close($ch);
 
         return $ok !== false && $err === '';
-    }
-
-    /**
-     * Verifica que el microservicio ML esté disponible.
-     */
-    public function health(): array
-    {
-        $url = rtrim($this->mlServiceUrl, '/') . '/ml/health';
-        $ch  = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 3,
-        ]);
-        $raw  = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($code !== 200) {
-            return ['status' => 'unavailable'];
-        }
-        return json_decode($raw, true) ?? ['status' => 'unknown'];
     }
 }

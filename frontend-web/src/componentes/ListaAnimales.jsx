@@ -5,6 +5,7 @@ import {
   AlertCircle, User, Tag, Calendar, Weight, AlertTriangle, X, Edit2, RefreshCw, FileText
 } from 'lucide-react';
 import { animalesAPI, razasAPI } from '../servicios/caprino-api';
+import { ESTADOS_PRODUCTIVOS } from '../utilidades/formateo';
 
 // Estados para los botones de filtro rápido (value '' = todos los vigentes)
 const ESTADOS_FILTRO = [
@@ -90,11 +91,11 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
 
   const exportarCSV = () => {
     const csv = [
-      ['Chapeta nueva', 'Chapeta vieja', 'Nombre', 'Sexo', 'Raza', 'Estado', 'Corral', 'Lote', 'Motivo estado'].join(','),
+      ['Chapeta nueva', 'Chapeta vieja', 'Nombre', 'Sexo', 'Raza', 'Estado', 'Tipo de estado', 'Corral', 'Lote', 'Motivo estado'].join(','),
       ...animales.map(a => [
         `"${a.chapetaNueva || ''}"`, `"${a.chapetaVieja || ''}"`, `"${a.nombre || ''}"`,
         `"${a.sexo}"`, `"${a.nombreRaza || ''}"`, `"${a.estado}"`,
-        `"${a.nombreCorral || ''}"`, `"${a.loteCorral || ''}"`, `"${(a.motivoEstado || '').replace(/"/g, '""')}"`
+        `"${ESTADOS_PRODUCTIVOS[a.estadoProductivo]?.texto || ''}"`, `"${a.nombreCorral || ''}"`, `"${a.loteCorral || ''}"`, `"${(a.motivoEstado || '').replace(/"/g, '""')}"`
       ].join(','))
     ].join('\n');
     const a = document.createElement('a');
@@ -291,6 +292,11 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${estadoBadgeClase(modalDetalles.animal.estado)}`}>
                   {modalDetalles.animal.estado}
                 </span>
+                {ESTADOS_PRODUCTIVOS[modalDetalles.animal.estadoProductivo] && (
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ESTADOS_PRODUCTIVOS[modalDetalles.animal.estadoProductivo].clase}`}>
+                    {ESTADOS_PRODUCTIVOS[modalDetalles.animal.estadoProductivo].texto}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -377,9 +383,16 @@ function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar, onPe
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm ${animal.sexo === 'macho' ? 'bg-blue-100/90 text-blue-700' : 'bg-pink-100/90 text-pink-700'}`}>
             {animal.sexo === 'macho' ? '♂' : '♀'} {animal.sexo === 'macho' ? 'Macho' : 'Hembra'}
           </span>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm capitalize ${estadoBadgeClase(animal.estado)}`}>
-            {animal.estado}
-          </span>
+          <div className="flex items-center gap-1">
+            {ESTADOS_PRODUCTIVOS[animal.estadoProductivo] && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm ${ESTADOS_PRODUCTIVOS[animal.estadoProductivo].clase}`}>
+                {ESTADOS_PRODUCTIVOS[animal.estadoProductivo].texto}
+              </span>
+            )}
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm capitalize ${estadoBadgeClase(animal.estado)}`}>
+              {animal.estado}
+            </span>
+          </div>
         </div>
       </div>
 

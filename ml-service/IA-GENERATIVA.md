@@ -1,4 +1,4 @@
-# Capa de IA generativa — Módulo de Genealogía
+# Capa de IA generativa: Módulo de Genealogía
 
 Complemento de IA generativa local que **interpreta** los resultados del modelo de
 Machine Learning y redacta un análisis profesional en lenguaje natural.
@@ -6,78 +6,82 @@ Machine Learning y redacta un análisis profesional en lenguaje natural.
 > La IA **no** calcula ni predice. El score, la clasificación y las probabilidades
 > los produce el `RandomForest` (`modelo.py`). La IA solo reescribe esos hechos.
 
-## Arquitectura (v2 — evaluación multidimensional fundamentada)
+## Arquitectura (v3: genética cuantitativa + modelo de la granja + IA)
 
 ```
-BD Oracle ──(Symfony recolecta datos reales)──► ml-service /ml/evaluar
-   producción, salud, reproducción, pedigrí, raza, pesaje      │
-                                                                ▼
-                                         evaluador.py  +  RandomForest (parto exitoso)
-                                                                │  informe con N dimensiones,
-                                                                │  cada una con evidencia y confianza
-                          ┌── Paso 2 (streaming) ───────────────┘
-Frontend → Symfony /api/genealogia/analisis-ia → ml-service /ml/analisis-ia
-          → ia_generativa.py → Ollama (qwen2.5:3b-instruct) → narrativa fundamentada
+BD Oracle ──(RebanoService: 7 consultas agregadas)──► instantánea del rebaño
+                                                            │
+Frontend → Symfony /api/genealogia/* ──► ml-service /ml/cruce | /ml/ranking | /ml/entrenar
+                                             │
+          rebano.py     → índice del rebaño y consultas "a una fecha"
+          genetica.py   → parentesco exacto, ancestros comunes (Wright), BLUP
+          modelo.py     → probabilidad de parto (bosque aleatorio calibrado con la granja)
+          evaluador.py  → 9 dimensiones, predicciones, alertas, árbol de la cría
+          ia_generativa → narrativa en streaming (Ollama), validada contra el informe
 ```
 
-Principio rector: **cada dato que sale del sistema se fundamenta en registros reales
-de las cabras**. Si faltan datos, baja la confianza de esa dimensión; nunca se inventa.
+El backend ya no hace ~20 consultas por pareja: arma una sola **instantánea** del
+rebaño (animales con pedigrí, producción por lactancia sumando los ordeños de cada
+día, servicios, salud, condición corporal, FAMACHA y clasificación lineal) y el
+microservicio la guarda en caché por su huella. Con 1.358 animales simulados, una
+evaluación tarda ~0,25 s y el ranking de 759 candidatos ~0,5 s.
 
-Flujo en **2 pasos** para no congelar la UI mientras el LLM genera en CPU:
+## Qué se calcula y con qué precisión
 
-1. **Paso 1** (`/ml/evaluar`, ~ms): el usuario ve el score global y las dimensiones
-   con su evidencia al instante.
-2. **Paso 2** (`/ml/analisis-ia`, streaming): la narrativa aparece token a token.
+| Cálculo | Método | Precisión |
+|---|---|---|
+| Consanguinidad de la cría | Método tabular recursivo sobre **todo** el pedigrí | Exacta (verificada: medios hermanos 12,5 %, primos 6,25 %…) |
+| Ancestros comunes y su aporte | Fórmula de Wright por caminos | Suman exactamente la F |
+| Valor genético de leche, grasa y proteína | **BLUP**, modelo animal de repetibilidad con A⁻¹ (Henderson), clase de parto como efecto fijo | Confiabilidad exacta (PEV por factorización LU); sube con los registros propios, de hijas y de padres |
+| Leche esperada de una hija | Media de los EBV de los padres − depresión endogámica, con intervalo del 80 % | Intervalo honesto (incluye muestreo mendeliano) |
+| Probabilidad de parto exitoso | Bosque aleatorio: conocimiento previo + servicios reales con peso creciente; recalibrado a la tasa de la granja y con red de seguridad λ | Validada con validación cruzada solo sobre datos reales |
+| Fertilidad, camada | Tasas con prior bayesiano (Beta) y repetibilidad | Con pocos datos se acercan a la media del rebaño |
 
-## Motor de evaluación multidimensional (`evaluador.py`)
+**Sobre el "100 %":** la consanguinidad y los valores genéticos se vuelven tan
+precisos como el pedigrí y los registros lo permitan. La probabilidad de que UNA
+monta termine en parto no puede acertarse al 100 %: aun conociendo la probabilidad
+verdadera, el AUC máximo en datos simulados es ~0,72. El modelo informa su precisión
+real (AUC, Brier y mejora frente al promedio de la granja) en vez de inventarla, y si
+no supera al promedio, su confianza λ baja a 0 y predice el promedio.
 
-Devuelve un informe con 8 dimensiones, cada una con `score` (favorabilidad 0-100),
-`nivel`, `confianza` (según datos reales disponibles) y `evidencia` (los hechos en que
-se basa). El **score global** es el promedio ponderado por confianza (las dimensiones
-sin datos pesan poco). La **confianza global** mide la completitud real de los datos.
+## Modelo predictivo (`modelo.py`)
 
-| Dimensión | Se fundamenta en |
-|---|---|
-| Compatibilidad genética | RAZA (aptitud), COI |
-| Riesgo de consanguinidad | COI del pedigrí (GENEALOGIA) |
-| Riesgo hereditario | COI + diagnósticos (SALUD) |
-| Probabilidad de parto exitoso | RandomForest + tasa histórica (REPRODUCCION) |
-| Calidad de leche esperada | PRODUCCION_LECHE de la madre + potencial de raza |
-| Fertilidad esperada | REPRODUCCION (partos, prolificidad, servicios del macho) |
-| Riesgo de enfermedades | SALUD (eventos 12m, diagnósticos, células somáticas) |
-| Capacidad reproductiva | Edad fértil + condición corporal (PESAJE) |
+- 18 variables calculadas **a la fecha del servicio** (sin mirar el futuro): consanguinidad
+  de la cría, edades, historial de la hembra y del macho, días desde el último parto,
+  condición corporal, FAMACHA, salud de 12 meses, tipo de servicio, época del año.
+- Peso de lo sintético: `max(0,05; 1 − n_reales/300)`.
+- Reentrenar: botón «Reentrenar con los datos de la granja» (administrador,
+  zootecnista o veterinario) → `POST /api/genealogia/modelo/entrenar`.
+- Explicación por cruce con SHAP (los datos faltantes no se muestran como factores).
 
-Clasificación honesta: con **confianza baja** el veredicto es "Datos insuficientes"
-(salvo señales de riesgo claras → "No recomendado").
+## Dimensiones del informe (`evaluador.py`)
 
-## Componentes nuevos
+Parto exitoso, consanguinidad, mérito genético lechero (percentil entre todos los
+cruces posibles del rebaño activo), fertilidad y prolificidad, sanidad (incluye
+FAMACHA y células somáticas), aptitud reproductiva actual (edad, posparto < 60 días,
+preñada o servicio pendiente), conformación (clasificación lineal de la hembra y de
+las hijas del macho), riesgo hereditario y afinidad de razas. El score global pondera
+cada una por su importancia y por su confianza. Con consanguinidad ≥ 12,5 % el
+veredicto nunca pasa de «Precaución»; con ≥ 25 % es «No recomendado».
 
-| Archivo | Rol |
-|---|---|
-| `ml-service/ia_generativa.py` | Cliente Ollama, prompts (individual + ranking), validación anti-alucinación, fallback |
-| `ml-service/modelo.py` | SHAP `TreeExplainer` (explicación por instancia) + `predict_batch` |
-| `ml-service/evaluador.py` | Motor multidimensional fundamentado en datos reales |
-| `ml-service/main.py` | `POST /ml/evaluar`, `POST /ml/evaluar-batch`, `POST /ml/analisis-ia`, `POST /ml/analisis-ranking`, `GET /ml/ia-health` |
-| `backend-symfony/.../MlService.php` | `evaluar()`, `evaluarBatch()`, `analisisIaStream()`, `analisisRankingStream()` |
-| `backend-symfony/.../GenealogiaController.php` | `recolectarDatosCruce()` (consulta PRODUCCION_LECHE/SALUD/REPRODUCCION/PESAJE/GENEALOGIA/RAZA) + endpoints compatibilidad, analisis-ia, ranking |
-| `frontend-web/.../api.js` | `apiHelpers.postStream()` |
-| `frontend-web/.../ModuloGenealogia.jsx` | Panel `AnalisisIA` + `VistaRanking` (streaming en vivo) |
-| `docker-compose.ia.yml` | ml-service + Ollama |
+## Endpoints
 
-## Explicabilidad por instancia (SHAP)
+| Symfony | ml-service | Uso |
+|---|---|---|
+| `GET /api/genealogia/arbol/{id}` | (no aplica) | Árbol de 4 generaciones en una llamada |
+| `POST /api/genealogia/compatibilidad` | `POST /ml/cruce` | Evaluación completa + árbol de la cría |
+| `POST /api/genealogia/analisis-ia` | `POST /ml/cruce` + `/ml/analisis-ia` | Narrativa en streaming |
+| `POST /api/genealogia/ranking` | `POST /ml/ranking` | Mejores parejas (filtros: raza, disponibles, F máx.) |
+| `POST /api/genealogia/ranking/analisis-ia` | `/ml/ranking` + `/ml/analisis-ranking` | Resumen comparativo |
+| `GET /api/genealogia/modelo` | `GET /ml/modelo` | Estado y métricas del modelo |
+| `POST /api/genealogia/modelo/entrenar` | `POST /ml/entrenar` | Reentrenar con la granja |
 
-`modelo.py` usa `shap.TreeExplainer` para calcular, **por cada cruce**, cuánto empujó
-cada variable el score (campo `puntos`, con signo, en puntos de score). Sustituye a la
-importancia *global* del RandomForest, que era idéntica para todos los cruces. La IA
-usa esas magnitudes en su narrativa ("el parentesco bajó el score ~5 puntos").
+## Frontend (`frontend-web/src/componentes/genealogia/`)
 
-## Ranking de candidatos
-
-`POST /api/genealogia/ranking` con `{idAnimal, limite, soloMismaRaza}`: evalúa todos
-los animales activos del sexo opuesto (inferencia ML en **lote** vía
-`/ml/compatibilidad-batch`, sin SHAP por velocidad), los ordena por score y devuelve el
-top. `POST /api/genealogia/ranking/analisis-ia` reconstruye el ranking server-side y
-devuelve un **resumen comparativo** de la IA en streaming.
+`ArbolHorizontal.jsx` (árbol genérico, líneas en ámbar hacia los ancestros comunes),
+`VistaArbol.jsx` (árbol editable de 4 generaciones), `VistaCruce.jsx` (evaluación),
+`VistaRanking.jsx` (podio, tabla y gráfico puntaje vs consanguinidad),
+`PanelModelo.jsx` (precisión del modelo y reentrenar), `comun.jsx`.
 
 ## Puesta en marcha (local, Arch Linux)
 
@@ -126,6 +130,5 @@ curl http://localhost:8001/ml/ia-health
 ## Próximas mejoras sugeridas
 
 - **Caché de narrativas** por hash del `ml_result` (evita regenerar lo mismo).
-- **Registro recomendación → resultado real** para realimentar `/ml/train`.
 - **Reporte PDF** del análisis para el ganadero.
-- **EBV / valores productivos** (leche, prolificidad) como features y traits comentables.
+- Reentrenamiento automático periódico cuando se acumulen partos nuevos.

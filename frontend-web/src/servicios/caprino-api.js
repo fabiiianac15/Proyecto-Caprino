@@ -168,6 +168,7 @@ export const animalesAPI = {
         fotoUrl: animalData.foto || animalData.fotoUrl,
         estado: animalData.estado,
         motivoEstado: animalData.motivoEstado,
+        estadoProductivo: animalData.estadoProductivo,
         idCorral: animalData.idCorral,
       };
 
@@ -209,6 +210,7 @@ export const animalesAPI = {
       fotoUrl: animalData.fotoUrl || animalData.foto,
       estado: animalData.estado,
       motivoEstado: animalData.motivoEstado,
+      estadoProductivo: animalData.estadoProductivo,
       idCorral: animalData.idCorral,
     };
 
@@ -751,8 +753,38 @@ export const bienestarAPI = {
     return await handleResponse(response);
   },
 
+  update: async (id, datos) => {
+    const response = await apiFetch(`${API_BASE_URL}/bienestar/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(datos),
+    });
+    return await handleResponse(response);
+  },
+
   delete: async (id) => {
     const response = await apiFetch(`${API_BASE_URL}/bienestar/${id}`, { method: 'DELETE' });
+    return await handleResponse(response);
+  },
+
+  // Foto de evidencia; idIndicador null = foto general de la visita
+  subirFoto: async (id, file, idIndicador = null, descripcion = '') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (idIndicador) fd.append('idIndicador', idIndicador);
+    if (descripcion) fd.append('descripcion', descripcion);
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/bienestar/${id}/foto`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    return await handleResponse(response);
+  },
+
+  urlFoto: (idFoto) => `${API_BASE_URL}/bienestar/foto/${idFoto}`,
+
+  eliminarFoto: async (idFoto) => {
+    const response = await apiFetch(`${API_BASE_URL}/bienestar/foto/${idFoto}`, { method: 'DELETE' });
     return await handleResponse(response);
   },
 };

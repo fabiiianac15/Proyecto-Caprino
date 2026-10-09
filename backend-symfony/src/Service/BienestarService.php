@@ -19,7 +19,7 @@ class BienestarService
     ];
 
     /**
-     * @param array<int,array{tipoMedida:string,puntaje:int,aplica:bool,codigo?:string,nombre?:string}> $detalles
+     * @param array<int,array{tipoMedida:string,puntaje:int|null,aplica:bool,codigo?:string,nombre?:string}> $detalles
      *
      * @return array{
      *   puntRecursos: float|null,
@@ -36,7 +36,8 @@ class BienestarService
         $conteo = ['RECURSOS' => 0,   'ANIMAL' => 0,   'GESTION' => 0];
 
         foreach ($detalles as $d) {
-            if (empty($d['aplica'])) {
+            // No aplica o sin calificar (borrador): no entra en el promedio
+            if (empty($d['aplica']) || $d['puntaje'] === null) {
                 continue;
             }
             $grupo = $d['tipoMedida'];
@@ -68,7 +69,7 @@ class BienestarService
         // Indicadores aplicables que aún no llegan a 100 (lo que falta para el máximo).
         $pendientes = [];
         foreach ($detalles as $d) {
-            if (!empty($d['aplica']) && (int) $d['puntaje'] < 100) {
+            if (!empty($d['aplica']) && $d['puntaje'] !== null && (int) $d['puntaje'] < 100) {
                 $pendientes[] = [
                     'codigo'  => $d['codigo'] ?? '',
                     'nombre'  => $d['nombre'] ?? ($d['codigo'] ?? ''),
@@ -103,29 +104,5 @@ class BienestarService
             return 'MEDIO';
         }
         return 'BAJO';
-    }
-
-    /**
-     * Mapea un porcentaje de cumplimiento a la escala 0/20/55/100 según los
-     * cortes habituales del MEBA. $cortes = [corte100, corte55, corte20] en %.
-     * Si $mayorEsMejor es false, el porcentaje representa prevalencia de un
-     * problema (menos es mejor) y los cortes son techos.
-     */
-    public function porcentajeAPuntaje(float $pct, array $cortes, bool $mayorEsMejor = true): int
-    {
-        [$c100, $c55, $c20] = $cortes;
-
-        if ($mayorEsMejor) {
-            if ($pct >= $c100) return 100;
-            if ($pct >= $c55)  return 55;
-            if ($pct >= $c20)  return 20;
-            return 0;
-        }
-
-        // menos es mejor (prevalencia de un problema)
-        if ($pct < $c100) return 100;
-        if ($pct < $c55)  return 55;
-        if ($pct < $c20)  return 20;
-        return 0;
     }
 }

@@ -146,6 +146,18 @@ export const formatearEstadoAnimal = (estado) => {
 };
 
 /**
+ * Estado productivo de la hembra (columna ANIMAL.estado_productivo).
+ * Complementa al estado general (activo, vendido, muerto...).
+ */
+export const ESTADOS_PRODUCTIVOS = {
+  produccion: { texto: 'Producción', clase: 'bg-cyan-100 text-cyan-700',     ayuda: 'Ya parió y está dando leche (se ordeña).' },
+  seca:       { texto: 'Seca',       clase: 'bg-orange-100 text-orange-700', ayuda: 'Ya ha parido antes, pero ahora no da leche.' },
+  prenada:    { texto: 'Preñada',    clase: 'bg-pink-100 text-pink-700',     ayuda: 'Está esperando cría (gestante).' },
+  cabretona:  { texto: 'Cabretona',  clase: 'bg-violet-100 text-violet-700', ayuda: 'Hembra joven ya crecida que todavía no ha parido.' },
+  cabrita:    { texto: 'Cabrita',    clase: 'bg-yellow-100 text-yellow-700', ayuda: 'Cría hembra, todavía pequeña.' },
+};
+
+/**
  * Formatea un sexo de animal
  * 
  * @param {string} sexo - Sexo del animal
