@@ -1,4 +1,6 @@
-# GRANME: Sistema de Gestión Caprina
+# Capriva
+
+Plataforma inteligente que transforma los datos de tu hato en decisiones productivas.
 
 Sistema web para la gestión zootécnica del hato caprino de la Granja Experimental de la UFPSO. Registra cada animal desde su nacimiento (genealogía, reproducción, salud, producción de leche, pesajes, corrales) y suma dos capas de análisis: la evaluación de bienestar animal con la metodología MEBA del ICA y la selección de cruces con genética cuantitativa e inteligencia artificial.
 
@@ -42,7 +44,8 @@ El backend arma una instantánea de todo el rebaño (pedigrí, producción por l
 - **Corrales**: capacidad, tipo (gestantes, ordeño, levante…) y asignación de animales.
 - **Bienestar animal**: evaluación MEBA del ICA (v3.0, 2026) con los criterios de cada puntaje en pantalla. Para los indicadores de muestreo basta escribir cuántos animales se revisaron y cuántos cumplen, y el puntaje sale solo. Admite fotos de evidencia por indicador, borradores y tamaño de muestra calculado con la Tabla 1.
 - **Clasificación lineal**: 17 rasgos del método ADGA (Cedeño et al., 2024) con la guía de qué mirar, los dibujos de referencia del artículo y fotos de evidencia.
-- **Reportes, notificaciones, auditoría y perfil de usuario**.
+- **Reportes**: panel con indicadores del periodo y 17 informes (hato, leche, reproducción, salud, peso, bienestar y clasificación lineal) que se descargan en Excel o PDF.
+- **Notificaciones, auditoría y perfil de usuario**.
 
 ## Requisitos
 
@@ -187,7 +190,7 @@ Todas las rutas, salvo login y registro, piden el encabezado `Authorization: Bea
 | `/api/corrales` | CRUD de corrales |
 | `/api/bienestar` | catálogo, sugerencias, evaluaciones (crear, editar, borrar) y fotos |
 | `/api/clasificacion-lineal` | catálogo, evaluaciones y fotos |
-| `/api/reportes` | resumen, producción, reproducción, salud, peso, inventario, auditoría |
+| `/api/reportes` | resumen, panel del periodo e informes con estructura común (`/informe/{clave}`) |
 | `/api/notificaciones`, `/api/auditoria`, `/api/razas`, `/api/health` | |
 
 ## Roles

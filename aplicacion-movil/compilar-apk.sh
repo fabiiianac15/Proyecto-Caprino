@@ -5,7 +5,7 @@
 # Usa el JDK 17 portátil y el Android SDK instalados en ~/android-dev
 # (no toca el Java/SDK del sistema). Genera el web build, lo sincroniza
 # con el proyecto Android y produce el APK, copiándolo a la raíz de
-# aplicacion-movil/ como "Gestion-Caprino.apk".
+# aplicacion-movil/ como "Capriva.apk".
 #
 # Uso:
 #   ./compilar-apk.sh
@@ -32,14 +32,15 @@ echo "==> 1/4 Compilando el frontend (vite build)..."
 npm run build
 
 echo "==> 2/4 Sincronizando con Android (cap sync)..."
+[ -d android ] || ./preparar-android.sh
 npx cap sync android
 
 echo "==> 3/4 Compilando APK (gradle assembleDebug)..."
 ( cd android && ./gradlew assembleDebug --no-daemon )
 
 echo "==> 4/4 Copiando APK..."
-cp android/app/build/outputs/apk/debug/app-debug.apk ./Gestion-Caprino.apk
+cp android/app/build/outputs/apk/debug/app-debug.apk ./Capriva.apk
 
 echo
-echo "✅ APK listo: $(pwd)/Gestion-Caprino.apk"
+echo "✅ APK listo: $(pwd)/Capriva.apk"
 echo "   Pásalo al celular e instálalo (permite 'orígenes desconocidos')."

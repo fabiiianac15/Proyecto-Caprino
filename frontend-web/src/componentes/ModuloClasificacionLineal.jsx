@@ -210,17 +210,20 @@ const ModuloClasificacionLineal = () => {
   if (vista === 'lista') {
     return (
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-rose-100 rounded-xl"><Ruler className="w-6 h-6 text-rose-600" /></div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Clasificación Lineal</h1>
-              <p className="text-sm text-gray-500">Calificar la forma del cuerpo y la ubre de cada cabra lechera (método ADGA)</p>
+        <div className="bg-gradient-to-br from-rose-500 to-rose-700 rounded-2xl shadow-lg p-7 text-white mb-5 relative overflow-hidden">
+          <Ruler className="absolute -right-6 -bottom-10 w-48 h-48 text-white/10" aria-hidden="true" />
+          <div className="relative flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center"><Ruler className="w-6 h-6 text-white" /></div>
+              <div>
+                <h1 className="text-2xl font-bold leading-tight">Clasificación Lineal</h1>
+                <p className="text-rose-100 text-sm">Calificar la forma del cuerpo y la ubre de cada cabra lechera (método ADGA)</p>
+              </div>
             </div>
+            <button onClick={iniciarNueva} className="flex items-center gap-2 px-4 py-2 bg-white text-rose-700 hover:bg-rose-50 rounded-xl text-sm font-semibold transition-colors shadow-sm">
+              <Plus className="w-4 h-4" /> Nueva evaluación
+            </button>
           </div>
-          <button onClick={iniciarNueva} className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium">
-            <Plus className="w-4 h-4" /> Nueva evaluación
-          </button>
         </div>
 
         {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{error}</div>}
@@ -448,7 +451,7 @@ const ModuloClasificacionLineal = () => {
         <textarea className={inp} rows={2} placeholder="Algo que llame la atención: cojera, ubre desigual, una lesión…" value={cab.observaciones} onChange={(e) => setCab({ ...cab, observaciones: e.target.value })} />
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 shadow-lg z-40">
+      <div className="vidrio-claro fixed bottom-0 left-0 right-0 border-t border-gray-200 p-3 sm:p-4 shadow-lg z-40">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
             <div>

@@ -2,47 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased;
-    -webkit-tap-highlight-color: transparent;
-  }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-bold;
+/* ── Roles de color. Contraste medido (WCAG): ver DISENO.md ───────────────── */
+:root {
+  --fondo: 242 242 247;
+  --tarjeta: 255 255 255;
+  --elevado: 255 255 255;
+  --texto: 28 28 30;
+  --secundario: 110 110 115;      /* 4,54:1 sobre fondo */
+  --terciario: 142 142 147;       /* solo iconos y adornos, nunca texto */
+  --separador: 209 209 214;
+  --relleno: 233 233 235;
+  --acento: 30 123 69;            /* blanco encima: 5,28:1 */
+  --sobre-acento: 255 255 255;
+  --critico: 198 40 40;
+  --aviso: 180 83 9;
+  --chapeta: 245 197 24;          /* texto oscuro encima: 10,44:1 */
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: 0 0 0;
+    --tarjeta: 28 28 30;
+    --elevado: 44 44 46;
+    --texto: 255 255 255;
+    --secundario: 174 174 178;
+    --terciario: 99 99 102;
+    --separador: 56 56 58;
+    --relleno: 44 44 46;
+    --acento: 74 222 128;
+    --sobre-acento: 11 31 18;
+    --critico: 255 107 107;
+    --aviso: 255 159 10;
   }
 }
 
-/* Cuando el escáner nativo está activo, el WebView debe quedar transparente
-   para ver la cámara detrás. */
-body.escaner-activo {
-  background: transparent !important;
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-fondo text-texto font-sans antialiased;
+    font-size: 17px;
+    line-height: 22px;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  input, select, textarea { font-size: 17px; }
+  :focus-visible { outline: 2px solid rgb(var(--acento)); outline-offset: 2px; }
 }
-body.escaner-activo #root {
-  visibility: hidden;
-}
+
+/* Con el escáner nativo activo el WebView queda transparente para ver la cámara */
+body.escaner-activo { background: transparent !important; }
+body.escaner-activo #root { visibility: hidden; }
 
 @layer components {
-  /* Inputs grandes y legibles, con foco verde como en la web */
-  .campo-grande {
-    @apply w-full min-h-[54px] rounded-xl border border-gray-200 bg-white px-4 text-base
-           shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-400
-           transition-colors;
+  /* Escala tipográfica (estilos de texto de la plataforma) */
+  .t-grande { font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: -0.4px; }
+  .t-titulo { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.3px; }
+  .t-encabezado { font-size: 17px; line-height: 22px; font-weight: 600; }
+  .t-cuerpo { font-size: 17px; line-height: 22px; }
+  .t-sub { font-size: 15px; line-height: 20px; }
+  .t-nota { font-size: 13px; line-height: 18px; }
+  .t-mini { font-size: 12px; line-height: 16px; }
+
+  /* Lista agrupada con margen (estilo Ajustes) */
+  .lista { @apply bg-tarjeta rounded-lista overflow-hidden; }
+  .fila {
+    @apply relative flex items-center gap-3 w-full text-left px-4 min-h-[48px] py-2.5;
   }
-  .etiqueta-campo {
-    @apply block mb-1.5 text-sm font-semibold text-gray-700;
+  .fila + .fila::before {
+    content: '';
+    @apply absolute top-0 right-0 h-px bg-separador;
+    left: var(--sangria, 16px);
   }
-  /* Tarjeta base tipo web (rounded-2xl, sombra suave) */
-  .tarjeta {
-    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-4;
+  button.fila:active, a.fila:active { @apply bg-relleno; }
+
+  .cabecera-seccion { @apply t-nota uppercase text-secundario px-4 pb-1.5 pt-1 tracking-wide; }
+  .pie-seccion { @apply t-nota text-secundario px-4 pt-1.5; }
+
+  .campo {
+    @apply w-full min-h-[48px] bg-tarjeta rounded-xl px-4 text-texto placeholder:text-terciario
+           border border-separador/60 focus:outline-none focus:border-acento;
+  }
+  .lista > .campo { @apply border-0 rounded-none py-3; }
+  .campo-fila { @apply flex-1 min-w-0 bg-transparent text-right text-texto placeholder:text-terciario focus:outline-none min-h-[28px]; }
+
+  /* Vidrio: solo en las barras flotantes (barra de pestañas y de navegación) */
+  .vidrio {
+    background: rgb(var(--tarjeta) / 0.78);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .vidrio { background: rgb(var(--tarjeta)); -webkit-backdrop-filter: none; backdrop-filter: none; }
   }
 }
 
 @layer utilities {
-  .animate-aparecer {
-    animation: aparecer 0.3s ease-out;
-  }
-  @keyframes aparecer {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+  .seguro-abajo { padding-bottom: env(safe-area-inset-bottom); }
+  .seguro-arriba { padding-top: env(safe-area-inset-top); }
+  .animar-entrada { animation: entrada 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .animar-hoja { animation: hoja 0.32s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  @keyframes entrada { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes hoja { from { transform: translateY(100%); } to { transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .animar-entrada, .animar-hoja { animation: none; }
   }
 }

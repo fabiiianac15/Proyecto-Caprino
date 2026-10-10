@@ -413,17 +413,20 @@ const ModuloBienestar = () => {
   if (vista === 'lista') {
     return (
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-100 rounded-xl"><Heart className="w-6 h-6 text-emerald-600" /></div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Bienestar Animal</h1>
-              <p className="text-sm text-gray-500">Metodología MEBA (ICA v3.0, 2026) — evaluación del hato caprino</p>
+        <div className="bg-gradient-to-br from-green-600 to-emerald-800 rounded-2xl shadow-lg p-7 text-white mb-5 relative overflow-hidden">
+          <Heart className="absolute -right-6 -bottom-10 w-48 h-48 text-white/10" aria-hidden="true" />
+          <div className="relative flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center"><Heart className="w-6 h-6 text-white" /></div>
+              <div>
+                <h1 className="text-2xl font-bold leading-tight">Bienestar Animal</h1>
+                <p className="text-green-100 text-sm">Evaluación del hato con la guía MEBA del ICA (v3.0, 2026)</p>
+              </div>
             </div>
+            <button onClick={iniciarNueva} className="flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 rounded-xl text-sm font-semibold transition-colors shadow-sm">
+              <Plus className="w-4 h-4" /> Nueva evaluación
+            </button>
           </div>
-          <button onClick={iniciarNueva} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium">
-            <Plus className="w-4 h-4" /> Nueva evaluación
-          </button>
         </div>
 
         {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" />{error}</div>}
@@ -750,7 +753,7 @@ const ModuloBienestar = () => {
       </div>
 
       {/* Barra de resultado fija */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 shadow-lg z-40">
+      <div className="vidrio-claro fixed bottom-0 left-0 right-0 border-t border-gray-200 p-3 sm:p-4 shadow-lg z-40">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-4 flex-wrap">
             <div>

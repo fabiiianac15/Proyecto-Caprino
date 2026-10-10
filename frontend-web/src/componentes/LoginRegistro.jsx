@@ -9,9 +9,9 @@ import { validarEmail } from '../utilidades/validaciones';
 import SelectPersonalizado from './SelectPersonalizado';
 import ToastNotificacion, { useToast } from './ToastNotificacion';
 
-const INPUT_BASE = 'w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-colors';
-const INPUT_OK   = 'border-gray-200 bg-white focus:ring-green-500 focus:border-green-400';
-const INPUT_ERR  = 'border-red-300 bg-red-50 focus:ring-red-400 focus:border-red-400';
+const INPUT_BASE = 'w-full h-11 px-4 border rounded-xl text-[15px] focus:outline-none focus:ring-4 transition-colors';
+const INPUT_OK   = 'border-gray-200 bg-gray-50 focus:bg-white focus:ring-green-500/20 focus:border-green-500';
+const INPUT_ERR  = 'border-red-300 bg-red-50 focus:ring-red-400/25 focus:border-red-400';
 
 const LoginRegistro = () => {
   const [vistaActual, setVistaActual] = useState('login');
@@ -136,10 +136,10 @@ const LoginRegistro = () => {
   };
 
   const FEATURES = [
-    'Registro y seguimiento de cada animal',
-    'Control de reproducción y partos',
-    'Historial de salud y vacunación',
-    'Producción de leche y pesajes',
+    'Cada cabra con su historia: salud, peso, leche y partos',
+    'Genética e inteligencia artificial para elegir los mejores cruces',
+    'Bienestar animal y clasificación lineal con fotos de evidencia',
+    'Alertas y reportes para decidir a tiempo',
   ];
 
   return (
@@ -152,75 +152,72 @@ const LoginRegistro = () => {
         <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 relative flex-col justify-between p-12 overflow-hidden">
           <div className="absolute inset-0">
             <img src="/img/AtrasCabra.jpeg" alt="" className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-br from-green-900/85 to-green-700/70" />
+            <div className="absolute inset-0 bg-gradient-to-br from-green-900/90 via-green-800/80 to-green-700/70" />
           </div>
 
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-2">
-              <img src="/img/LogoCabra.jpg" alt="Logo" className="w-10 h-10 rounded-full object-cover ring-2 ring-white/40" />
-              <span className="text-white font-bold text-lg tracking-wide">Sistema Caprino</span>
-            </div>
+          <div className="relative z-10 flex items-center gap-3">
+            <img src="/img/LogoCabra.jpg" alt="" className="w-11 h-11 rounded-xl object-cover ring-1 ring-white/40" />
+            <span className="text-white font-bold text-2xl tracking-tight">Capriva</span>
           </div>
 
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 space-y-7">
             <div>
-              <h1 className="text-4xl font-bold text-white leading-tight mb-3">
-                Gestión integral<br />de tu rebaño
+              <h1 className="text-[40px] xl:text-5xl font-bold text-white leading-[1.08] tracking-tight mb-4">
+                Los datos de tu hato,<br />convertidos en decisiones
               </h1>
-              <p className="text-green-100 text-base leading-relaxed">
-                Todo lo que necesitas para administrar tu granja caprina en un solo lugar.
+              <p className="text-green-50 text-lg leading-relaxed max-w-md">
+                Una plataforma inteligente que transforma los datos de tu hato en decisiones productivas.
               </p>
             </div>
 
             <ul className="space-y-3">
               {FEATURES.map(f => (
                 <li key={f} className="flex items-center gap-3">
-                  <span className="w-5 h-5 rounded-full bg-green-400/30 ring-1 ring-green-300 flex items-center justify-center shrink-0">
-                    <CheckCircle className="w-3 h-3 text-green-300" />
-                  </span>
-                  <span className="text-green-50 text-sm">{f}</span>
+                  <CheckCircle className="w-5 h-5 text-green-300 shrink-0" />
+                  <span className="text-white text-[15px]">{f}</span>
                 </li>
               ))}
             </ul>
           </div>
 
           <div className="relative z-10">
-            <p className="text-green-200/60 text-xs">UFPSO · Proyecto Caprino</p>
+            <p className="text-green-100/80 text-xs">Capriva · UFPSO</p>
           </div>
         </div>
 
         {/* ── Panel derecho ── */}
-        <div className="flex-1 flex items-center justify-center bg-gray-50 px-6 py-12">
+        <div className="flex-1 flex items-center justify-center bg-gray-100 px-6 py-12">
           <div className="w-full max-w-md">
 
             {/* Logo móvil */}
             <div className="lg:hidden flex items-center gap-3 justify-center mb-8">
-              <img src="/img/LogoCabra.jpg" alt="Logo" className="w-10 h-10 rounded-full object-cover" />
-              <span className="font-bold text-xl text-gray-800">Sistema Caprino</span>
+              <img src="/img/LogoCabra.jpg" alt="" className="w-10 h-10 rounded-xl object-cover" />
+              <span className="font-bold text-2xl text-gray-900 tracking-tight">Capriva</span>
             </div>
 
             {/* Tab switcher */}
-            <div className="bg-white border border-gray-200 rounded-xl p-1 flex mb-6 shadow-sm">
+            <div className="bg-gray-200/80 rounded-xl p-[3px] flex mb-5" role="tablist" aria-label="Acceso">
               {['login', 'registro'].map(tab => (
                 <button
                   key={tab}
                   onClick={() => { setVistaActual(tab); setErrores({}); }}
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all
-                    ${vistaActual === tab ? 'bg-green-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  role="tab" aria-selected={vistaActual === tab}
+                  className={`flex-1 h-9 rounded-[11px] text-sm transition-all
+                    ${vistaActual === tab ? 'bg-white text-gray-900 font-semibold shadow-sm' : 'text-gray-600 font-medium hover:text-gray-900'}`}
                 >
-                  {tab === 'login' ? 'Iniciar Sesión' : 'Registrarse'}
+                  {tab === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
                 </button>
               ))}
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+            <div className="bg-white rounded-3xl shadow-md p-8">
 
               {/* ── LOGIN ── */}
               {vistaActual === 'login' && (
                 <form onSubmit={manejarLogin} className="space-y-5">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Bienvenido</h2>
-                    <p className="text-gray-500 text-sm mt-1">Ingresa tus credenciales para continuar</p>
+                    <h2 className="text-[28px] font-bold text-gray-900 tracking-tight">Te damos la bienvenida</h2>
+                    <p className="text-gray-500 text-[15px] mt-1">Entra con tu correo y contraseña.</p>
                   </div>
 
                   <Campo label="Correo institucional" error={errores.email}>
@@ -244,7 +241,8 @@ const LoginRegistro = () => {
                       />
                       <button
                         type="button" onClick={() => setMostrarPassword(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                       >
                         {mostrarPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -263,10 +261,10 @@ const LoginRegistro = () => {
 
                   <button
                     type="submit" disabled={cargando}
-                    className="w-full py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+                    className="w-full h-11 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-[15px] flex items-center justify-center gap-2"
                   >
                     {cargando && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                    {cargando ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                    {cargando ? 'Entrando…' : 'Iniciar sesión'}
                   </button>
 
                   {import.meta.env.DEV && (
@@ -282,8 +280,8 @@ const LoginRegistro = () => {
               {vistaActual === 'registro' && (
                 <form onSubmit={manejarRegistro} className="space-y-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Crear cuenta</h2>
-                    <p className="text-gray-500 text-sm mt-1">Completa los datos para registrarte</p>
+                    <h2 className="text-[28px] font-bold text-gray-900 tracking-tight">Crea tu cuenta</h2>
+                    <p className="text-gray-500 text-[15px] mt-1">Completa tus datos para empezar a usar Capriva.</p>
                   </div>
 
                   <Campo label="Nombre completo" error={errores.nombre}>
@@ -332,7 +330,8 @@ const LoginRegistro = () => {
                       />
                       <button
                         type="button" onClick={() => setMostrarPassword(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                       >
                         {mostrarPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -378,10 +377,10 @@ const LoginRegistro = () => {
 
                   <button
                     type="submit" disabled={cargando}
-                    className="w-full py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2 mt-2"
+                    className="w-full h-11 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-[15px] flex items-center justify-center gap-2 mt-2"
                   >
                     {cargando && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                    {cargando ? 'Registrando...' : 'Crear Cuenta'}
+                    {cargando ? 'Creando cuenta…' : 'Crear cuenta'}
                   </button>
                 </form>
               )}

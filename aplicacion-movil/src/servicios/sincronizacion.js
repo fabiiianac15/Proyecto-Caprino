@@ -16,6 +16,8 @@ import {
   eliminarDeCola,
   actualizarItemCola,
 } from './almacenamientoLocal';
+import { borradoresPorEnviar } from './borradores';
+import { enviarBorrador } from './envio';
 
 const MAX_INTENTOS = parseInt(import.meta.env.VITE_MAX_RETRY_ATTEMPTS) || 3;
 
@@ -66,6 +68,16 @@ export const sincronizarCola = async () => {
           ultimoError: mensaje,
         });
         fallidos += 1;
+      }
+    }
+
+    // Evaluaciones (bienestar y lineal) que quedaron esperando conexión
+    for (const borrador of borradoresPorEnviar()) {
+      try {
+        const r = await enviarBorrador(borrador.id, borrador.pendienteEnvio);
+        if (r.estado === 'enviado') enviados += 1; else fallidos += 1;
+      } catch {
+        fallidos += 1;   // el servidor la rechazó: queda con su mensaje de error
       }
     }
   } finally {

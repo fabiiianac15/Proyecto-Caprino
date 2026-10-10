@@ -203,7 +203,7 @@ const ModuloSalud = () => {
                   <div className={`h-5 rounded-lg ${d.bg} mb-1.5 border border-black/10`} />
                   <p className="text-lg font-black text-gray-800 leading-none">{d.count}</p>
                   <p className="text-[10px] text-gray-500 leading-tight">Score {d.score}</p>
-                  <p className="text-[9px] text-gray-400">{d.label}</p>
+                  <p className="text-[10px] text-gray-400">{d.label}</p>
                 </div>
               ))}
             </div>

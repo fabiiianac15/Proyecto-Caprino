@@ -45,14 +45,45 @@ export default {
           900: '#171717',
         },
       },
+      // Grises neutros del sistema. El 400 y el 500 se oscurecieron para que el
+      // texto secundario pequeño cumpla 4,5:1 sobre blanco (#76767C da 4,5:1).
+      gray: {
+        50: '#f9f9fb',
+        100: '#f2f2f7',
+        200: '#e5e5ea',
+        300: '#d1d1d6',
+        400: '#76767c',
+        500: '#636366',
+        600: '#48484a',
+        700: '#3a3a3c',
+        800: '#2c2c2e',
+        900: '#1d1d1f',
+      },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        // Tipografía del sistema: San Francisco en Apple, Segoe en Windows, Roboto en Android
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"Segoe UI Variable Text"', '"Segoe UI"', 'Roboto', 'Inter', 'system-ui', 'sans-serif'],
+      },
+      // Sombras suaves en dos capas: un borde casi invisible y una difusa
+      boxShadow: {
+        sm: '0 0 0 0.5px rgb(0 0 0 / 0.05), 0 1px 2px rgb(0 0 0 / 0.04)',
+        DEFAULT: '0 0 0 0.5px rgb(0 0 0 / 0.05), 0 2px 6px rgb(0 0 0 / 0.05)',
+        md: '0 0 0 0.5px rgb(0 0 0 / 0.05), 0 4px 14px rgb(0 0 0 / 0.07)',
+        lg: '0 0 0 0.5px rgb(0 0 0 / 0.05), 0 10px 28px rgb(0 0 0 / 0.09)',
+        xl: '0 0 0 0.5px rgb(0 0 0 / 0.06), 0 18px 44px rgb(0 0 0 / 0.12)',
+        '2xl': '0 0 0 0.5px rgb(0 0 0 / 0.06), 0 28px 70px rgb(0 0 0 / 0.20)',
       },
       spacing: {
         '128': '32rem',
         '144': '36rem',
       },
+      // Radios más amplios y progresivos (controles 10, tarjetas 14-20, hojas 26)
       borderRadius: {
+        DEFAULT: '6px',
+        md: '8px',
+        lg: '10px',
+        xl: '14px',
+        '2xl': '20px',
+        '3xl': '26px',
         '4xl': '2rem',
       },
     },

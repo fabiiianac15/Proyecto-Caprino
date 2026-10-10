@@ -101,3 +101,10 @@ export const fechaCacheAnimales = () => {
   const cache = leer(CLAVE_CACHE_ANIMALES, null);
   return cache?.fecha || null;
 };
+
+/* ------------------------------------------------------------------ */
+/*  Lectura / escritura genérica (catálogos, borradores)              */
+/* ------------------------------------------------------------------ */
+
+export const leerLocal = leer;
+export const escribirLocal = escribir;

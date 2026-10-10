@@ -478,7 +478,7 @@ const NodoGen = ({ animal: nodo, rol, color }) => {
   );
   return (
     <div className={`border-2 ${color.border} ${color.bg} rounded-xl p-3 min-w-[140px]`}>
-      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded text-white ${color.badge} mb-1.5 block w-fit`}>{rol}</span>
+      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded text-white ${color.badge} mb-1.5 block w-fit`}>{rol}</span>
       <p className={`text-xs font-bold ${color.text}`}>{nodo.codigo}</p>
       <p className="text-xs text-gray-600 truncate">{nodo.nombre}</p>
       {nodo.raza && <p className="text-[10px] text-gray-400 truncate">{nodo.raza || ''}</p>}
@@ -534,7 +534,7 @@ const TabGenealogia = ({ animal }) => {
           <div className="w-0.5 h-6 bg-gray-200" />
           {/* Generación 0: Animal principal */}
           <div className="border-2 border-teal-400 bg-teal-50 rounded-xl p-4 min-w-[160px] text-center">
-            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded text-white bg-teal-500 mb-1.5 block w-fit mx-auto">Animal</span>
+            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded text-white bg-teal-500 mb-1.5 block w-fit mx-auto">Animal</span>
             <p className="text-sm font-bold text-teal-800">{animal.codigo}</p>
             <p className="text-xs text-gray-600">{animal.nombre}</p>
           </div>
@@ -792,7 +792,7 @@ const TabFamacha = ({ animal }) => {
               <div className={`h-6 rounded-lg ${f.bg} mb-1.5 border border-black/10`} />
               <p className="text-xs font-black text-gray-700">{f.score}</p>
               <p className="text-[10px] text-gray-600 leading-tight font-medium">{f.significado}</p>
-              <p className={`text-[9px] font-semibold mt-0.5 px-1 py-0.5 rounded-full ${nivelBadge(f.nivel)}`}>{f.accion}</p>
+              <p className={`text-[10px] font-semibold mt-0.5 px-1 py-0.5 rounded-full ${nivelBadge(f.nivel)}`}>{f.accion}</p>
             </div>
           ))}
         </div>

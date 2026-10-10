@@ -10,9 +10,13 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { contarPendientes } from '@servicios/almacenamientoLocal';
+import { contarPendientes as contarCola } from '@servicios/almacenamientoLocal';
+import { borradoresPorEnviar } from '@servicios/borradores';
 import { sincronizarCola } from '@servicios/sincronizacion';
 import { useConectividad } from './useConectividad';
+
+// Pendientes = registros simples en cola + evaluaciones esperando conexión
+const contarPendientes = () => contarCola() + borradoresPorEnviar().length;
 
 export function useSincronizacion() {
   const enLinea = useConectividad();

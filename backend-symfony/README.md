@@ -1,4 +1,4 @@
-# Backend: API REST de GRANME
+# Backend: API REST de Capriva
 
 API en Symfony 6.4 LTS sobre Oracle Autonomous Database. Los controladores escriben SQL directo con Doctrine DBAL y parámetros enlazados; no se usa el ORM. Las entidades de `src/Entity/` quedaron del diseño inicial y ninguna ruta las usa.
 
@@ -46,6 +46,7 @@ src/
 ├── Service/
 │   ├── RebanoService.php               instantánea del rebaño para el microservicio ML (7 consultas)
 │   ├── MlService.php                   cliente HTTP del microservicio (JSON y streaming)
+│   ├── InformeService.php              los 17 informes de Reportes, todos con la misma estructura de salida
 │   ├── BienestarService.php            cálculo MEBA: 35 % recursos, 55 % animal, 10 % gestión
 │   ├── ClasificacionLinealService.php  puntaje ADGA por rasgo y categoría final
 │   ├── AuditoriaService.php            registro de acciones
@@ -73,6 +74,16 @@ Las rutas de genealogía que dependen del microservicio:
 | `POST /api/genealogia/ranking/analisis-ia` | resumen comparativo en streaming |
 | `GET /api/genealogia/modelo` | métricas del modelo y partos que aún no conoce |
 | `POST /api/genealogia/modelo/entrenar` | reentrena con los partos de la granja (administrador, zootecnista o veterinario) |
+
+## Reportes
+
+| Ruta | Qué hace |
+|------|----------|
+| `GET /api/reportes/resumen` | indicadores de la barra superior |
+| `GET /api/reportes/panel?desde&hasta` | indicadores y gráficos generales del periodo |
+| `GET /api/reportes/informe/{clave}?desde&hasta` | un informe: `inventario`, `movimientos`, `corrales`, `leche-mensual`, `leche-cabra`, `leche-detalle`, `servicios`, `partos-proximos`, `machos`, `salud-eventos`, `enfermedades`, `salud-pendientes`, `famacha`, `pesajes`, `crecimiento`, `bienestar`, `lineal` |
+
+Las fechas van como `AAAA-MM-DD`; sin ellas se toman los últimos 12 meses. Cada informe devuelve `titulo`, `descripcion`, `periodo`, `indicadores`, `graficos`, `tabla` (columnas con su tipo y filas) y `notas`. Todas las cifras salen de las tablas reales.
 
 ## Fotos
 

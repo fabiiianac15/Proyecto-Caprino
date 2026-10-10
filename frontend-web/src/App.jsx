@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   LogOut,
   User,
@@ -9,14 +9,17 @@ import {
   Heart,
   Users,
   TrendingUp,
-  Shield
+  Shield,
+  LayoutGrid,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { useAuth } from './contextos/AuthContext';
 
 // Importar componentes
 import LoginRegistro from './componentes/LoginRegistro';
 import RutaProtegida from './componentes/RutaProtegida';
-import Dashboard from './componentes/Dashboard';
+import Dashboard, { MODULOS } from './componentes/Dashboard';
 import ListaAnimales from './componentes/ListaAnimales';
 import RegistroCabra from './componentes/RegistroCabra';
 import ModuloProduccion from './componentes/ModuloProduccion';
@@ -41,6 +44,20 @@ function App() {
   const [vistaActual, setVistaActual] = useState('lista');
   const [reloadKey, setReloadKey] = useState(0);
   const [mostrarPerfil, setMostrarPerfil] = useState(false);
+
+  // Menú de módulos de la barra superior
+  const { pathname } = useLocation();
+  const [menuModulos, setMenuModulos] = useState(false);
+  const refMenu = useRef(null);
+  const moduloActual = MODULOS.find((m) => pathname === m.ruta || pathname.startsWith(m.ruta + '/'));
+  useEffect(() => {
+    if (!menuModulos) return undefined;
+    const fuera = (e) => { if (refMenu.current && !refMenu.current.contains(e.target)) setMenuModulos(false); };
+    const tecla = (e) => { if (e.key === 'Escape') setMenuModulos(false); };
+    document.addEventListener('mousedown', fuera);
+    document.addEventListener('keydown', tecla);
+    return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla); };
+  }, [menuModulos]);
   
   // Indicadores del rebaño (se cargarán desde la API)
   const [indicadores, setIndicadores] = useState({
@@ -137,7 +154,7 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando...</p>
         </div>
       </div>
@@ -151,125 +168,120 @@ function App() {
 
   return (
     <div className="min-h-screen relative">
-      {/* Fondo fijo con imagen y overlay casi blanco */}
+      {/* Fondo fijo: la foto del rebaño bajo un velo claro */}
       <div className="fixed inset-0 -z-10 pointer-events-none">
         <img src="/img/AtrasCabra.jpeg" alt="" className="w-full h-full object-cover object-center" />
-        <div className="absolute inset-0 bg-white/90" />
+        <div className="absolute inset-0 bg-gray-100/[0.93]" />
       </div>
-      {/* Barra de navegación superior - Rediseñada */}
-      <nav className="bg-gradient-to-r from-green-600 to-green-700 shadow-lg fixed w-full top-0 z-50">
+
+      {/* Barra superior: capa flotante con desenfoque, en el verde de la marca */}
+      <nav className="vidrio-verde fixed w-full top-0 z-50 border-b border-white/10 shadow-sm" aria-label="Principal">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo y título */}
-            <div 
-              className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+          <div className="flex items-center h-14 gap-3">
+            {/* Marca */}
+            <button
+              type="button"
               onClick={() => navigate('/')}
+              className="flex items-center gap-2.5 rounded-xl pr-2 hover:opacity-85 transition-opacity shrink-0"
+              aria-label="Capriva, ir al inicio"
             >
-              <img 
-                src="/img/LogoCabra.jpg" 
-                alt="Logo Caprino" 
-                className="w-12 h-12 mr-3 rounded-full object-cover"
-              />
-              <div>
-                <h1 className="text-xl font-bold text-white">
-                  Sistema Caprino
-                </h1>
-                <p className="text-xs text-green-100">
-                  Gestión Integral del Rebaño
-                </p>
-              </div>
-            </div>
+              <img src="/img/LogoCabra.jpg" alt="" className="w-9 h-9 rounded-[10px] object-cover ring-1 ring-white/30" />
+              <span className="text-[19px] font-bold text-white tracking-tight">Capriva</span>
+            </button>
 
-            {/* Indicadores en tiempo real del rebaño */}
-            <div className="hidden lg:flex items-center space-x-3 text-white">
-              {/* Total de Animales */}
+            {/* Módulos: salto directo entre secciones sin volver al inicio */}
+            <div className="relative" ref={refMenu}>
               <button
-                onClick={() => navigate('/animales')}
-                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/20 transition-all cursor-pointer group"
-                title="Ver todos los animales"
+                type="button"
+                onClick={() => setMenuModulos((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuModulos}
+                className={`flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium text-white transition-colors
+                            ${menuModulos ? 'bg-white/25' : 'bg-white/10 hover:bg-white/20'}`}
               >
-                <Users className="w-5 h-5 text-blue-300 group-hover:scale-110 transition-transform" />
-                <div className="text-left">
-                  <p className="text-xs text-green-200">Animales</p>
-                  <p className="text-lg font-bold leading-none">{indicadores.totalAnimales}</p>
-                </div>
+                <LayoutGrid className="w-4 h-4" />
+                <span className="hidden sm:inline">{moduloActual ? moduloActual.titulo : 'Módulos'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menuModulos ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Alertas Pendientes */}
-              <button
-                onClick={() => navigate('/notificaciones')}
-                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/20 transition-all cursor-pointer group relative"
-                title="Ver notificaciones"
-              >
-                <Bell className="w-5 h-5 text-yellow-300 group-hover:scale-110 transition-transform" />
-                <div className="text-left">
-                  <p className="text-xs text-green-200">Alertas</p>
-                  <p className="text-lg font-bold leading-none">{indicadores.alertasPendientes}</p>
+              {menuModulos && (
+                <div role="menu" className="bg-white animate-emerger absolute left-0 mt-2 w-[min(92vw,560px)] rounded-2xl shadow-xl p-2 grid grid-cols-1 sm:grid-cols-2 gap-0.5">
+                  {MODULOS.map((m) => {
+                    const activo = moduloActual?.id === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        role="menuitem"
+                        onClick={() => { setMenuModulos(false); navigate(m.ruta); }}
+                        className={`flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${activo ? 'bg-gray-900/[0.07]' : 'hover:bg-gray-900/[0.05]'}`}
+                      >
+                        <span className={`w-8 h-8 rounded-lg ${m.color} flex items-center justify-center shrink-0`}>
+                          <m.Icono className="w-[18px] h-[18px] text-white" />
+                        </span>
+                        <span className="text-sm font-medium text-gray-900 flex-1">{m.titulo}</span>
+                        {activo && <Check className="w-4 h-4 text-green-700" aria-label="Módulo actual" />}
+                      </button>
+                    );
+                  })}
                 </div>
-                {indicadores.alertasPendientes > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
-                    {indicadores.alertasPendientes > 9 ? '9+' : indicadores.alertasPendientes}
+              )}
+            </div>
+
+            <div className="flex-1" />
+
+            {/* Indicadores del rebaño en tiempo real */}
+            <div className="hidden lg:flex items-center gap-1.5 text-white">
+              {[
+                { ruta: '/animales', Icono: Users, etiqueta: 'Animales', valor: indicadores.totalAnimales, titulo: 'Ver todos los animales' },
+                { ruta: '/notificaciones', Icono: Bell, etiqueta: 'Alertas', valor: indicadores.alertasPendientes, titulo: 'Ver alertas', aviso: indicadores.alertasPendientes > 0 },
+                { ruta: '/produccion', Icono: Droplet, etiqueta: 'Leche del mes', valor: `${Number(indicadores.produccionHoy).toFixed(1)} L`, titulo: 'Ver producción de leche' },
+                { ruta: '/reproduccion', Icono: Heart, etiqueta: 'Gestantes', valor: indicadores.gestantes, titulo: 'Ver reproducción' },
+              ].map((i) => (
+                <button
+                  key={i.ruta}
+                  onClick={() => navigate(i.ruta)}
+                  title={i.titulo}
+                  className="relative flex items-center gap-2 h-10 pl-2.5 pr-3 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                  <i.Icono className="w-4 h-4 text-white/85" />
+                  <span className="text-left leading-none">
+                    <span className="block text-[10px] font-medium text-white/75 mb-0.5">{i.etiqueta}</span>
+                    <span className="block text-sm font-bold tabular-nums">{i.valor}</span>
                   </span>
-                )}
-              </button>
-
-              {/* Producción del Día */}
-              <button
-                onClick={() => navigate('/produccion')}
-                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/20 transition-all cursor-pointer group"
-                title="Ver producción de leche"
-              >
-                <Droplet className="w-5 h-5 text-cyan-300 group-hover:scale-110 transition-transform" />
-                <div className="text-left">
-                  <p className="text-xs text-green-200">Prod. mes</p>
-                  <p className="text-lg font-bold leading-none">{Number(indicadores.produccionHoy).toFixed(1)} L</p>
-                </div>
-              </button>
-
-              {/* Animales Gestantes */}
-              <button
-                onClick={() => navigate('/reproduccion')}
-                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg hover:bg-white/20 transition-all cursor-pointer group"
-                title="Ver reproducción"
-              >
-                <Heart className="w-5 h-5 text-pink-300 group-hover:scale-110 transition-transform" />
-                <div className="text-left">
-                  <p className="text-xs text-green-200">Gestantes</p>
-                  <p className="text-lg font-bold leading-none">{indicadores.gestantes}</p>
-                </div>
-              </button>
+                  {i.aviso && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-green-700" aria-hidden="true" />}
+                </button>
+              ))}
             </div>
 
-            {/* Usuario y cerrar sesión */}
-            <div className="flex items-center space-x-4">
+            {/* Usuario, auditoría y salida */}
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setMostrarPerfil(true)}
-                className="hidden md:flex items-center space-x-3 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-white/20 transition-colors cursor-pointer"
+                className="hidden md:flex items-center gap-2.5 h-10 pl-1.5 pr-3 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                title="Ver mi perfil"
               >
-                <div className="flex items-center justify-center w-8 h-8 bg-white rounded-full">
-                  <User className="w-5 h-5 text-green-600" />
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-white">
-                    {usuario?.nombre || usuario?.nombre_completo}
-                  </p>
-                  <p className="text-xs text-green-100 capitalize">
-                    {usuario?.rol === 'administrador' ? 'Administrador de Granja' :
+                <span className="flex items-center justify-center w-7 h-7 bg-white rounded-full">
+                  <User className="w-4 h-4 text-green-700" />
+                </span>
+                <span className="text-left leading-none">
+                  <span className="block text-sm font-semibold text-white">{usuario?.nombre || usuario?.nombre_completo}</span>
+                  <span className="block text-[11px] text-white/75 mt-0.5 capitalize">
+                    {usuario?.rol === 'administrador' || usuario?.rol === 'administrador_granja' ? 'Administrador de granja' :
                      usuario?.rol === 'pasante'       ? 'Pasante' :
                      usuario?.rol === 'veterinario'   ? 'Veterinario' :
                      usuario?.rol === 'zootecnista'   ? 'Zootecnista' :
                      usuario?.rol || 'Usuario'}
-                  </p>
-                </div>
+                  </span>
+                </span>
               </button>
-              
+
               {usuario?.rol === 'administrador' && (
                 <button
                   onClick={() => navigate('/auditoria')}
-                  className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg transition-colors text-white"
+                  className="flex items-center gap-2 h-10 px-3 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
                   title="Auditoría del sistema"
                 >
-                  <Shield className="w-5 h-5" />
+                  <Shield className="w-4 h-4" />
                   <span className="hidden sm:inline text-sm font-medium">Auditoría</span>
                 </button>
               )}
@@ -279,10 +291,10 @@ function App() {
                   cerrarSesion();
                   navigate('/login');
                 }}
-                className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg transition-colors text-white"
+                className="flex items-center gap-2 h-10 px-3 bg-white/10 hover:bg-white/20 rounded-lg transition-colors text-white"
                 title="Cerrar sesión"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline text-sm font-medium">Salir</span>
               </button>
             </div>
@@ -291,7 +303,7 @@ function App() {
       </nav>
 
       {/* Contenido principal */}
-      <main className="pt-20 pb-8">
+      <main className="pt-[72px] pb-10">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           
@@ -356,7 +368,7 @@ function App() {
                 </h2>
                 <Link
                   to="/"
-                  className="text-blue-600 hover:text-blue-800 underline"
+                  className="text-green-700 hover:text-green-800 underline"
                 >
                   Volver al inicio
                 </Link>

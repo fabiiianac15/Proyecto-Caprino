@@ -11,12 +11,12 @@
  */
 
 import axios from 'axios';
+import { obtenerServidor } from './config';
 
 export const CLAVE_TOKEN = 'caprino_token';
 export const CLAVE_USUARIO = 'caprino_usuario';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
   timeout: parseInt(import.meta.env.VITE_API_TIMEOUT) || 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -24,8 +24,12 @@ const api = axios.create({
   },
 });
 
-// Agrega el token JWT a cada petición
+// La dirección del servidor se lee en cada petición (se puede cambiar en Ajustes)
+// y se agrega el token JWT.
 api.interceptors.request.use((config) => {
+  config.baseURL = obtenerServidor();
+  // Con FormData el navegador pone el Content-Type con su boundary
+  if (config.data instanceof FormData) delete config.headers['Content-Type'];
   const token = localStorage.getItem(CLAVE_TOKEN);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

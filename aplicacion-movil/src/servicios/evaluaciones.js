@@ -1,0 +1,92 @@
+/**
+ * Textos y valores iniciales de las evaluaciones de bienestar (MEBA) y de
+ * clasificación lineal. Los textos son los mismos de la versión web, en
+ * lenguaje de corral.
+ */
+
+import { catalogoLocal, obtenerCatalogo } from './catalogos';
+import { guardarBorrador, nuevoId } from './borradores';
+import { confinamientoNoAplica } from './calculos';
+import { hoyISO } from '@utilidades/formato';
+
+export const hoy = hoyISO;
+
+/* ── Bienestar ────────────────────────────────────────────────────────────── */
+
+export const GRUPOS = [
+  { clave: 'RECURSOS', titulo: 'Recursos', peso: '35 %', ayuda: 'Instalaciones: agua, comida, comederos, sombra, corrales y piso. Se revisan recorriendo la granja.' },
+  { clave: 'ANIMAL', titulo: 'Animal', peso: '55 %', ayuda: 'Se revisan una por una las cabras de la muestra: gordura, heridas, parásitos, cojeras. Es lo que más pesa.' },
+  { clave: 'GESTION', titulo: 'Gestión', peso: '10 %', ayuda: 'Papeles y registros de la granja: mortalidad, medicamentos, plan sanitario. Se piden al encargado.' },
+];
+
+export const TIPOS_PRODUCTOR = [
+  { valor: 'FAMILIAR', etiqueta: 'Familiar', ayuda: 'Hasta 30 animales, amarrados o sueltos cerca de la casa, con un corral pequeño para dormir.' },
+  { valor: 'EXTENSIVO', etiqueta: 'Extensivo', ayuda: 'Pastan en potreros, orillas de caminos o lomas; hasta unos 300 animales.' },
+  { valor: 'SEMI_INTENSIVO', etiqueta: 'Semi-intensivo', ayuda: 'Pastan de día y se encierran de noche; reciben concentrado o forraje.' },
+  { valor: 'INTENSIVO', etiqueta: 'Intensivo', ayuda: 'Siempre encerradas (estabuladas), sin salir a pastorear.' },
+];
+
+export const NOMBRE_CLASIF = { EXCELENTE: 'Excelente', ALTO: 'Alto', MEDIO: 'Medio', BAJO: 'Bajo' };
+
+/** Clase de color del texto según el puntaje del indicador. */
+export const colorPuntaje = (p) => (p >= 100 ? 'text-acento' : p >= 55 ? 'text-texto' : p >= 20 ? 'text-aviso' : 'text-critico');
+
+const aplicaPara = (ind, tipoProductor) => !(ind.soloConfinamiento && confinamientoNoAplica(tipoProductor));
+
+export const valorVacio = (ind, tipoProductor) => ({
+  puntaje: null, aplica: aplicaPara(ind, tipoProductor), soporteDoc: '', observacion: '', nEvaluados: '', nHallazgo: '', fotos: [],
+});
+
+/** Al cambiar el tipo de productor cambian los indicadores de encierro que aplican. */
+export const reaplicar = (catalogo, valores, tipoProductor) => {
+  const nuevo = { ...valores };
+  catalogo.filter((i) => i.soloConfinamiento).forEach((i) => {
+    const v = nuevo[i.idIndicador] || valorVacio(i, tipoProductor);
+    nuevo[i.idIndicador] = { ...v, aplica: aplicaPara(i, tipoProductor) };
+  });
+  return nuevo;
+};
+
+/** Crea una evaluación de bienestar vacía. Devuelve null si no hay catálogo. */
+export const nuevaBienestar = async (evaluador = '') => {
+  let cat = catalogoLocal('bienestar');
+  if (!cat.length) cat = await obtenerCatalogo('bienestar');
+  if (!cat.length) return null;
+  const tipoProductor = 'EXTENSIVO';
+  const valores = {};
+  cat.forEach((ind) => { valores[ind.idIndicador] = valorVacio(ind, tipoProductor); });
+  return guardarBorrador({
+    id: nuevoId(), tipo: 'bienestar',
+    cab: { fechaEvaluacion: hoy(), tipoProductor, numAnimales: '', tamanoMuestra: '', evaluadores: evaluador, tieneRspp: false, tieneAsi: false, observaciones: '' },
+    valores, fotosGenerales: [],
+  });
+};
+
+/* ── Clasificación lineal ─────────────────────────────────────────────────── */
+
+export const REGIONES = [
+  { clave: 'APARIENCIA', titulo: 'Apariencia general', pts: 25 },
+  { clave: 'ESTRUCTURA', titulo: 'Fortaleza lechera', pts: 15 },
+  { clave: 'MAMARIO', titulo: 'Ubre y pezones', pts: 40 },
+  { clave: 'PATAS', titulo: 'Patas y pezuñas', pts: 20 },
+];
+
+export const VISTAS = [
+  { clave: 'FRONTAL', etiqueta: 'De frente', ayuda: 'La cabra completa, de frente.' },
+  { clave: 'LATERAL', etiqueta: 'De lado', ayuda: 'El cuerpo completo, de lado.' },
+  { clave: 'POSTERIOR', etiqueta: 'Desde atrás', ayuda: 'El cuerpo completo, desde atrás.' },
+  { clave: 'UBRE_POST', etiqueta: 'Ubre de atrás', ayuda: 'De cerca, la ubre vista desde atrás.' },
+  { clave: 'UBRE_LAT', etiqueta: 'Ubre de lado', ayuda: 'De cerca, la ubre vista de lado.' },
+  { clave: 'PATAS', etiqueta: 'Patas', ayuda: 'Las patas de atrás, parada en piso plano.' },
+];
+
+export const NIVEL = { 1: 'Bajo', 2: 'Intermedio', 3: 'Alto' };
+export const NOMBRE_CATEGORIA = { EXCELENTE: 'Excelente', MUY_BUENO: 'Muy bueno', BUENO: 'Bueno', ACEPTABLE: 'Aceptable', REGULAR: 'Regular', POBRE: 'Pobre' };
+
+// Rasgos con dibujo de referencia (Figura 1 del artículo, ADGA 2019)
+export const CON_DIBUJO = new Set(['ANCPEC', 'ANGUL', 'ANGRU', 'ANCHGRU', 'PTVL', 'INAU', 'LSM', 'DIAPE', 'COLPE', 'AILPU', 'PROFUB']);
+
+export const nuevaLineal = (animal = null, edadMeses = '') => guardarBorrador({
+  id: nuevoId(), tipo: 'lineal', idAnimal: animal?.id ?? '', fechaEvaluacion: hoy(),
+  edadMeses, numLactancia: '', observaciones: '', valores: {}, fotos: {}, paso: 0,
+});
