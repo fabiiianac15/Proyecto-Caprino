@@ -190,6 +190,7 @@ const ModuloClasificacionLineal = () => {
   const [medidasCat, setMedidasCat] = useState([]);
   const [valores, setValores] = useState({});
   const [medidas, setMedidas] = useState({}); // codigo -> texto
+  const [metodos, setMetodos] = useState({}); // codigo -> INSTRUMENTO | FOTO (las de foto vienen de la app)
   const [cab, setCab] = useState(cabVacia());
   const [idEditando, setIdEditando] = useState(null);
   const [partoInfo, setPartoInfo] = useState(null); // { dias, partos } de la hembra elegida
@@ -231,6 +232,7 @@ const ModuloClasificacionLineal = () => {
       await cargarCatalogo();
       setValores({}); // sin calificar: obliga a revisar cada rasgo
       setMedidas({});
+      setMetodos({});
       setCab(cabVacia());
       setIdEditando(null);
       setPartoInfo(null);
@@ -248,6 +250,7 @@ const ModuloClasificacionLineal = () => {
       const [, d] = await Promise.all([cargarCatalogo(), clasificacionLinealAPI.getById(id)]);
       setValores(Object.fromEntries((d.detalle || []).map((x) => [x.idRasgo, x.calificacion])));
       setMedidas(Object.fromEntries((d.medidas || []).map((m) => [m.codigo, String(m.valor)])));
+      setMetodos(Object.fromEntries((d.medidas || []).map((m) => [m.codigo, m.metodo || 'INSTRUMENTO'])));
       setCab({
         idAnimal: d.idAnimal, fechaEvaluacion: d.fechaEvaluacion?.slice(0, 10) || hoy(),
         edadMeses: d.edadMeses ?? '', numLactancia: d.numLactancia ?? '', observaciones: d.observaciones || '',
@@ -305,7 +308,7 @@ const ModuloClasificacionLineal = () => {
         detalle: catalogo.map((r) => ({ idRasgo: r.idRasgo, calificacion: valores[r.idRasgo] })),
         medidas: medidasCat
           .filter((m) => aNumero(medidas[m.codigo]) > 0)
-          .map((m) => ({ codigo: m.codigo, valor: aNumero(medidas[m.codigo]) })),
+          .map((m) => ({ codigo: m.codigo, valor: aNumero(medidas[m.codigo]), metodo: metodos[m.codigo] || 'INSTRUMENTO' })),
       };
       const res = idEditando
         ? await clasificacionLinealAPI.update(idEditando, payload)
@@ -452,7 +455,8 @@ const ModuloClasificacionLineal = () => {
 
         {/* Medidas e índices */}
         <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
-          <h3 className="flex items-center gap-2 font-semibold text-gray-700 mb-1"><Ruler className="w-4 h-4" /> Medidas tomadas con instrumento</h3>
+          <h3 className="flex items-center gap-2 font-semibold text-gray-700 mb-1"><Ruler className="w-4 h-4" /> Medidas</h3>
+          <p className="text-xs text-gray-400">Tomadas con instrumento salvo las marcadas «foto», que se estimaron en la app sobre una foto con vara de referencia.</p>
           {(detalle.medidas || []).length === 0 ? (
             <p className="text-sm text-gray-400">No se registraron medidas. Puede agregarlas con <b>Editar</b>.</p>
           ) : (
@@ -467,6 +471,7 @@ const ModuloClasificacionLineal = () => {
                           <dt className="text-gray-600">{m.nombre}</dt>
                           <dd className={`font-semibold tabular-nums ${m.fueraRango ? 'text-amber-600' : 'text-gray-800'}`} title={m.fueraRango ? 'Fuera del rango habitual: revise la lectura' : ''}>
                             {String(m.valor).replace('.', ',')} {m.unidad}{m.fueraRango ? ' ⚠' : ''}
+                            {m.metodo === 'FOTO' && <span className="ml-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-sky-50 text-sky-700" title="Estimada en la app marcando puntos sobre una foto con vara de referencia">foto</span>}
                           </dd>
                         </div>
                       ))}
@@ -655,10 +660,13 @@ const ModuloClasificacionLineal = () => {
                             <div className="flex items-center gap-1 shrink-0">
                               <input id={`med-${m.codigo}`} type="text" inputMode="decimal" placeholder="—"
                                 className="w-20 border border-gray-200 rounded-lg px-2 py-2 text-sm text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-rose-500"
-                                value={val} onChange={(e) => setMedidas((x) => ({ ...x, [m.codigo]: e.target.value.replace(/[^0-9.,]/g, '') }))} />
+                                value={val} onChange={(e) => { setMedidas((x) => ({ ...x, [m.codigo]: e.target.value.replace(/[^0-9.,]/g, '') })); setMetodos((x) => ({ ...x, [m.codigo]: 'INSTRUMENTO' })); }} />
                               <span className="text-xs text-gray-500 w-5">{m.unidad}</span>
                             </div>
                           </div>
+                          {metodos[m.codigo] === 'FOTO' && val !== '' && (
+                            <p className="text-[11px] mt-1 text-sky-700">Estimada en la app sobre una foto. Si la mide con el instrumento, escriba el valor y quedará como medida directa.</p>
+                          )}
                           {(invalido || fuera) && (
                             <p className={`text-[11px] mt-1 ${invalido ? 'text-red-600' : 'text-amber-600'}`}>
                               {invalido ? 'Escriba solo el número.' : `Lo habitual es entre ${m.minNormal} y ${m.maxNormal} ${m.unidad}. Revise la lectura.`}
