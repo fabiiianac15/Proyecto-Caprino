@@ -15,7 +15,7 @@ App Android para trabajar en el corral con el teléfono. Usa la misma API de `ba
 1. Instalar `Capriva.apk` (hay que permitir la instalación de orígenes desconocidos).
 2. Entrar con el mismo correo y contraseña de la web.
 
-La app se conecta por internet al servidor de AWS (`http://3.84.187.243/api`), así que funciona con wifi o con datos desde cualquier lugar. Si el servidor cambia de dirección se puede corregir en la pantalla de entrada o en Ajustes, en Servidor, sin reinstalar. Para que el cambio quede de fábrica se edita `VITE_API_URL` en `.env` y se vuelve a compilar.
+La app se conecta por internet al servidor de AWS (`http://3.95.12.233/api`), así que funciona con wifi o con datos desde cualquier lugar. Si el servidor cambia de dirección se puede corregir en la pantalla de entrada o en Ajustes, en Servidor, sin reinstalar. Para que el cambio quede de fábrica se edita `VITE_API_URL` en `.env` y se vuelve a compilar.
 
 El servidor debe aceptar el origen `http://localhost` en `CORS_ALLOW_ORIGIN`, que es desde donde hace las peticiones la app instalada.
 

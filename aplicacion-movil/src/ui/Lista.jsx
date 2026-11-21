@@ -16,17 +16,30 @@ export function Seccion({ titulo, pie, children, className = '' }) {
   );
 }
 
-/** Icono en cuadro de color, como en Ajustes. `color` es una clase bg-*. */
-export const IconoFila = ({ Icono, color = 'bg-acento' }) => (
-  <span className={`w-[30px] h-[30px] rounded-[7px] flex items-center justify-center shrink-0 ${color}`} aria-hidden="true">
-    <Icono className="w-[18px] h-[18px] text-white" strokeWidth={2.2} />
+/**
+ * Ícono en cuadro de tono suave (fondo al 15 % y trazo del color). `tono`:
+ * marca, exito, info, aviso, critico, salvia o neutro. Se acepta el antiguo
+ * `color` (clase bg-[#…]) y se traduce al tono equivalente.
+ */
+const TONOS = {
+  marca: 'bg-acento/10 text-acento', exito: 'bg-exito/15 text-exito', info: 'bg-info/15 text-info',
+  aviso: 'bg-aviso/15 text-aviso', critico: 'bg-critico/15 text-critico', salvia: 'bg-salvia/20 text-acento',
+  neutro: 'bg-relleno text-secundario',
+};
+const DE_COLOR = {
+  'bg-[#C62828]': 'critico', 'bg-[#1D5FA8]': 'info', 'bg-[#0F766E]': 'exito', 'bg-[#B45309]': 'aviso',
+  'bg-[#1E7B45]': 'exito', 'bg-[#6E6E73]': 'neutro', 'bg-[#5B4BC4]': 'salvia', 'bg-acento': 'marca',
+};
+export const IconoFila = ({ Icono, tono, color }) => (
+  <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${TONOS[tono || DE_COLOR[color] || 'marca']}`} aria-hidden="true">
+    <Icono className="w-5 h-5" strokeWidth={2.1} />
   </span>
 );
 
 export function Fila({ icono, titulo, sub, valor, alHacerClic, flecha, derecha, critico = false, sangria }) {
   const Etiqueta = alHacerClic ? 'button' : 'div';
   return (
-    <Etiqueta onClick={alHacerClic} className="fila" style={{ '--sangria': sangria ?? (icono ? '58px' : '16px') }}>
+    <Etiqueta onClick={alHacerClic} className="fila" style={{ '--sangria': sangria ?? (icono ? '64px' : '16px') }}>
       {icono}
       <span className="flex-1 min-w-0">
         <span className={`block t-cuerpo ${critico ? 'text-critico' : ''}`}>{titulo}</span>

@@ -4,7 +4,8 @@ import { Minus, Plus } from 'lucide-react';
 
 const VARIANTES = {
   lleno: 'bg-acento text-sobre-acento',
-  tintado: 'bg-acento/15 text-acento',
+  secundario: 'bg-tarjeta text-acento border-[1.5px] border-acento',
+  tintado: 'bg-acento/10 text-acento',
   gris: 'bg-relleno text-texto',
   critico: 'bg-critico/[0.12] text-critico',
 };
@@ -12,8 +13,8 @@ const VARIANTES = {
 export function Boton({ variante = 'lleno', Icono, children, className = '', ...props }) {
   return (
     <button {...props}
-      className={`w-full min-h-[50px] rounded-[14px] px-5 t-encabezado flex items-center justify-center gap-2
-                  active:opacity-70 disabled:opacity-40 transition-opacity ${VARIANTES[variante]} ${className}`}>
+      className={`w-full min-h-[52px] rounded-xl px-5 t-encabezado flex items-center justify-center gap-2
+                  active:opacity-75 disabled:opacity-40 transition-opacity ${VARIANTES[variante]} ${className}`}>
       {Icono && <Icono className="w-5 h-5" strokeWidth={2.2} aria-hidden="true" />}
       {children}
     </button>
@@ -22,13 +23,13 @@ export function Boton({ variante = 'lleno', Icono, children, className = '', ...
 
 export function Segmentado({ opciones, valor, alCambiar, etiqueta }) {
   return (
-    <div className="flex p-[2px] rounded-[9px] bg-relleno" role="radiogroup" aria-label={etiqueta}>
+    <div className="flex p-1 rounded-xl bg-relleno" role="radiogroup" aria-label={etiqueta}>
       {opciones.map((o) => {
         const activo = o.valor === valor;
         return (
           <button key={o.valor} type="button" role="radio" aria-checked={activo} onClick={() => alCambiar(o.valor)}
-            className={`flex-1 min-h-[34px] rounded-[7px] px-2 t-sub transition-colors
-                        ${activo ? 'bg-elevado shadow-sm font-semibold text-texto' : 'text-texto/80'}`}>
+            className={`flex-1 min-h-[40px] rounded-[9px] px-2 t-sub transition-colors
+                        ${activo ? 'bg-tarjeta shadow-sm font-semibold text-acento' : 'text-secundario'}`}>
             {o.etiqueta}
           </button>
         );

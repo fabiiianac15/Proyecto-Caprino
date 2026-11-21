@@ -217,7 +217,7 @@ export default function LinealEditor() {
     <>
       <Barra titulo="Resultado" atras alVolver={volver} />
       <div className="px-4 pt-5 text-center">
-        <p className="t-sub text-secundario">{animal ? `${animal.nombre || 'Sin nombre'} · ${animal.chapetaNueva || animal.chapetaVieja || animal.codigo}` : 'Cabra sin elegir'}</p>
+        <p className="t-sub text-secundario">{animal ? `${animal.nombre ? animal.nombre + ' · ' : 'Chapeta '}${animal.chapetaNueva || animal.chapetaVieja || animal.codigo}` : 'Cabra sin elegir'}</p>
         <p className="text-[56px] leading-[60px] font-bold tabular-nums mt-1">{String(Math.round(r.puntFinal * 10) / 10).replace('.', ',')}</p>
         <p className="t-encabezado">{faltan ? `Faltan ${faltan} rasgos` : NOMBRE_CATEGORIA[r.categoria]}</p>
         <p className="t-nota text-secundario">puntos de 100</p>

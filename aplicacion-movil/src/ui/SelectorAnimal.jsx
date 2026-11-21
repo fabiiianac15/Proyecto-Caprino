@@ -15,8 +15,8 @@ export function FilaAnimal({ animal, alHacerClic, derecha }) {
     <Etiqueta onClick={alHacerClic} className="fila">
       <Chapeta codigo={codigoDe(animal)} tamano="sm" vieja={!animal.chapetaNueva && !!animal.chapetaVieja} />
       <span className="flex-1 min-w-0">
-        <span className="block t-cuerpo truncate">{animal.nombre || 'Sin nombre'}</span>
-        <span className="block t-nota text-secundario truncate">
+        {animal.nombre && <span className="block t-encabezado truncate">{animal.nombre}</span>}
+        <span className="block t-sub text-secundario truncate">
           {[animal.sexo === 'macho' ? 'Macho' : 'Hembra', animal.nombreRaza, animal.nombreCorral].filter(Boolean).join(' · ')}
         </span>
       </span>
@@ -49,10 +49,10 @@ export default function SelectorAnimal({ valor, alCambiar, soloHembras = false, 
         <span className="flex-1 flex items-center justify-end gap-2 min-w-0">
           {elegido ? (
             <>
-              <span className="t-cuerpo text-secundario truncate">{elegido.nombre}</span>
+              {elegido.nombre && <span className="t-cuerpo text-secundario truncate">{elegido.nombre}</span>}
               <Chapeta codigo={codigoDe(elegido)} tamano="sm" />
             </>
-          ) : <span className="t-cuerpo text-acento">Elegir</span>}
+          ) : <span className="t-cuerpo text-acento font-medium">Elegir</span>}
         </span>
       </button>
       <Hoja abierta={abierta} alCerrar={() => setAbierta(false)} titulo={soloHembras ? 'Elegir hembra' : 'Elegir animal'} alta>

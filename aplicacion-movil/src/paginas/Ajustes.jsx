@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Server, UploadCloud, RefreshCw, LogOut, Users } from 'lucide-react';
+import { Server, UploadCloud, RefreshCw, LogOut, Database, BookOpen } from 'lucide-react';
 import { useAuth } from '@contextos/AuthContext';
 import { useSincronizacion } from '@hooks/useSincronizacion';
 import api from '@servicios/api';
@@ -11,6 +11,7 @@ import { listarAnimales } from '@servicios/animalesAPI';
 import { refrescarCatalogos, fechaCatalogo } from '@servicios/catalogos';
 import { fechaCacheAnimales, obtenerCacheAnimales } from '@servicios/almacenamientoLocal';
 import Barra from '@/ui/Barra';
+import Estado from '@/ui/Estado';
 import { Seccion, Fila, IconoFila } from '@/ui/Lista';
 import { Boton } from '@/ui/Controles';
 import Hoja from '@/ui/Hoja';
@@ -20,11 +21,13 @@ import { haceCuanto } from '@utilidades/formato';
 
 const ROLES = { administrador_granja: 'Administrador', zootecnista: 'Zootecnista', veterinario: 'Veterinario', pasante: 'Pasante', tecnico: 'Técnico' };
 
+const iniciales = (n) => (n || '?').split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+
 export default function Ajustes() {
   const navigate = useNavigate();
   const avisos = useAvisos();
   const { usuario, logout } = useAuth();
-  const { pendientes } = useSincronizacion();
+  const { pendientes, enLinea } = useSincronizacion();
   const [servidor, setServidor] = useState(obtenerServidor());
   const [hojaServidor, setHojaServidor] = useState(false);
   const [borradorServidor, setBorradorServidor] = useState(servidor);
@@ -67,39 +70,51 @@ export default function Ajustes() {
 
   return (
     <>
-      <Barra titulo="Ajustes" grande />
+      <Barra titulo="Ajustes" grande>
+        <Estado tipo={enLinea ? 'conectado' : 'sinConexion'} sobreMarca>{enLinea ? 'Conectado al servidor' : 'Sin conexión'}</Estado>
+      </Barra>
 
-      <Seccion titulo="Cuenta" className="mt-2">
-        <Fila icono={<IconoFila Icono={Users} color="bg-[#1D5FA8]" />} titulo={usuario?.nombre || 'Usuario'}
-          sub={[usuario?.email, ROLES[usuario?.rol] || usuario?.rol].filter(Boolean).join(' · ')} />
+      <Seccion titulo="Cuenta">
+        <div className="fila">
+          <span className="w-11 h-11 rounded-full bg-acento text-sobre-acento flex items-center justify-center t-encabezado shrink-0" aria-hidden="true">
+            {iniciales(usuario?.nombre)}
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block t-encabezado truncate">{usuario?.nombre || 'Usuario'}</span>
+            <span className="block t-sub text-secundario truncate">{[ROLES[usuario?.rol] || usuario?.rol, usuario?.email].filter(Boolean).join(' · ')}</span>
+          </span>
+        </div>
       </Seccion>
 
       <Seccion titulo="Conexión" className="mt-6" pie="La app se conecta por internet, con wifi o con datos. La dirección solo se cambia si el servidor se muda.">
-        <Fila icono={<IconoFila Icono={Server} color="bg-[#6E6E73]" />} titulo="Servidor" sub={servidor.replace(/^https?:\/\//, '').replace(/\/api$/, '')}
+        <Fila icono={<IconoFila Icono={Server} tono="neutro" />} titulo="Servidor" sub={servidor.replace(/^https?:\/\//, '').replace(/\/api$/, '')}
           alHacerClic={() => { setBorradorServidor(servidor); setHojaServidor(true); }} />
-        <Fila icono={<IconoFila Icono={UploadCloud} color="bg-[#B45309]" />} titulo="Por enviar" valor={String(pendientes)}
+        <Fila icono={<IconoFila Icono={UploadCloud} tono={pendientes ? 'aviso' : 'exito'} />} titulo="Por enviar"
+          sub={pendientes ? 'Guardados en el teléfono, aún no en el servidor' : 'Todo está enviado'} valor={String(pendientes)}
           alHacerClic={() => navigate('/ajustes/pendientes')} />
       </Seccion>
 
-      <Seccion titulo="Guardado en el teléfono" className="mt-6" pie="Con estos datos la app funciona sin señal en el corral.">
-        <Fila titulo="Animales" valor={`${obtenerCacheAnimales().length} · ${haceCuanto(fechaCacheAnimales())}`} />
-        <Fila titulo="Guías de evaluación" valor={fechaCat ? haceCuanto(fechaCat) : 'sin descargar'} />
+      <Seccion titulo="Datos en el teléfono" className="mt-6" pie="Con estos datos la app funciona sin señal en el corral.">
+        <Fila icono={<IconoFila Icono={Database} tono="salvia" />} titulo="Animales"
+          sub={`Descargados ${haceCuanto(fechaCacheAnimales())}`} valor={String(obtenerCacheAnimales().length)} />
+        <Fila icono={<IconoFila Icono={BookOpen} tono="salvia" />} titulo="Guías de evaluación"
+          sub={fechaCat ? `Descargadas ${haceCuanto(fechaCat)}` : 'Sin descargar: conéctese una vez'} />
       </Seccion>
       <div className="px-4 mt-3">
-        <Boton variante="tintado" Icono={RefreshCw} onClick={actualizar} disabled={actualizando}>
+        <Boton variante="secundario" Icono={RefreshCw} onClick={actualizar} disabled={actualizando}>
           {actualizando ? 'Actualizando…' : 'Actualizar datos'}
         </Boton>
       </div>
 
-      <Seccion className="mt-8">
-        <Fila icono={<IconoFila Icono={LogOut} color="bg-[#C62828]" />} titulo="Cerrar sesión" critico flecha={false} alHacerClic={() => setSalir(true)} />
+      <Seccion titulo="Sesión" className="mt-8">
+        <Fila icono={<IconoFila Icono={LogOut} tono="critico" />} titulo="Cerrar sesión" critico flecha={false} alHacerClic={() => setSalir(true)} />
       </Seccion>
-      <p className="t-nota text-secundario text-center mt-6">Capriva 2.1 · UFPSO</p>
+      <p className="t-nota text-secundario text-center mt-6">Capriva 3.0 · UFPSO</p>
 
       <Hoja abierta={hojaServidor} alCerrar={() => setHojaServidor(false)} titulo="Servidor">
         <div className="px-4 space-y-4">
           <input className="campo" inputMode="url" autoCapitalize="none" autoCorrect="off" value={borradorServidor}
-            onChange={(e) => setBorradorServidor(e.target.value)} placeholder="3.84.187.243" aria-label="Dirección del servidor" />
+            onChange={(e) => setBorradorServidor(e.target.value)} placeholder="3.95.12.233" aria-label="Dirección del servidor" />
           <p className="t-nota text-secundario px-1">Escriba la dirección del servidor. La app completa el resto.</p>
           <Boton onClick={probar} disabled={probando}>{probando ? 'Probando…' : 'Guardar y probar'}</Boton>
         </div>

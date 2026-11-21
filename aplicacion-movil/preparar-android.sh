@@ -21,7 +21,7 @@ if 'android.permission.CAMERA' not in s:
         '    <uses-feature android:name="android.hardware.camera" android:required="false" />')
 open(p, 'w').write(s)
 PY
-sed -i 's/#FFFFFF/#1E7B45/' $R/values/ic_launcher_background.xml
+sed -i 's/#FFFFFF/#244B3A/' $R/values/ic_launcher_background.xml
 
 # Iconos y pantalla de inicio a partir de assets/ (necesita ImageMagick)
 if command -v magick >/dev/null; then

@@ -18,12 +18,12 @@ export default function Chapeta({ codigo, tamano = 'md', vieja = false, classNam
   const t = TAMANOS[tamano];
   return (
     <span
-      className={`relative inline-flex items-center rounded-[10px] rounded-l-[16px] font-mono font-bold
-                  tracking-tight text-[#1C1C1E] shadow-[inset_0_-2px_0_rgba(0,0,0,0.12)] ${t.caja} ${className}`}
-      style={{ background: vieja ? '#E5C97A' : 'rgb(var(--chapeta))' }}
+      className={`relative inline-flex items-center rounded-[10px] rounded-l-[16px] font-sans font-bold tabular-nums
+                  tracking-tight text-[#343A35] shadow-[inset_0_-2px_0_rgba(0,0,0,0.12)] ${t.caja} ${className}`}
+      style={{ background: vieja ? '#E8D3A6' : 'rgb(var(--chapeta))' }}
       aria-label={`Chapeta ${vieja ? 'vieja ' : ''}${codigo}`}
     >
-      <span className={`absolute top-1/2 -translate-y-1/2 rounded-full bg-[#1C1C1E]/35 ${t.agujero}`} aria-hidden="true" />
+      <span className={`absolute top-1/2 -translate-y-1/2 rounded-full bg-[#343A35]/35 ${t.agujero}`} aria-hidden="true" />
       {codigo}
     </span>
   );

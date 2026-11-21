@@ -74,7 +74,7 @@ export default function Registrar() {
     setGuardando(true);
     try {
       const r = await registrar(tipo, p.endpoint, p.datos, `${TITULOS[tipo]} · ${codigoDe(animal) || idAnimal}`);
-      if (r.estado === 'enviado') avisos.exito('Guardado', `${TITULOS[tipo]} de ${animal?.nombre || 'el animal'}.`);
+      if (r.estado === 'enviado') avisos.exito('Guardado', `${TITULOS[tipo]} de ${animal?.nombre || (animal?.chapetaNueva || animal?.chapetaVieja || animal?.codigo ? 'la chapeta ' + (animal.chapetaNueva || animal.chapetaVieja || animal.codigo) : 'el animal')}.`);
       else avisos.info('Guardado en el teléfono', 'Se enviará cuando haya conexión.');
       navigate(-1);
     } catch (e) {

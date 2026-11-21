@@ -14,29 +14,29 @@ const PESTANAS = [
   { ruta: '/ajustes', etiqueta: 'Ajustes', Icono: Settings },
 ];
 
-export const ALTO_PESTANAS = 56;
+export const ALTO_PESTANAS = 64;
 
 export default function Pestanas() {
   const { pendientes } = useSincronizacion();
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 vidrio border-t border-separador/60 seguro-abajo" aria-label="Secciones">
-      <div className="flex max-w-md mx-auto" style={{ height: ALTO_PESTANAS }}>
+    <nav className="fixed bottom-0 inset-x-0 z-30 bg-tarjeta border-t border-separador seguro-abajo" aria-label="Secciones">
+      <div className="flex max-w-md mx-auto px-2" style={{ height: ALTO_PESTANAS }}>
         {PESTANAS.map(({ ruta, etiqueta, Icono, exacta, insignia }) => (
           <NavLink key={ruta} to={ruta} end={exacta}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center justify-center gap-0.5 ${isActive ? 'text-acento' : 'text-secundario'} active:opacity-60`}>
+              `flex-1 flex flex-col items-center justify-center gap-1 ${isActive ? 'text-acento' : 'text-secundario'} active:opacity-60`}>
             {({ isActive }) => (
               <>
-                <span className="relative">
-                  <Icono className="w-[26px] h-[26px]" strokeWidth={isActive ? 2.4 : 1.9} fill={isActive ? 'currentColor' : 'none'} fillOpacity={isActive ? 0.16 : 0} />
+                <span className={`relative w-14 h-8 rounded-full flex items-center justify-center transition-colors ${isActive ? 'bg-exito/15' : ''}`}>
+                  <Icono className="w-[22px] h-[22px]" strokeWidth={isActive ? 2.4 : 1.9} />
                   {insignia && pendientes > 0 && (
-                    <span className="absolute -top-1 -right-2.5 min-w-[18px] h-[18px] px-1 rounded-full bg-critico text-white text-[11px] font-bold flex items-center justify-center"
+                    <span className="absolute -top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-critico text-white text-[11px] font-bold flex items-center justify-center"
                       aria-label={`${pendientes} pendientes por enviar`}>
                       {pendientes}
                     </span>
                   )}
                 </span>
-                <span className="text-[11px] leading-[13px] font-medium">{etiqueta}</span>
+                <span className={`text-[12px] leading-[14px] ${isActive ? 'font-semibold' : 'font-medium'}`}>{etiqueta}</span>
               </>
             )}
           </NavLink>

@@ -2,32 +2,46 @@
 
 Basado en las Human Interface Guidelines de Apple (skill apple-design). La app es la libreta de campo del hato: registrar rápido en el corral, con una mano, a pleno sol y muchas veces sin señal.
 
-## Colores (contraste medido, WCAG)
+## Dirección visual: Nature Tech (rediseño de noviembre de 2026)
 
-| Rol | Claro | Oscuro | Contraste |
-|-----|-------|--------|-----------|
-| Fondo agrupado | `#F2F2F7` | `#000000` | |
-| Tarjeta / fila | `#FFFFFF` | `#1C1C1E` | |
-| Texto principal | `#1C1C1E` | `#FFFFFF` | |
-| Texto secundario | `#6E6E73` | `#AEAEB2` | 4,54:1 sobre fondo agrupado; 7,69:1 en oscuro |
-| Acento (acciones) | `#1E7B45` | `#4ADE80` | blanco sobre acento 5,28:1 (el verde web `#16A34A` da 3,30:1 y no alcanza); texto `#0B1F12` sobre acento oscuro 9,89:1 |
-| Crítico | `#C62828` | `#FF6B6B` | blanco 5,62:1 |
-| Aviso | `#B45309` | `#FF9F0A` | 5,02:1 / 8,28:1 |
-| Chapeta (firma) | `#F5C518` | `#F5C518` | texto `#1C1C1E` 10,44:1 |
+Sigue `documentacion/Capriva_Guia_Redisenio_UI_UX.pdf`. Archivo de Figma con variables, estilos de texto,
+componentes y las pantallas de referencia: «Capriva — Rediseño app móvil (Nature Tech)».
 
-Sin interruptor de tema propio: sigue al sistema (`dark-mode.md`).
+### Colores (contraste medido, WCAG)
 
-## Tipografía
+| Rol | Claro | Oscuro | Uso / contraste |
+|-----|-------|--------|-----------------|
+| Fondo | `#F6F4ED` fondo cálido | `#141815` | |
+| Tarjeta | `#FFFFFF` | `#1F2521` | radio 16 px, sombra verde suave |
+| Texto | `#343A35` carbón | `#ECE9E0` | 10,9:1 sobre el fondo |
+| Texto secundario | `#5E655E` | `#ACB2A6` | 5,6:1 sobre el fondo |
+| Marca (encabezados) | `#244B3A` verde bosque | `#1B362A` | texto blanco 10:1 |
+| Acento (botones, selección) | `#244B3A` | `#8CBA92` | en oscuro el verde bosque no se lee: se usa salvia claro con texto oscuro |
+| Marfil (rellenos) | `#E8E4D8` | `#2C342E` | |
+| Salvia / Ocre | `#78966B` / `#D7A85C` | | ocre = chapeta, texto carbón 5,4:1 |
+| Éxito / Aviso / Crítico / Info | `#2E7D4F` / `#8A5A10` / `#B3261E` / `#1D5FA8` | versiones claras | fondo del mismo color al 15 % |
 
-Fuente del sistema (`-apple-system`, Roboto en Android). Escala: título grande 34 bold, título 22 semibold, encabezado 17 semibold, cuerpo 17, subtítulo 15, nota 13, mínimo 12. Sin pesos light.
+Regla: el verde bosque se reserva para los encabezados; textos, botones y selección usan el rol
+`acento`, que se aclara en modo oscuro. El tema sigue al del teléfono.
+
+### Tipografía
+
+Manrope (títulos, cifras) e Inter (texto, formularios), incluidas en la app con `@fontsource`
+(funcionan sin internet). Escala: título 30 bold, cifra 32 extrabold, título de pantalla 22,
+sección 17 semibold, cuerpo 16, subtítulo 14, nota 13.
+
+### Estados
+
+Etiqueta `ui/Estado.jsx`: siempre ícono + texto (Conectado, Sin conexión, Pendiente, Error, Info).
+"Guardado en el teléfono" y "enviado" se distinguen siempre.
 
 ## Elemento de firma
 
-La **chapeta**: cada código de animal se muestra como una chapeta de oreja amarilla con el código en negro monoespaciado, igual a las que se usan en el corral (doble chapeta nueva/vieja).
+La **chapeta**: cada código de animal se muestra como una chapeta de oreja ocre con el código en carbón. Si la cabra no tiene nombre, solo se ve la chapeta, igual a las que se usan en el corral (doble chapeta nueva/vieja).
 
 ## Navegación
 
-Barra de pestañas inferior con desenfoque (único lugar con efecto de vidrio, más la barra superior): **Inicio · Rebaño · Evaluar · Ajustes**. El badge de pendientes de sincronizar va en Inicio. El botón atrás de Android navega hacia atrás y en las pestañas raíz sale de la app.
+Barra de pestañas inferior blanca con la pestaña activa en una píldora verde: **Inicio · Rebaño · Evaluar · Ajustes**. El badge de pendientes de sincronizar va en Inicio. El botón atrás de Android navega hacia atrás y en las pestañas raíz sale de la app.
 
 ## Pantallas
 

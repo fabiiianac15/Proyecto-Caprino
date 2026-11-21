@@ -1,7 +1,7 @@
-/** Ficha del animal con los registros que se le pueden hacer. */
+/** Ficha del animal: identidad, datos básicos y los registros que se le pueden hacer. */
 
 import { useNavigate, useParams } from 'react-router-dom';
-import { Ruler, Tag } from 'lucide-react';
+import { Ruler, Tag, ChevronLeft } from 'lucide-react';
 import { obtenerCacheAnimales } from '@servicios/almacenamientoLocal';
 import { nuevaLineal } from '@servicios/evaluaciones';
 import Barra from '@/ui/Barra';
@@ -32,39 +32,50 @@ export default function Animal() {
     navigate(`/lineal/${b.id}`);
   };
 
+  // "—" = dato que falta; las filas que no aplican (p. ej. estado productivo en machos) no se muestran
+  const faltante = <span className="text-terciario">Sin registrar</span>;
+
   return (
     <>
-      <Barra titulo={animal.nombre || 'Animal'} atras />
+      <header className="bg-marca text-sobre-marca rounded-b-[24px] seguro-arriba mb-4">
+        <div className="px-2 pt-1">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-0.5 min-h-[44px] pr-3 active:opacity-60" aria-label="Atrás">
+            <ChevronLeft className="w-6 h-6" strokeWidth={2.4} />
+            <span className="t-cuerpo font-medium">Rebaño</span>
+          </button>
+        </div>
+        <div className="px-5 pb-5 pt-1">
+          <Chapeta codigo={codigoDe(animal)} tamano="lg" vieja={!animal.chapetaNueva && !!animal.chapetaVieja} />
+          {animal.nombre && <h1 className="t-grande mt-3">{animal.nombre}</h1>}
+          <p className={`t-sub text-sobre-marca/85 ${animal.nombre ? 'mt-0.5' : 'mt-3'}`}>
+            {[hembra ? 'Hembra' : 'Macho', animal.nombreRaza, edadTexto(animal.fechaNacimiento)].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+      </header>
 
-      <div className="px-4 pt-5 pb-2 text-center">
-        <Chapeta codigo={codigoDe(animal)} tamano="lg" />
-        <h2 className="t-titulo mt-3">{animal.nombre || 'Sin nombre'}</h2>
-        <p className="t-sub text-secundario">
-          {[hembra ? 'Hembra' : 'Macho', animal.nombreRaza, edadTexto(animal.fechaNacimiento)].filter(Boolean).join(' · ')}
-        </p>
-      </div>
-
-      <Seccion titulo="Registrar" className="mt-4">
+      <Seccion titulo="Registrar">
         {registros.map((r) => (
-          <Fila key={r.tipo} icono={<IconoFila Icono={r.Icono} color={r.color} />} titulo={r.titulo}
+          <Fila key={r.tipo} icono={<IconoFila Icono={r.Icono} tono={r.tono} />} titulo={r.titulo} sub={r.sub}
             alHacerClic={() => navigate(`/registrar/${r.tipo}?animal=${animal.id}`)} />
         ))}
         {hembra && (
-          <Fila icono={<IconoFila Icono={Ruler} color="bg-[#5B4BC4]" />} titulo="Clasificación lineal"
+          <Fila icono={<IconoFila Icono={Ruler} tono="salvia" />} titulo="Clasificación lineal"
             sub="Calificar el cuerpo y la ubre, con fotos" alHacerClic={clasificar} />
         )}
       </Seccion>
 
-      <Seccion titulo="Datos" className="mt-6">
+      <Seccion titulo="Información" className="mt-6">
         {animal.chapetaNueva && <Fila titulo="Chapeta nueva" valor={animal.chapetaNueva} />}
         {animal.chapetaVieja && <Fila titulo="Chapeta vieja" valor={animal.chapetaVieja} />}
-        {animal.codigo && <Fila titulo="Código" valor={animal.codigo} />}
-        {animal.nombreCorral && <Fila titulo="Corral" valor={animal.nombreCorral} />}
-        {hembra && animal.estadoProductivo && (
-          <Fila titulo="Estado productivo" valor={ESTADOS_PRODUCTIVOS[animal.estadoProductivo] || animal.estadoProductivo} />
+        <Fila titulo="Nombre" valor={animal.nombre || faltante} />
+        <Fila titulo="Raza" valor={animal.nombreRaza || faltante} />
+        <Fila titulo="Nacimiento" valor={animal.fechaNacimiento ? fechaCorta(animal.fechaNacimiento) : faltante} />
+        <Fila titulo="Corral" valor={animal.nombreCorral || faltante} />
+        {hembra && (
+          <Fila titulo="Estado productivo" valor={ESTADOS_PRODUCTIVOS[animal.estadoProductivo] || animal.estadoProductivo || faltante} />
         )}
-        {animal.fechaNacimiento && <Fila titulo="Nacimiento" valor={fechaCorta(animal.fechaNacimiento)} />}
       </Seccion>
+      <p className="t-nota text-secundario px-5 mt-2">El historial completo (salud, partos, producción y genealogía) está en la web, en el expediente del animal.</p>
     </>
   );
 }
