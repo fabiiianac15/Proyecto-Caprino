@@ -41,6 +41,9 @@ const cuerpoLineal = (b) => ({
   numLactancia: b.numLactancia !== '' && b.numLactancia != null ? Number(b.numLactancia) : null,
   observaciones: b.observaciones || null,
   detalle: Object.entries(b.valores).map(([idRasgo, calificacion]) => ({ idRasgo: Number(idRasgo), calificacion })),
+  medidas: Object.entries(b.medidas || {})
+    .filter(([, m]) => Number(m?.valor) > 0)
+    .map(([codigo, m]) => ({ codigo, valor: Number(m.valor), metodo: m.metodo === 'FOTO' ? 'FOTO' : 'INSTRUMENTO' })),
 });
 
 /** Lista de fotos por subir: [{ clave, campos }] */
@@ -48,7 +51,17 @@ const fotosPorSubir = (b) => {
   const subidas = new Set(b.fotosSubidas || []);
   let lista;
   if (b.tipo === 'lineal') {
-    lista = Object.entries(b.fotos || {}).filter(([, c]) => c).map(([vista, clave]) => ({ clave, campos: { tipoVista: vista } }));
+    lista = [
+      ...Object.entries(b.fotos || {}).filter(([, c]) => c).map(([vista, clave]) => ({ clave, campos: { tipoVista: vista } })),
+      // Fotos donde se midió (con la vara de referencia): vista MEDICION
+      ...(b.fotosMedicion || []).map((clave) => ({
+        clave,
+        campos: {
+          tipoVista: 'MEDICION',
+          descripcion: Object.entries(b.medidas || {}).filter(([, m]) => m?.foto === clave).map(([c, m]) => `${c} ${m.valor} cm`).join(', ').slice(0, 190) || 'Foto de medición',
+        },
+      })),
+    ];
   } else {
     lista = [
       ...(b.fotosGenerales || []).map((clave) => ({ clave, campos: {} })),

@@ -18,6 +18,8 @@ if 'android.permission.CAMERA' not in s:
         '<uses-permission android:name="android.permission.INTERNET" />',
         '<uses-permission android:name="android.permission.INTERNET" />\n'
         '    <uses-permission android:name="android.permission.CAMERA" />\n'
+        '    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n'
+        '    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />\n'
         '    <uses-feature android:name="android.hardware.camera" android:required="false" />')
 open(p, 'w').write(s)
 PY

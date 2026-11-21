@@ -62,10 +62,10 @@ export function GaleriaFotos({ claves = [], alCambiar, maximo = 6 }) {
   const [visor, setVisor] = useState(null);
   const [tomando, setTomando] = useState(false);
 
-  const agregar = async () => {
+  const agregar = async (origen = 'camara') => {
     setTomando(true);
     try {
-      const blob = await tomarFoto('camara');
+      const blob = await tomarFoto(origen);
       if (blob) alCambiar([...claves, await guardarFoto(blob)]);
     } catch (e) {
       avisos.error('No se tomó la foto', e.message);
@@ -76,16 +76,23 @@ export function GaleriaFotos({ claves = [], alCambiar, maximo = 6 }) {
 
   return (
     <>
-      <div className="flex gap-3 overflow-x-auto py-2 -mx-1 px-1">
+      <div className="flex gap-3 overflow-x-auto sin-barra py-2 -mx-1 px-1">
         {claves.map((c) => (
           <Miniatura key={c} clave={c} alVer={setVisor} alQuitar={() => alCambiar(claves.filter((x) => x !== c))} />
         ))}
         {claves.length < maximo && (
-          <button type="button" onClick={agregar} disabled={tomando}
-            className="w-[76px] h-[76px] shrink-0 rounded-xl bg-acento/[0.12] text-acento flex flex-col items-center justify-center gap-1 active:opacity-60 disabled:opacity-40">
-            <Camera className="w-6 h-6" />
-            <span className="t-mini font-semibold">{tomando ? 'Abriendo…' : 'Tomar foto'}</span>
-          </button>
+          <>
+            <button type="button" onClick={() => agregar('camara')} disabled={tomando}
+              className="w-[76px] h-[76px] shrink-0 rounded-xl bg-acento/[0.12] text-acento flex flex-col items-center justify-center gap-1 active:opacity-60 disabled:opacity-40">
+              <Camera className="w-6 h-6" />
+              <span className="t-mini font-semibold">{tomando ? 'Abriendo…' : 'Cámara'}</span>
+            </button>
+            <button type="button" onClick={() => agregar('galeria')} disabled={tomando}
+              className="w-[76px] h-[76px] shrink-0 rounded-xl bg-relleno text-texto flex flex-col items-center justify-center gap-1 active:opacity-60 disabled:opacity-40">
+              <IconoImagen className="w-6 h-6" />
+              <span className="t-mini font-semibold">Galería</span>
+            </button>
+          </>
         )}
       </div>
       <Visor url={visor} alCerrar={() => setVisor(null)} />

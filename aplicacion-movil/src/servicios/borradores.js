@@ -34,7 +34,7 @@ export const nuevoId = () => `b-${Date.now()}-${Math.random().toString(36).slice
 /** Todas las claves de foto que usa un borrador. */
 export const fotosDeBorrador = (b) => {
   if (!b) return [];
-  if (b.tipo === 'lineal') return Object.values(b.fotos || {}).filter(Boolean);
+  if (b.tipo === 'lineal') return [...Object.values(b.fotos || {}).filter(Boolean), ...(b.fotosMedicion || [])];
   return [
     ...(b.fotosGenerales || []),
     ...Object.values(b.valores || {}).flatMap((v) => v.fotos || []),

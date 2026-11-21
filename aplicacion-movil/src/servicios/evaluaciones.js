@@ -79,6 +79,9 @@ export const VISTAS = [
   { clave: 'UBRE_LAT', etiqueta: 'Ubre de lado', ayuda: 'De cerca, la ubre vista de lado.' },
   { clave: 'PATAS', etiqueta: 'Patas', ayuda: 'Las patas de atrás, parada en piso plano.' },
 ];
+// Las vistas se toman a 2-3 m, celular horizontal, a la altura de la barriga y sin zoom,
+// con el bastón parado junto a la cabra (sirve de referencia para comparar y para medir).
+
 
 export const NIVEL = { 1: 'Bajo', 2: 'Intermedio', 3: 'Alto' };
 export const NOMBRE_CATEGORIA = { EXCELENTE: 'Excelente', MUY_BUENO: 'Muy bueno', BUENO: 'Bueno', ACEPTABLE: 'Aceptable', REGULAR: 'Regular', POBRE: 'Pobre' };
@@ -89,4 +92,18 @@ export const CON_DIBUJO = new Set(['ANCPEC', 'ANGUL', 'ANGRU', 'ANCHGRU', 'PTVL'
 export const nuevaLineal = (animal = null, edadMeses = '') => guardarBorrador({
   id: nuevoId(), tipo: 'lineal', idAnimal: animal?.id ?? '', fechaEvaluacion: hoy(),
   edadMeses, numLactancia: '', observaciones: '', valores: {}, fotos: {}, paso: 0,
+  // medidas: { CODIGO: { valor, metodo: 'INSTRUMENTO'|'FOTO', foto? } }
+  medidas: {}, fotosMedicion: [], calibraciones: {},
 });
+
+// Medidas que se pueden estimar en una foto: distancias rectas en un plano.
+// Los perímetros (cinta alrededor del cuerpo) y el peso no salen de una foto.
+export const MEDIBLES_EN_FOTO = new Set([
+  'ALZ_CRUZ', 'ALZ_GRUPA', 'LONG_CORP', 'PROF_PECHO', 'ANCH_PECHO', 'ANCH_GRUPA', 'LONG_GRUPA',
+  'UBRE_PISO', 'LONG_PEZON', 'DIAM_PEZON', 'DIST_PEZONES',
+]);
+export const GRUPOS_MEDIDA = [
+  { clave: 'CUERPO', titulo: 'Cuerpo', ayuda: 'Bastón zoométrico, cinta métrica y compás.' },
+  { clave: 'UBRE', titulo: 'Ubre y pezones', ayuda: 'Cinta, regla y calibrador. Mejor antes del ordeño.' },
+  { clave: 'PESO', titulo: 'Peso', ayuda: 'Báscula.' },
+];

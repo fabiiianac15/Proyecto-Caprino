@@ -102,3 +102,21 @@ export const calcularLineal = (catalogo, valores) => {
   const puntFinal = Math.round(Object.values(subtotales).reduce((a, b) => a + b, 0) * 100) / 100;
   return { subtotales, puntFinal, categoria: categoriaLineal(puntFinal), calificados, total: catalogo.length };
 };
+
+/**
+ * Índices zoométricos (mismas fórmulas que ClasificacionLinealService del
+ * servidor). `m` = { CODIGO: valor en cm }. Solo los que tienen sus dos medidas.
+ */
+const INDICES = [
+  ['CORPORAL', 'Índice corporal', 'LONG_CORP', 'PER_TOR', (v) => (v < 86 ? 'Brevilínea (corta y ancha)' : v < 90 ? 'Mesolínea (proporcionada)' : 'Longilínea (larga, típico lechero)')],
+  ['PROPORCION', 'Proporcionalidad', 'ALZ_CRUZ', 'LONG_CORP', (v) => (v < 100 ? 'Más larga que alta' : 'Más alta que larga')],
+  ['TORACICO', 'Índice torácico', 'ANCH_PECHO', 'PROF_PECHO', (v) => (v < 50 ? 'Pecho estrecho y profundo' : v < 65 ? 'Pecho intermedio' : 'Pecho ancho')],
+  ['PELVIANO', 'Índice pelviano', 'ANCH_GRUPA', 'LONG_GRUPA', (v) => (v < 100 ? 'Grupa más larga que ancha' : 'Grupa más ancha que larga')],
+  ['PROF_RELATIVA', 'Profundidad relativa', 'PROF_PECHO', 'ALZ_CRUZ', (v) => (v < 45 ? 'Poca capacidad corporal' : v < 50 ? 'Capacidad media' : 'Buena capacidad corporal')],
+];
+export const indicesLineal = (m) => INDICES.flatMap(([codigo, nombre, a, b, lectura]) => {
+  const x = Number(m[a]); const y = Number(m[b]);
+  if (!(x > 0) || !(y > 0)) return [];
+  const valor = Math.round((x / y) * 1000) / 10;
+  return [{ codigo, nombre, valor, lectura: lectura(valor) }];
+});

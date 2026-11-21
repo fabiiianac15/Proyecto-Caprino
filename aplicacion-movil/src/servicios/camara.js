@@ -40,12 +40,12 @@ const reducir = (origen) =>
     img.src = origen;
   });
 
-const desdeArchivo = () =>
+const desdeArchivo = (origen = 'camara') =>
   new Promise((resolver) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.capture = 'environment';
+    if (origen === 'camara') input.capture = 'environment';
     input.onchange = () => {
       const archivo = input.files?.[0];
       if (!archivo) return resolver(null);
@@ -60,7 +60,7 @@ const desdeArchivo = () =>
  * @returns {Promise<Blob|null>} null si la persona cancela
  */
 export const tomarFoto = async (origen = 'camara') => {
-  if (!Capacitor.isNativePlatform()) return desdeArchivo();
+  if (!Capacitor.isNativePlatform()) return desdeArchivo(origen);
 
   const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
   try {
