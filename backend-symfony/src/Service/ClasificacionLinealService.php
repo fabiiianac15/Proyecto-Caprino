@@ -75,6 +75,37 @@ class ClasificacionLinealService
     }
 
     /**
+     * Índices zoométricos a partir de las medidas tomadas con instrumento.
+     * Solo se calculan los que tienen sus dos medidas.
+     *
+     * @param array<string,float> $m  valor por código de medida (cm)
+     * @return array<int,array{codigo:string,nombre:string,valor:float,formula:string,lectura:string}>
+     */
+    public function indices(array $m): array
+    {
+        $def = [
+            ['CORPORAL', 'Índice corporal', 'LONG_CORP', 'PER_TOR', 'Longitud corporal ÷ perímetro torácico × 100',
+                fn($v) => $v < 86 ? 'Brevilínea (cuerpo corto y ancho)' : ($v < 90 ? 'Mesolínea (proporcionada)' : 'Longilínea (cuerpo largo, típico lechero)')],
+            ['PROPORCION', 'Índice de proporcionalidad', 'ALZ_CRUZ', 'LONG_CORP', 'Alzada a la cruz ÷ longitud corporal × 100',
+                fn($v) => $v < 100 ? 'Más larga que alta (rectangular)' : 'Más alta que larga'],
+            ['TORACICO', 'Índice torácico', 'ANCH_PECHO', 'PROF_PECHO', 'Ancho del pecho ÷ profundidad del pecho × 100',
+                fn($v) => $v < 50 ? 'Pecho estrecho y profundo' : ($v < 65 ? 'Pecho intermedio' : 'Pecho ancho')],
+            ['PELVIANO', 'Índice pelviano', 'ANCH_GRUPA', 'LONG_GRUPA', 'Ancho de grupa ÷ largo de grupa × 100',
+                fn($v) => $v < 100 ? 'Grupa más larga que ancha' : 'Grupa más ancha que larga (favorece el parto)'],
+            ['PROF_RELATIVA', 'Profundidad relativa del pecho', 'PROF_PECHO', 'ALZ_CRUZ', 'Profundidad del pecho ÷ alzada a la cruz × 100',
+                fn($v) => $v < 45 ? 'Poca capacidad corporal' : ($v < 50 ? 'Capacidad media' : 'Buena capacidad corporal')],
+        ];
+        $out = [];
+        foreach ($def as [$cod, $nombre, $a, $b, $formula, $lectura]) {
+            if (!empty($m[$a]) && !empty($m[$b])) {
+                $v = round($m[$a] / $m[$b] * 100, 1);
+                $out[] = ['codigo' => $cod, 'nombre' => $nombre, 'valor' => $v, 'formula' => $formula, 'lectura' => $lectura($v)];
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Categoría según la calificación final (Cedeño et al. 2024).
      * <60 POBRE | 60-69 REGULAR | 70-79 ACEPTABLE | 80-84 BUENO |
      * 85-89 MUY_BUENO | >=90 EXCELENTE

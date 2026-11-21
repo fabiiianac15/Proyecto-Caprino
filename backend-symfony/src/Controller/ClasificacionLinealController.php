@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/clasificacion-lineal')]
 class ClasificacionLinealController extends AbstractController
 {
-    private const VISTAS = ['FRONTAL', 'LATERAL', 'POSTERIOR', 'UBRE_POST', 'UBRE_LAT', 'PATAS'];
+    private const VISTAS = ['FRONTAL', 'LATERAL', 'POSTERIOR', 'UBRE_POST', 'UBRE_LAT', 'PATAS', 'MEDICION'];
 
     public function __construct(
         private Connection                 $connection,
@@ -34,7 +34,7 @@ class ClasificacionLinealController extends AbstractController
     }
 
     // ------------------------------------------------------------------
-    // Catálogo de rasgos
+    // Catálogo de rasgos (y de medidas, en "medidas")
     // ------------------------------------------------------------------
     #[Route('/catalogo', name: 'api_clasif_catalogo', methods: ['GET'])]
     public function catalogo(): JsonResponse
@@ -46,20 +46,29 @@ class ClasificacionLinealController extends AbstractController
         );
         $porRegion = array_count_values(array_column($rows, 'REGION'));
 
-        return $this->json(['data' => array_map(fn($r) => [
-            'idRasgo'   => (int) $r['ID_RASGO'],
-            'codigo'    => $r['CODIGO'],
-            'nombre'    => $r['NOMBRE'],
-            'region'    => $r['REGION'],
-            'ptsRegion' => (float) $r['PTS_REGION'],
-            'ptsRasgo'  => $r['PTS_RASGO'] !== null
-                ? (float) $r['PTS_RASGO']
-                : (float) $r['PTS_REGION'] / $porRegion[$r['REGION']],
-            'orden'     => (int) $r['ORDEN'],
-            'vista'     => $r['VISTA'],
-            'queMirar'  => $r['QUE_MIRAR'],
-            'niveles'   => [1 => $r['DESC_1'], 2 => $r['DESC_2'], 3 => $r['DESC_3']],
-        ], $rows)]);
+        return $this->json([
+            'data' => array_map(fn($r) => [
+                'idRasgo'   => (int) $r['ID_RASGO'],
+                'codigo'    => $r['CODIGO'],
+                'nombre'    => $r['NOMBRE'],
+                'region'    => $r['REGION'],
+                'ptsRegion' => (float) $r['PTS_REGION'],
+                'ptsRasgo'  => $r['PTS_RASGO'] !== null
+                    ? (float) $r['PTS_RASGO']
+                    : (float) $r['PTS_REGION'] / $porRegion[$r['REGION']],
+                'orden'     => (int) $r['ORDEN'],
+                'vista'     => $r['VISTA'],
+                'queMirar'  => $r['QUE_MIRAR'],
+                'niveles'   => [1 => $r['DESC_1'], 2 => $r['DESC_2'], 3 => $r['DESC_3']],
+            ], $rows),
+            'medidas' => $this->catalogoMedidas(),
+        ]);
+    }
+
+    #[Route('/medidas/catalogo', name: 'api_clasif_medidas_catalogo', methods: ['GET'])]
+    public function medidasCatalogo(): JsonResponse
+    {
+        return $this->json(['data' => $this->catalogoMedidas()]);
     }
 
     // ------------------------------------------------------------------
@@ -70,25 +79,29 @@ class ClasificacionLinealController extends AbstractController
     {
         $idAnimal = $request->query->get('idAnimal');
         $sql = "SELECT e.id_evaluacion, e.id_animal, a.nombre AS nombre_animal,
-                       a.codigo_identificacion, e.fecha_evaluacion, e.punt_final, e.categoria
+                       a.codigo_identificacion, e.fecha_evaluacion, e.punt_final, e.categoria,
+                       (SELECT COUNT(*) FROM EVAL_LINEAL_FOTO f WHERE f.id_evaluacion = e.id_evaluacion) AS num_fotos,
+                       (SELECT COUNT(*) FROM EVAL_LINEAL_MEDIDA m WHERE m.id_evaluacion = e.id_evaluacion) AS num_medidas
                   FROM EVALUACION_LINEAL e JOIN ANIMAL a ON e.id_animal = a.id_animal";
         $params = [];
         if ($idAnimal) {
             $sql .= ' WHERE e.id_animal = :ia';
             $params['ia'] = (int) $idAnimal;
         }
-        $sql .= ' ORDER BY e.fecha_evaluacion DESC';
+        $sql .= ' ORDER BY e.fecha_evaluacion DESC, e.id_evaluacion DESC';
 
         $rows = $this->connection->fetchAllAssociative($sql, $params);
 
         return $this->json(['data' => array_map(fn($r) => [
             'id'              => (int) $r['ID_EVALUACION'],
             'idAnimal'        => (int) $r['ID_ANIMAL'],
-            'nombreAnimal'    => $r['NOMBRE_ANIMAL'],
+            'nombreAnimal'    => $this->nombreVisible($r['NOMBRE_ANIMAL']),
             'codigoAnimal'    => $r['CODIGO_IDENTIFICACION'],
             'fechaEvaluacion' => $r['FECHA_EVALUACION'],
             'puntFinal'       => $r['PUNT_FINAL'] !== null ? (float) $r['PUNT_FINAL'] : null,
             'categoria'       => $r['CATEGORIA'],
+            'numFotos'        => (int) $r['NUM_FOTOS'],
+            'numMedidas'      => (int) $r['NUM_MEDIDAS'],
         ], $rows), 'total' => count($rows)]);
     }
 
@@ -123,11 +136,21 @@ class ClasificacionLinealController extends AbstractController
                FROM EVAL_LINEAL_FOTO WHERE id_evaluacion = :id ORDER BY id_foto",
             ['id' => $id]
         );
+        $medidas = $this->connection->fetchAllAssociative(
+            "SELECT c.id_medida, c.codigo, c.nombre, c.grupo, c.unidad, c.min_normal, c.max_normal, m.valor
+               FROM EVAL_LINEAL_MEDIDA m JOIN CLASIF_MEDIDA_CAT c ON m.id_medida = c.id_medida
+              WHERE m.id_evaluacion = :id ORDER BY c.orden",
+            ['id' => $id]
+        );
+        $porCodigo = [];
+        foreach ($medidas as $m) {
+            $porCodigo[$m['CODIGO']] = (float) $m['VALOR'];
+        }
 
         return $this->json(['data' => [
             'id'              => (int) $cab['ID_EVALUACION'],
             'idAnimal'        => (int) $cab['ID_ANIMAL'],
-            'nombreAnimal'    => $cab['NOMBRE_ANIMAL'],
+            'nombreAnimal'    => $this->nombreVisible($cab['NOMBRE_ANIMAL']),
             'codigoAnimal'    => $cab['CODIGO_IDENTIFICACION'],
             'fechaEvaluacion' => $cab['FECHA_EVALUACION'],
             'edadMeses'       => $cab['EDAD_MESES'] !== null ? (int) $cab['EDAD_MESES'] : null,
@@ -150,6 +173,17 @@ class ClasificacionLinealController extends AbstractController
                 'observacion'  => $r['OBSERVACION'],
                 'nivelTexto'   => $r['DESC_' . (int) $r['CALIFICACION']] ?? null,
             ], $det),
+            'medidas'         => array_map(fn($r) => [
+                'idMedida'  => (int) $r['ID_MEDIDA'],
+                'codigo'    => $r['CODIGO'],
+                'nombre'    => $r['NOMBRE'],
+                'grupo'     => $r['GRUPO'],
+                'unidad'    => $r['UNIDAD'],
+                'valor'     => (float) $r['VALOR'],
+                'fueraRango' => ($r['MIN_NORMAL'] !== null && (float) $r['VALOR'] < (float) $r['MIN_NORMAL'])
+                             || ($r['MAX_NORMAL'] !== null && (float) $r['VALOR'] > (float) $r['MAX_NORMAL']),
+            ], $medidas),
+            'indices'         => $this->clasificacion->indices($porCodigo),
             'fotos'           => array_map(fn($r) => [
                 'idFoto'      => (int) $r['ID_FOTO'],
                 'tipoVista'   => $r['TIPO_VISTA'],
@@ -165,47 +199,11 @@ class ClasificacionLinealController extends AbstractController
     #[Route('', name: 'api_clasif_create', methods: ['POST'])]
     public function create(Request $request): JsonResponse
     {
-        $data      = json_decode($request->getContent(), true) ?? [];
-        $idAnimal  = $data['idAnimal'] ?? null;
-        $fecha     = $data['fechaEvaluacion'] ?? date('Y-m-d');
-        $edad      = $data['edadMeses'] ?? null;
-        $lact      = $data['numLactancia'] ?? null;
-        $obs       = $data['observaciones'] ?? null;
-        $detalleIn = $data['detalle'] ?? [];
-
-        if (!$idAnimal) {
-            return $this->json(['error' => 'idAnimal es requerido'], Response::HTTP_BAD_REQUEST);
+        $in = $this->leerPayload($request);
+        if (isset($in['error'])) {
+            return $this->json(['error' => $in['error']], Response::HTTP_BAD_REQUEST);
         }
-        if (!is_array($detalleIn) || count($detalleIn) === 0) {
-            return $this->json(['error' => 'Debe enviar el detalle de rasgos'], Response::HTTP_BAD_REQUEST);
-        }
-
-        // Catálogo indexado por id de rasgo.
-        $catalogo = [];
-        foreach ($this->connection->fetchAllAssociative(
-            'SELECT id_rasgo, region, pts_region, pts_rasgo FROM CLASIF_RASGO_CAT'
-        ) as $r) {
-            $catalogo[(int) $r['ID_RASGO']] = [
-                'region'    => $r['REGION'],
-                'ptsRegion' => (float) $r['PTS_REGION'],
-                'ptsRasgo'  => $r['PTS_RASGO'] !== null ? (float) $r['PTS_RASGO'] : null,
-            ];
-        }
-
-        $detalles = [];
-        foreach ($detalleIn as $d) {
-            $idRasgo = (int) ($d['idRasgo'] ?? 0);
-            $cal     = (int) ($d['calificacion'] ?? 0);
-            if (!isset($catalogo[$idRasgo])) {
-                return $this->json(['error' => "Rasgo inválido: {$idRasgo}"], Response::HTTP_BAD_REQUEST);
-            }
-            if (!in_array($cal, [1, 2, 3], true)) {
-                return $this->json(['error' => 'calificacion debe ser 1, 2 o 3'], Response::HTTP_BAD_REQUEST);
-            }
-            $detalles[] = ['idRasgo' => $idRasgo, 'calificacion' => $cal, 'observacion' => $d['observacion'] ?? null];
-        }
-
-        $r = $this->clasificacion->calcular($detalles, $catalogo);
+        $r = $this->clasificacion->calcular($in['detalles'], $in['catalogo']);
 
         $user = $this->getUser();
         $uReg = $user instanceof User ? $user->getId() : 1;
@@ -219,36 +217,19 @@ class ClasificacionLinealController extends AbstractController
                     punt_final, categoria, observaciones, usuario_registro)
                  VALUES (:ia, TO_DATE(:fec,'YYYY-MM-DD'), :ed, :lc,
                     :pap, :pes, :pma, :ppa, :pf, :cat, :obs, :ur)",
-                [
-                    'ia' => (int) $idAnimal, 'fec' => $fecha, 'ed' => $edad, 'lc' => $lact,
-                    'pap' => $r['subtotales']['APARIENCIA'], 'pes' => $r['subtotales']['ESTRUCTURA'],
-                    'pma' => $r['subtotales']['MAMARIO'], 'ppa' => $r['subtotales']['PATAS'],
-                    'pf' => $r['puntFinal'], 'cat' => $r['categoria'], 'obs' => $obs, 'ur' => $uReg,
-                ]
+                $this->paramsCabecera($in, $r) + ['ia' => $in['idAnimal'], 'ur' => $uReg]
             );
             $idEval = (int) $this->connection->fetchOne(
                 "SELECT id_evaluacion FROM EVALUACION_LINEAL
                   WHERE usuario_registro = :ur ORDER BY id_evaluacion DESC FETCH FIRST 1 ROWS ONLY",
                 ['ur' => $uReg]
             );
-
-            foreach ($detalles as $d) {
-                $this->connection->executeStatement(
-                    "INSERT INTO EVAL_LINEAL_DETALLE (id_evaluacion, id_rasgo, calificacion, puntaje, observacion)
-                     VALUES (:ie, :ir, :cal, :pun, :ob)",
-                    [
-                        'ie' => $idEval, 'ir' => $d['idRasgo'], 'cal' => $d['calificacion'],
-                        'pun' => $r['puntajes'][$d['idRasgo']] ?? 0, 'ob' => $d['observacion'],
-                    ]
-                );
-            }
-
+            $this->insertarDetalle($idEval, $in['detalles'], $r);
+            $this->insertarMedidas($idEval, $in['medidas']);
             $this->connection->commit();
         } catch (\Doctrine\DBAL\Exception $e) {
             $this->connection->rollBack();
-            $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
-            preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $m);
-            return $this->json(['error' => trim($m[1] ?? $msg)], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->errorOracle($e);
         }
 
         try {
@@ -256,7 +237,7 @@ class ClasificacionLinealController extends AbstractController
                 tabla: 'EVALUACION_LINEAL',
                 operacion: 'CREAR',
                 idRegistro: $idEval,
-                descripcion: "Clasificación lineal {$r['categoria']} ({$r['puntFinal']} pts) animal ID {$idAnimal}",
+                descripcion: "Clasificación lineal {$r['categoria']} ({$r['puntFinal']} pts) animal ID {$in['idAnimal']}",
             );
         } catch (\Throwable) {}
 
@@ -265,6 +246,59 @@ class ClasificacionLinealController extends AbstractController
             'message' => 'Clasificación lineal registrada',
             'data'    => ['idEvaluacion' => $idEval] + $r,
         ], Response::HTTP_CREATED);
+    }
+
+    // ------------------------------------------------------------------
+    // Editar evaluación (rasgos, medidas y datos; las fotos se conservan)
+    // ------------------------------------------------------------------
+    #[Route('/{id}', name: 'api_clasif_update', methods: ['PUT'], requirements: ['id' => '\d+'])]
+    public function update(int $id, Request $request): JsonResponse
+    {
+        if (!$this->connection->fetchOne('SELECT 1 FROM EVALUACION_LINEAL WHERE id_evaluacion = :id', ['id' => $id])) {
+            return $this->json(['error' => 'Evaluación no encontrada'], Response::HTTP_NOT_FOUND);
+        }
+        $in = $this->leerPayload($request);
+        if (isset($in['error'])) {
+            return $this->json(['error' => $in['error']], Response::HTTP_BAD_REQUEST);
+        }
+        $r = $this->clasificacion->calcular($in['detalles'], $in['catalogo']);
+
+        $this->connection->beginTransaction();
+        try {
+            $this->connection->executeStatement(
+                "UPDATE EVALUACION_LINEAL SET
+                    id_animal = :ia, fecha_evaluacion = TO_DATE(:fec,'YYYY-MM-DD'),
+                    edad_meses = :ed, num_lactancia = :lc,
+                    punt_apariencia = :pap, punt_estructura = :pes, punt_mamario = :pma, punt_patas = :ppa,
+                    punt_final = :pf, categoria = :cat, observaciones = :obs,
+                    fecha_modificacion = CURRENT_TIMESTAMP
+                  WHERE id_evaluacion = :id",
+                $this->paramsCabecera($in, $r) + ['ia' => $in['idAnimal'], 'id' => $id]
+            );
+            $this->connection->executeStatement('DELETE FROM EVAL_LINEAL_DETALLE WHERE id_evaluacion = :id', ['id' => $id]);
+            $this->connection->executeStatement('DELETE FROM EVAL_LINEAL_MEDIDA WHERE id_evaluacion = :id', ['id' => $id]);
+            $this->insertarDetalle($id, $in['detalles'], $r);
+            $this->insertarMedidas($id, $in['medidas']);
+            $this->connection->commit();
+        } catch (\Doctrine\DBAL\Exception $e) {
+            $this->connection->rollBack();
+            return $this->errorOracle($e);
+        }
+
+        try {
+            $this->auditoria->registrar(
+                tabla: 'EVALUACION_LINEAL',
+                operacion: 'ACTUALIZAR',
+                idRegistro: $id,
+                descripcion: "Clasificación lineal {$r['categoria']} ({$r['puntFinal']} pts) animal ID {$in['idAnimal']}",
+            );
+        } catch (\Throwable) {}
+
+        return $this->json([
+            'success' => true,
+            'message' => 'Clasificación lineal actualizada',
+            'data'    => ['idEvaluacion' => $id] + $r,
+        ]);
     }
 
     // ------------------------------------------------------------------
@@ -310,7 +344,7 @@ class ClasificacionLinealController extends AbstractController
         $this->connection->executeStatement(
             "INSERT INTO EVAL_LINEAL_FOTO (id_evaluacion, tipo_vista, ruta_archivo, descripcion)
              VALUES (:ie, :tv, :ruta, :desc)",
-            ['ie' => $id, 'tv' => $tipoVista, 'ruta' => $rutaRel, 'desc' => $descripcion]
+            ['ie' => $id, 'tv' => $tipoVista, 'ruta' => $rutaRel, 'desc' => $descripcion ? mb_substr((string) $descripcion, 0, 200) : null]
         );
         $idFoto = (int) $this->connection->fetchOne(
             "SELECT id_foto FROM EVAL_LINEAL_FOTO WHERE id_evaluacion = :ie ORDER BY id_foto DESC FETCH FIRST 1 ROWS ONLY",
@@ -341,9 +375,23 @@ class ClasificacionLinealController extends AbstractController
         return new BinaryFileResponse($abs);
     }
 
+    #[Route('/foto/{idFoto}', name: 'api_clasif_foto_delete', methods: ['DELETE'], requirements: ['idFoto' => '\d+'])]
+    public function eliminarFoto(int $idFoto): JsonResponse
+    {
+        $ruta = $this->connection->fetchOne('SELECT ruta_archivo FROM EVAL_LINEAL_FOTO WHERE id_foto = :id', ['id' => $idFoto]);
+        if (!$ruta) {
+            return $this->json(['error' => 'Foto no encontrada'], Response::HTTP_NOT_FOUND);
+        }
+        $this->connection->executeStatement('DELETE FROM EVAL_LINEAL_FOTO WHERE id_foto = :id', ['id' => $idFoto]);
+        $abs = $this->uploadsDir() . '/' . $ruta;
+        if (is_file($abs)) { @unlink($abs); }
+
+        return $this->json(['success' => true]);
+    }
+
     // ------------------------------------------------------------------
-    // Eliminar evaluación (detalle y fotos caen por ON DELETE CASCADE;
-    // los archivos en disco se borran explícitamente)
+    // Eliminar evaluación (detalle, medidas y fotos caen por ON DELETE
+    // CASCADE; los archivos en disco se borran explícitamente)
     // ------------------------------------------------------------------
     #[Route('/{id}', name: 'api_clasif_delete', methods: ['DELETE'], requirements: ['id' => '\d+'])]
     public function delete(int $id): JsonResponse
@@ -352,15 +400,199 @@ class ClasificacionLinealController extends AbstractController
             'SELECT ruta_archivo FROM EVAL_LINEAL_FOTO WHERE id_evaluacion = :id', ['id' => $id]
         );
         try {
-            $this->connection->executeStatement('DELETE FROM EVALUACION_LINEAL WHERE id_evaluacion = :id', ['id' => $id]);
+            $n = $this->connection->executeStatement('DELETE FROM EVALUACION_LINEAL WHERE id_evaluacion = :id', ['id' => $id]);
         } catch (\Throwable) {
             return $this->json(['error' => 'Error al eliminar la evaluación.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+        if ($n === 0) {
+            return $this->json(['error' => 'Evaluación no encontrada'], Response::HTTP_NOT_FOUND);
         }
         foreach ($rutas as $ruta) {
             $abs = $this->uploadsDir() . '/' . $ruta;
             if (is_file($abs)) { @unlink($abs); }
         }
+        @rmdir($this->uploadsDir() . '/lineal/' . $id);
+
+        try {
+            $this->auditoria->registrar(tabla: 'EVALUACION_LINEAL', operacion: 'ELIMINAR', idRegistro: $id,
+                descripcion: "Clasificación lineal eliminada");
+        } catch (\Throwable) {}
 
         return $this->json(['success' => true, 'message' => 'Evaluación eliminada']);
+    }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+
+    /** Lee y valida el cuerpo de create/update. Devuelve ['error' => ...] si no es válido. */
+    private function leerPayload(Request $request): array
+    {
+        $data      = json_decode($request->getContent(), true) ?? [];
+        $idAnimal  = (int) ($data['idAnimal'] ?? 0);
+        $fecha     = $data['fechaEvaluacion'] ?? date('Y-m-d');
+        $detalleIn = $data['detalle'] ?? [];
+        $medidasIn = $data['medidas'] ?? [];
+
+        if (!$idAnimal) {
+            return ['error' => 'Elige la cabra que se va a evaluar'];
+        }
+        $animal = $this->connection->fetchAssociative('SELECT sexo FROM ANIMAL WHERE id_animal = :id', ['id' => $idAnimal]);
+        if (!$animal) {
+            return ['error' => 'La cabra elegida no existe'];
+        }
+        if (strtolower((string) $animal['SEXO']) !== 'hembra') {
+            return ['error' => 'La clasificación lineal se hace solo a hembras'];
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $fecha)) {
+            return ['error' => 'Fecha inválida (use AAAA-MM-DD)'];
+        }
+        if ($fecha > date('Y-m-d', strtotime('+1 day'))) {
+            return ['error' => 'La fecha de evaluación no puede ser futura'];
+        }
+        if (!is_array($detalleIn) || count($detalleIn) === 0) {
+            return ['error' => 'Debe enviar el detalle de rasgos'];
+        }
+
+        $catalogo = [];
+        $nombres  = [];
+        foreach ($this->connection->fetchAllAssociative(
+            'SELECT id_rasgo, nombre, region, pts_region, pts_rasgo FROM CLASIF_RASGO_CAT'
+        ) as $r) {
+            $catalogo[(int) $r['ID_RASGO']] = [
+                'region'    => $r['REGION'],
+                'ptsRegion' => (float) $r['PTS_REGION'],
+                'ptsRasgo'  => $r['PTS_RASGO'] !== null ? (float) $r['PTS_RASGO'] : null,
+            ];
+            $nombres[(int) $r['ID_RASGO']] = $r['NOMBRE'];
+        }
+
+        $detalles = [];
+        foreach ($detalleIn as $d) {
+            $idRasgo = (int) ($d['idRasgo'] ?? 0);
+            $cal     = (int) ($d['calificacion'] ?? 0);
+            if (!isset($catalogo[$idRasgo])) {
+                return ['error' => "Rasgo inválido: {$idRasgo}"];
+            }
+            if (!in_array($cal, [1, 2, 3], true)) {
+                return ['error' => "Califique «{$nombres[$idRasgo]}» con 1, 2 o 3"];
+            }
+            $detalles[$idRasgo] = [
+                'idRasgo' => $idRasgo, 'calificacion' => $cal,
+                'observacion' => isset($d['observacion']) ? mb_substr((string) $d['observacion'], 0, 500) : null,
+            ];
+        }
+        $faltan = array_diff_key($nombres, $detalles);
+        if ($faltan) {
+            return ['error' => 'Faltan rasgos por calificar: ' . implode(', ', $faltan)];
+        }
+
+        // Medidas: opcionales; se aceptan como lista [{codigo|idMedida, valor}] o mapa {codigo: valor}
+        $catMed = [];
+        foreach ($this->connection->fetchAllAssociative('SELECT id_medida, codigo, nombre FROM CLASIF_MEDIDA_CAT') as $m) {
+            $catMed[$m['CODIGO']] = ['id' => (int) $m['ID_MEDIDA'], 'nombre' => $m['NOMBRE']];
+        }
+        $porId = array_column($catMed, null, 'id');
+        if (is_array($medidasIn) && !array_is_list($medidasIn)) {
+            $medidasIn = array_map(fn($k, $v) => ['codigo' => $k, 'valor' => $v], array_keys($medidasIn), $medidasIn);
+        }
+        $medidas = [];
+        foreach ((array) $medidasIn as $m) {
+            $valor = $m['valor'] ?? null;
+            if ($valor === null || $valor === '') {
+                continue;
+            }
+            $cod = $m['codigo'] ?? null;
+            $idM = $cod !== null ? ($catMed[$cod]['id'] ?? null) : (isset($porId[(int) ($m['idMedida'] ?? 0)]) ? (int) $m['idMedida'] : null);
+            if (!$idM) {
+                return ['error' => 'Medida inválida: ' . ($cod ?? ($m['idMedida'] ?? '?'))];
+            }
+            $v = is_string($valor) ? (float) str_replace(',', '.', $valor) : (float) $valor;
+            if ($v <= 0 || $v >= 300) {
+                return ['error' => "El valor de «{$porId[$idM]['nombre']}» no es válido"];
+            }
+            $medidas[$idM] = round($v, 2);
+        }
+
+        return [
+            'idAnimal' => $idAnimal,
+            'fecha'    => $fecha,
+            'edad'     => isset($data['edadMeses']) && $data['edadMeses'] !== '' ? max(0, (int) $data['edadMeses']) : null,
+            'lact'     => isset($data['numLactancia']) && $data['numLactancia'] !== '' ? max(0, (int) $data['numLactancia']) : null,
+            'obs'      => $data['observaciones'] ?? null,
+            'detalles' => array_values($detalles),
+            'catalogo' => $catalogo,
+            'medidas'  => $medidas,
+        ];
+    }
+
+    private function paramsCabecera(array $in, array $r): array
+    {
+        return [
+            'fec' => $in['fecha'], 'ed' => $in['edad'], 'lc' => $in['lact'],
+            'pap' => $r['subtotales']['APARIENCIA'], 'pes' => $r['subtotales']['ESTRUCTURA'],
+            'pma' => $r['subtotales']['MAMARIO'], 'ppa' => $r['subtotales']['PATAS'],
+            'pf' => $r['puntFinal'], 'cat' => $r['categoria'], 'obs' => $in['obs'],
+        ];
+    }
+
+    private function insertarDetalle(int $idEval, array $detalles, array $r): void
+    {
+        foreach ($detalles as $d) {
+            $this->connection->executeStatement(
+                "INSERT INTO EVAL_LINEAL_DETALLE (id_evaluacion, id_rasgo, calificacion, puntaje, observacion)
+                 VALUES (:ie, :ir, :cal, :pun, :ob)",
+                [
+                    'ie' => $idEval, 'ir' => $d['idRasgo'], 'cal' => $d['calificacion'],
+                    'pun' => $r['puntajes'][$d['idRasgo']] ?? 0, 'ob' => $d['observacion'],
+                ]
+            );
+        }
+    }
+
+    private function insertarMedidas(int $idEval, array $medidas): void
+    {
+        foreach ($medidas as $idM => $valor) {
+            $this->connection->executeStatement(
+                'INSERT INTO EVAL_LINEAL_MEDIDA (id_evaluacion, id_medida, valor) VALUES (:ie, :im, :v)',
+                ['ie' => $idEval, 'im' => $idM, 'v' => $valor]
+            );
+        }
+    }
+
+    private function catalogoMedidas(): array
+    {
+        $num = fn($v) => $v !== null ? (float) $v : null;
+        return array_map(fn($r) => [
+            'idMedida'    => (int) $r['ID_MEDIDA'],
+            'codigo'      => $r['CODIGO'],
+            'nombre'      => $r['NOMBRE'],
+            'grupo'       => $r['GRUPO'],
+            'unidad'      => $r['UNIDAD'],
+            'instrumento' => $r['INSTRUMENTO'],
+            'comoMedir'   => $r['COMO_MEDIR'],
+            'minNormal'   => $num($r['MIN_NORMAL']),
+            'maxNormal'   => $num($r['MAX_NORMAL']),
+            'rasgoRel'    => $r['RASGO_REL'],
+            'orden'       => (int) $r['ORDEN'],
+        ], $this->connection->fetchAllAssociative(
+            'SELECT id_medida, codigo, nombre, grupo, unidad, instrumento, como_medir,
+                    min_normal, max_normal, rasgo_rel, orden
+               FROM CLASIF_MEDIDA_CAT ORDER BY orden'
+        ));
+    }
+
+    /** Las cabras sin nombre se registraron con "." o "-": se tratan como sin nombre. */
+    private function nombreVisible(?string $n): ?string
+    {
+        $n = trim((string) $n);
+        return ($n === '' || preg_match('/^[.\-_ ]+$/', $n)) ? null : $n;
+    }
+
+    private function errorOracle(\Doctrine\DBAL\Exception $e): JsonResponse
+    {
+        $msg = $e->getPrevious()?->getMessage() ?? $e->getMessage();
+        preg_match('/ORA-\d+:\s*(.*?)(?:\nORA-|\z)/s', $msg, $m);
+        return $this->json(['error' => trim($m[1] ?? $msg)], Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 }
