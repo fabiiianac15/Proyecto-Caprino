@@ -147,6 +147,17 @@ def _formatear_predicciones(evaluacion: dict) -> str:
     return "\n".join(lineas) or "- Sin predicciones disponibles."
 
 
+def _ident(a: dict | None) -> str:
+    """Cómo nombrar un animal en el texto: «Lupe (chapeta 47 U)» o solo «chapeta 0164»
+    cuando no tiene nombre (muchas cabras se reconocen solo por la chapeta)."""
+    a = a or {}
+    nombre = (a.get("nombre") or "").strip()
+    codigo = a.get("codigo") or "?"
+    if not nombre or set(nombre) <= set(".-_ "):
+        return f"chapeta {codigo}"
+    return f"{nombre} (chapeta {codigo})"
+
+
 def construir_prompt_evaluacion(evaluacion: dict, animales: dict | None = None) -> str:
     animales = animales or {}
     macho = animales.get("macho", {})
@@ -154,8 +165,7 @@ def construir_prompt_evaluacion(evaluacion: dict, animales: dict | None = None) 
     encabezado = ""
     if macho or hembra:
         encabezado = (
-            f"Cruce evaluado: macho {macho.get('nombre','?')} ({macho.get('codigo','?')}) "
-            f"× hembra {hembra.get('nombre','?')} ({hembra.get('codigo','?')}).\n\n"
+            f"Cruce evaluado: macho {_ident(macho)} × hembra {_ident(hembra)}.\n\n"
         )
 
     return f"""INFORME DE EVALUACIÓN (única fuente de verdad):
@@ -254,8 +264,8 @@ async def generar_evaluacion_stream(
             "temperature": 0.4,
             "top_p": 0.9,
             "repeat_penalty": 1.1,
-            "num_predict": 1300,
-            "num_ctx": 8192,
+            "num_predict": int(os.getenv("OLLAMA_NUM_PREDICT", "900")),
+            "num_ctx": int(os.getenv("OLLAMA_NUM_CTX", "4096")),
             "seed": random.randint(1, 1_000_000),
         },
     }
@@ -385,8 +395,7 @@ bloques de código (nada de ```). {cierre}"""
 
 def construir_prompt_ranking(animal_base: dict, ranking: list[dict]) -> str:
     base = (
-        f"{animal_base.get('nombre') or 's/ nombre'} "
-        f"({animal_base.get('codigo') or 's/ código'}), "
+        f"{_ident(animal_base)}, "
         f"{animal_base.get('sexo', '')}, raza {animal_base.get('raza') or 'desconocida'}"
     )
     lineas = []
@@ -404,7 +413,7 @@ def construir_prompt_ranking(animal_base: dict, ranking: list[dict]) -> str:
         if r.get("disponible") is False:
             extra += " (NO disponible ahora)"
         lineas.append(
-            f"{i}. {c.get('nombre') or 's/ nombre'} ({c.get('codigo') or 's/ código'}), "
+            f"{i}. {_ident(c)}, "
             f"raza {c.get('raza') or 'desconocida'}: score {r.get('score')}/100, "
             f"clasificación «{r.get('clasificacion')}»{coi_txt}{extra}"
         )

@@ -130,8 +130,11 @@ class Rebano:
         x = self.info(a)
         if not x:
             return "desconocido"
-        nombre = x.get("nombre") or "sin nombre"
-        return f"{nombre} ({x.get('codigo') or a})"
+        nombre = (x.get("nombre") or "").strip()
+        codigo = x.get("codigo") or a
+        if not nombre or set(nombre) <= set(".-_ "):
+            return f"chapeta {codigo}"
+        return f"{nombre} ({codigo})"
 
     # ------------------------------------------------------------------
     # Genética (se calcula una vez por instantánea)
