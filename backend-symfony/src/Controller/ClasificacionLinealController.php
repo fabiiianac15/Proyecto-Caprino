@@ -137,7 +137,7 @@ class ClasificacionLinealController extends AbstractController
             ['id' => $id]
         );
         $medidas = $this->connection->fetchAllAssociative(
-            "SELECT c.id_medida, c.codigo, c.nombre, c.grupo, c.unidad, c.min_normal, c.max_normal, m.valor
+            "SELECT c.id_medida, c.codigo, c.nombre, c.grupo, c.unidad, c.min_normal, c.max_normal, m.valor, m.metodo
                FROM EVAL_LINEAL_MEDIDA m JOIN CLASIF_MEDIDA_CAT c ON m.id_medida = c.id_medida
               WHERE m.id_evaluacion = :id ORDER BY c.orden",
             ['id' => $id]
@@ -180,6 +180,7 @@ class ClasificacionLinealController extends AbstractController
                 'grupo'     => $r['GRUPO'],
                 'unidad'    => $r['UNIDAD'],
                 'valor'     => (float) $r['VALOR'],
+                'metodo'    => $r['METODO'] ?? 'INSTRUMENTO',
                 'fueraRango' => ($r['MIN_NORMAL'] !== null && (float) $r['VALOR'] < (float) $r['MIN_NORMAL'])
                              || ($r['MAX_NORMAL'] !== null && (float) $r['VALOR'] > (float) $r['MAX_NORMAL']),
             ], $medidas),
@@ -511,7 +512,8 @@ class ClasificacionLinealController extends AbstractController
             if ($v <= 0 || $v >= 300) {
                 return ['error' => "El valor de «{$porId[$idM]['nombre']}» no es válido"];
             }
-            $medidas[$idM] = round($v, 2);
+            $metodo = strtoupper((string) ($m['metodo'] ?? 'INSTRUMENTO')) === 'FOTO' ? 'FOTO' : 'INSTRUMENTO';
+            $medidas[$idM] = ['valor' => round($v, 2), 'metodo' => $metodo];
         }
 
         return [
@@ -552,10 +554,10 @@ class ClasificacionLinealController extends AbstractController
 
     private function insertarMedidas(int $idEval, array $medidas): void
     {
-        foreach ($medidas as $idM => $valor) {
+        foreach ($medidas as $idM => $m) {
             $this->connection->executeStatement(
-                'INSERT INTO EVAL_LINEAL_MEDIDA (id_evaluacion, id_medida, valor) VALUES (:ie, :im, :v)',
-                ['ie' => $idEval, 'im' => $idM, 'v' => $valor]
+                'INSERT INTO EVAL_LINEAL_MEDIDA (id_evaluacion, id_medida, valor, metodo) VALUES (:ie, :im, :v, :me)',
+                ['ie' => $idEval, 'im' => $idM, 'v' => $m['valor'], 'me' => $m['metodo']]
             );
         }
     }
