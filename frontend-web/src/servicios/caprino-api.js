@@ -1,4 +1,5 @@
 // API Base Configuration
+import { reducirImagen } from '../utilidades/imagenes';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 // Mock data flag - change to false when backend is ready
@@ -769,7 +770,7 @@ export const bienestarAPI = {
   // Foto de evidencia; idIndicador null = foto general de la visita
   subirFoto: async (id, file, idIndicador = null, descripcion = '') => {
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', await reducirImagen(file));
     if (idIndicador) fd.append('idIndicador', idIndicador);
     if (descripcion) fd.append('descripcion', descripcion);
     const token = getAuthToken();
@@ -796,6 +797,13 @@ export const clasificacionLinealAPI = {
     const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/catalogo`);
     const data = await handleResponse(response);
     return data.data || [];
+  },
+
+  // Rasgos y medidas en una sola llamada
+  getCatalogoCompleto: async () => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/catalogo`);
+    const data = await handleResponse(response);
+    return { rasgos: data.data || [], medidas: data.medidas || [] };
   },
 
   getByAnimal: async (idAnimal) => {
@@ -827,7 +835,7 @@ export const clasificacionLinealAPI = {
   // Subida multipart: NO usar apiFetch (forzaría Content-Type JSON).
   subirFoto: async (id, file, tipoVista, descripcion = '') => {
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', await reducirImagen(file));
     fd.append('tipoVista', tipoVista);
     if (descripcion) fd.append('descripcion', descripcion);
     const token = getAuthToken();
@@ -839,8 +847,21 @@ export const clasificacionLinealAPI = {
     return await handleResponse(response);
   },
 
+  update: async (id, datos) => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(datos),
+    });
+    return await handleResponse(response);
+  },
+
   // URL absoluta de una foto (incluye token para que el backend la sirva).
   urlFoto: (idFoto) => `${API_BASE_URL}/clasificacion-lineal/foto/${idFoto}`,
+
+  eliminarFoto: async (idFoto) => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/foto/${idFoto}`, { method: 'DELETE' });
+    return await handleResponse(response);
+  },
 
   delete: async (id) => {
     const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/${id}`, { method: 'DELETE' });

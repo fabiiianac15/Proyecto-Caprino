@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Heart, Plus, ArrowLeft, RefreshCw, Trash2, Eye, FileText, Edit2, Camera, X, ImageOff,
-  Droplets, PawPrint, ClipboardList, CheckCircle, AlertTriangle, Sparkles, ChevronDown, Users, Save, Info,
+  Droplets, PawPrint, ClipboardList, CheckCircle, AlertTriangle, Sparkles, ChevronDown, Users, Save, Info, Image as ImageIcon,
 } from 'lucide-react';
 import { bienestarAPI } from '../servicios/caprino-api';
 
@@ -147,7 +147,7 @@ const FotoProtegida = ({ idFoto, alt, className = 'w-20 h-20', onClick }) => {
 };
 
 // Fotos guardadas + pendientes de subir, con botón de cámara/galería
-const GaleriaFotos = ({ guardadas = [], pendientes = [], onAgregar, onQuitarPendiente, onEliminarGuardada, onVer, etiqueta = 'Foto' }) => (
+const GaleriaFotos = ({ guardadas = [], pendientes = [], onAgregar, onQuitarPendiente, onEliminarGuardada, onVer }) => (
   <div className="flex items-center gap-2 flex-wrap">
     {guardadas.map((f) => (
       <div key={f.idFoto} className="relative group">
@@ -170,12 +170,20 @@ const GaleriaFotos = ({ guardadas = [], pendientes = [], onAgregar, onQuitarPend
       </div>
     ))}
     {onAgregar && (
-      <label className="w-16 h-16 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 cursor-pointer text-[10px]">
-        <Camera className="w-4 h-4" />
-        {etiqueta}
-        <input type="file" accept="image/*" capture="environment" multiple className="hidden"
-          onChange={(e) => { onAgregar(Array.from(e.target.files || [])); e.target.value = ''; }} />
-      </label>
+      <>
+        <label className="w-16 h-16 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 cursor-pointer text-[10px]">
+          <Camera className="w-4 h-4" />
+          Cámara
+          <input type="file" accept="image/*" capture="environment" className="hidden"
+            onChange={(e) => { onAgregar(Array.from(e.target.files || [])); e.target.value = ''; }} />
+        </label>
+        <label className="w-16 h-16 border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-emerald-400 hover:text-emerald-600 cursor-pointer text-[10px]">
+          <ImageIcon className="w-4 h-4" />
+          Galería
+          <input type="file" accept="image/*" multiple className="hidden"
+            onChange={(e) => { onAgregar(Array.from(e.target.files || [])); e.target.value = ''; }} />
+        </label>
+      </>
     )}
   </div>
 );
@@ -371,6 +379,7 @@ const ModuloBienestar = () => {
       };
       const r = idEditando ? await bienestarAPI.update(idEditando, payload) : await bienestarAPI.create(payload);
       const id = idEditando || r.data?.idEvaluacion;
+      setIdEditando(id); // si algo falla después, un nuevo intento actualiza en vez de duplicar
 
       // Subir las fotos pendientes (por indicador y generales)
       const cola = [
@@ -380,9 +389,13 @@ const ModuloBienestar = () => {
       let fallidas = 0;
       for (let i = 0; i < cola.length; i++) {
         setGuardando(`Subiendo fotos ${i + 1} de ${cola.length}…`);
-        try { await bienestarAPI.subirFoto(id, cola[i].file, cola[i].idInd); }
+        try { await bienestarAPI.subirFoto(id, cola[i].file, cola[i].idInd); cola[i].ok = true; }
         catch { fallidas += 1; }
       }
+      // Lo que subió ya no queda pendiente (evita subirlo dos veces al reintentar)
+      const subidas = new Set(cola.filter((c) => c.ok).map((c) => c.file));
+      setFotosGenerales((p) => p.filter((x) => !subidas.has(x.file)));
+      setValores((vs) => Object.fromEntries(Object.entries(vs).map(([k, v]) => [k, { ...v, pendientes: (v.pendientes || []).filter((x) => !subidas.has(x.file)) }])));
 
       await cargarLista();
       const d = await bienestarAPI.getById(id);
@@ -399,14 +412,14 @@ const ModuloBienestar = () => {
       const d = await bienestarAPI.getById(id);
       setDetalle(d);
       setVista('detalle');
-    } catch (e) { console.error(e); }
+    } catch (e) { setError(e.message || 'No se pudo abrir la evaluación'); }
     finally { setCargando(false); }
   };
 
   const eliminar = async (id) => {
     if (!window.confirm('¿Eliminar esta evaluación de bienestar y sus fotos?')) return;
     try { await bienestarAPI.delete(id); await cargarLista(); }
-    catch (e) { alert(e.message); }
+    catch (e) { setError(e.message || 'No se pudo eliminar'); }
   };
 
   // ---------------- LISTA ----------------
