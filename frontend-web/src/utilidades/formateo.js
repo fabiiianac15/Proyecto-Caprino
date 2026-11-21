@@ -226,3 +226,20 @@ export const capitalizarPrimeraLetra = (texto) => {
   if (!texto) return '';
   return texto.charAt(0).toUpperCase() + texto.slice(1).toLowerCase();
 };
+
+// ── Identificación de animales ─────────────────────────────────────────────
+// Muchas cabras no tienen nombre: se reconocen por el número de la chapeta.
+// Los registros viejos guardaron "." o "-" como nombre; se tratan como vacíos.
+export const nombreValido = (n) => {
+  const t = (n ?? '').toString().trim();
+  return t && !/^[.\-_ ]+$/.test(t) ? t : null;
+};
+
+export const chapetaPrincipal = (a) =>
+  a?.chapetaNueva || a?.chapetaVieja || a?.codigo || a?.codigoIdentificacion || a?.identificacion || '';
+
+// "250 — Lupe" o solo "250" si no tiene nombre
+export const etiquetaAnimal = (codigo, nombre) => {
+  const n = nombreValido(nombre);
+  return n ? `${codigo || ''} — ${n}` : (codigo || '');
+};

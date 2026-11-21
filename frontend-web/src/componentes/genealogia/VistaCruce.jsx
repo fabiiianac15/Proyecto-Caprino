@@ -9,6 +9,7 @@ import {
   pct, signo, edadTexto, hoyISO, cfgClasificacion, colorScore, barraScore, PillConfianza,
   BadgeClasificacion, IconoSexo, AnalisisIA, Tarjeta, FAVOR, CONTRA,
 } from './comun';
+import { nombreValido, etiquetaAnimal } from '../../utilidades/formateo';
 
 const ICONO_DIM = {
   parto_exitoso: Baby, consanguinidad: Link2, merito_lechero: Milk, fertilidad: Heart,
@@ -64,7 +65,7 @@ const SlotAnimal = ({ sexo, animal, fijo, opciones, onElegir }) => {
               <button key={a.id} onClick={() => { onElegir(a); setAbierto(false); setQ(''); }}
                 className="w-full text-left px-3 py-2 rounded-lg hover:bg-teal-50 flex items-center gap-2.5">
                 <IconoSexo sexo={a.sexo} className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-sm text-gray-700 truncate"><b>{a.codigo}</b> — {a.nombre || 'sin nombre'}</span>
+                <span className="text-sm text-gray-700 truncate"><b>{a.codigo}</b>{nombreValido(a.nombre) ? ` — ${nombreValido(a.nombre)}` : ''}</span>
                 <span className="ml-auto text-[11px] text-gray-400 shrink-0">{a.nombreRaza || a.raza}</span>
               </button>
             ))}

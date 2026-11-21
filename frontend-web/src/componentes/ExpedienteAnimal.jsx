@@ -14,6 +14,7 @@ import { FormularioSalud } from './ModuloSalud';
 import { FormularioPeso } from './ModuloPeso';
 import { FormMonta } from './ModuloReproduccion';
 import { ESTADOS_PRODUCTIVOS } from '../utilidades/formateo';
+import { nombreValido, chapetaPrincipal, etiquetaAnimal } from '../utilidades/formateo';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -480,7 +481,7 @@ const NodoGen = ({ animal: nodo, rol, color }) => {
     <div className={`border-2 ${color.border} ${color.bg} rounded-xl p-3 min-w-[140px]`}>
       <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded text-white ${color.badge} mb-1.5 block w-fit`}>{rol}</span>
       <p className={`text-xs font-bold ${color.text}`}>{nodo.codigo}</p>
-      <p className="text-xs text-gray-600 truncate">{nodo.nombre}</p>
+      {nombreValido(nodo.nombre) && <p className="text-xs text-gray-600 truncate">{nombreValido(nodo.nombre)}</p>}
       {nodo.raza && <p className="text-[10px] text-gray-400 truncate">{nodo.raza || ''}</p>}
     </div>
   );
@@ -536,7 +537,7 @@ const TabGenealogia = ({ animal }) => {
           <div className="border-2 border-teal-400 bg-teal-50 rounded-xl p-4 min-w-[160px] text-center">
             <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded text-white bg-teal-500 mb-1.5 block w-fit mx-auto">Animal</span>
             <p className="text-sm font-bold text-teal-800">{animal.codigo}</p>
-            <p className="text-xs text-gray-600">{animal.nombre}</p>
+            {nombreValido(animal.nombre) && <p className="text-xs text-gray-600">{nombreValido(animal.nombre)}</p>}
           </div>
           {(!padre && !madre) && (
             <p className="text-sm text-gray-400 text-center mt-2">
@@ -941,7 +942,7 @@ const ExpedienteAnimal = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">{animal.nombre || <span className="text-gray-400 italic font-normal">Sin nombre</span>}</h1>
+                <h1 className="text-2xl font-bold text-gray-800">{nombreValido(animal.nombre) || <span className="font-mono"><span className="text-sm font-sans font-medium text-gray-400 uppercase tracking-wide mr-2">Chapeta</span>{chapetaPrincipal(animal)}</span>}</h1>
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {animal.chapetaNueva && (
                     <span className="text-xs font-mono bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded">Nueva: {animal.chapetaNueva}</span>

@@ -5,6 +5,7 @@ import {
 import { apiHelpers } from '../../servicios/api';
 import ArbolHorizontal from './ArbolHorizontal';
 import { IconoSexo, edadTexto } from './comun';
+import { nombreValido, etiquetaAnimal } from '../../utilidades/formateo';
 
 // Nombre del ancestro según su posición respecto al animal principal
 const NOMBRE_NIVEL = { 1: ['Padre', 'Madre'], 2: ['Abuelo', 'Abuela'], 3: ['Bisabuelo', 'Bisabuela'] };
@@ -50,7 +51,7 @@ const ModalVincular = ({ titulo, sexo, allAnimals, excluirIds, onSeleccionar, on
                 <IconoSexo sexo={a.sexo} />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-800 truncate">{a.codigo} — {a.nombre || 'sin nombre'}</p>
+                <p className="text-sm font-semibold text-gray-800 truncate">{etiquetaAnimal(a.codigo, a.nombre)}</p>
                 <p className="text-xs text-gray-400">{a.nombreRaza || a.raza || 'raza sin registrar'} · {a.estado}</p>
               </div>
             </button>

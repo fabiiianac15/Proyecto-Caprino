@@ -9,6 +9,7 @@ import {
 import SelectPersonalizado from './SelectPersonalizado';
 import { animalesAPI, razasAPI, corralesAPI } from '../servicios/caprino-api';
 import { ESTADOS_PRODUCTIVOS } from '../utilidades/formateo';
+import { nombreValido } from '../utilidades/formateo';
 
 // ── Estilos base ─────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const [formData, setFormData] = useState({
     chapetaNueva: cabraEditar?.chapetaNueva || '',
     chapetaVieja: cabraEditar?.chapetaVieja || cabraEditar?.codigo || cabraEditar?.identificacion || '',
-    nombre: cabraEditar?.nombre || '',
+    nombre: nombreValido(cabraEditar?.nombre) || '',
     sexo: cabraEditar?.sexo || '',
     raza: cabraEditar?.idRaza || cabraEditar?.raza || '',
     fechaNacimiento: cabraEditar?.fechaNacimiento || '',
@@ -182,7 +183,6 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
     if (!formData.chapetaNueva.trim() && !formData.chapetaVieja.trim()) {
       errs.chapetas = 'Debe registrar al menos una chapeta (nueva o vieja)';
     }
-    if (!formData.nombre.trim())    errs.nombre = 'El nombre es obligatorio';
     if (!formData.sexo)             errs.sexo = 'Selecciona el sexo';
     if (!formData.raza)             errs.raza = 'Selecciona la raza';
     // La fecha de nacimiento es opcional: hay cabras viejas sin fecha conocida.
@@ -191,7 +191,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
     }
     setErrores(errs);
     if (Object.keys(errs).length > 0) {
-      if (errs.chapetas || errs.nombre || errs.sexo || errs.raza) setSeccionAbierta('identidad');
+      if (errs.chapetas || errs.sexo || errs.raza) setSeccionAbierta('identidad');
       else if (errs.motivoEstado) setSeccionAbierta('estado');
       return false;
     }
@@ -223,7 +223,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
         identificacion: chapetaNueva || chapetaVieja,
         chapetaNueva: chapetaNueva || null,
         chapetaVieja: chapetaVieja || null,
-        nombre: formData.nombre,
+        nombre: formData.nombre.trim() || null,
         sexo: formData.sexo,
         fechaNacimiento: formData.fechaNacimiento || null,
         razaId: formData.raza,
@@ -348,8 +348,8 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
             {/* 1 — Identidad básica */}
             <Seccion id="identidad" titulo="Identidad básica" icono={<Tag className="w-4 h-4" />}
               color="green" abierta={seccionAbierta === 'identidad'} onToggle={() => toggle('identidad')}
-              completada={!!((formData.chapetaNueva || formData.chapetaVieja) && formData.nombre && formData.sexo && formData.raza)}
-              hayError={!!(errores.chapetas || errores.nombre || errores.sexo || errores.raza)}>
+              completada={!!((formData.chapetaNueva || formData.chapetaVieja) && formData.sexo && formData.raza)}
+              hayError={!!(errores.chapetas || errores.sexo || errores.raza)}>
               <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-4">
                 <p className="text-xs text-blue-700">
                   <strong>Chapetas:</strong> registra la chapeta nueva y/o la vieja. Las cabras nuevas
@@ -373,11 +373,11 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
                   <ErrMsg msg={errores.chapetas} />
                 </div>
                 <div>
-                  <label className={lbl}>Nombre <span className="text-red-500">*</span></label>
+                  <label className={lbl}>Nombre <span className="text-xs font-normal text-gray-400">(opcional)</span></label>
                   <input name="nombre" value={formData.nombre} onChange={cambiar}
-                    placeholder="Ej: Luna"
-                    className={`${inp} ${errores.nombre ? 'border-red-300 focus:ring-red-400' : ''}`} />
-                  <ErrMsg msg={errores.nombre} />
+                    placeholder="Déjelo vacío si solo tiene chapeta"
+                    className={inp} />
+                  <p className="text-[11px] text-gray-400 mt-1">Si la cabra no tiene nombre, se identifica por el número de la chapeta.</p>
                 </div>
                 <div>
                   <label className={lbl}>Sexo <span className="text-red-500">*</span></label>

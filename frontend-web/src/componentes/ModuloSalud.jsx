@@ -8,6 +8,7 @@ import {
 import SelectPersonalizado from './SelectPersonalizado';
 import SelectAnimal from './SelectAnimal';
 import { saludAPI, animalesAPI, famachaAPI } from '../servicios/caprino-api';
+import { nombreValido, chapetaPrincipal, etiquetaAnimal } from '../utilidades/formateo';
 
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white';
 const lbl = 'block text-sm font-medium text-gray-600 mb-1.5';
@@ -249,7 +250,7 @@ const TarjetaEvento = ({ evento, colorTipo, colorEstado, fmtEstado, diasHasta, o
           {evento.tipo === 'enfermedad' && <AlertTriangle className={`w-5 h-5 ${iconColor}`} />}
           {evento.tipo === 'tratamiento' && <Pill className={`w-5 h-5 ${iconColor}`} />}
           <div>
-            <p className="text-sm font-semibold text-gray-800">{evento.animal?.codigo} — {evento.animal?.nombre}</p>
+            <p className="text-sm font-semibold text-gray-800">{etiquetaAnimal(evento.animal?.codigo, evento.animal?.nombre)}</p>
             <p className="text-xs text-gray-500 capitalize">{evento.tipo}</p>
           </div>
         </div>
@@ -705,7 +706,7 @@ const DetalleEvento = ({ evento, onCerrar, onEditar }) => {
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Animal</p>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div><span className="text-gray-500">Código:</span> <span className="font-semibold text-gray-800">{evento.animal?.codigo}</span></div>
-              <div><span className="text-gray-500">Nombre:</span> <span className="font-semibold text-gray-800">{evento.animal?.nombre}</span></div>
+              <div><span className="text-gray-500">Nombre:</span> <span className="font-semibold text-gray-800">{nombreValido(evento.animal?.nombre) || '—'}</span></div>
             </div>
           </div>
 

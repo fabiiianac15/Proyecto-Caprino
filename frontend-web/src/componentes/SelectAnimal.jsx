@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, ChevronDown, CheckCircle } from 'lucide-react';
+import { nombreValido } from '../utilidades/formateo';
 
 const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-white';
 
@@ -28,7 +29,7 @@ const SelectAnimal = ({ animales = [], value, onChange, busqueda = '', onBusqued
         {animalSeleccionado
           ? <span className="truncate">
               <span className="font-mono font-semibold">{animalSeleccionado.codigo}</span>
-              {animalSeleccionado.nombre ? ` — ${animalSeleccionado.nombre}` : ''}
+              {nombreValido(animalSeleccionado.nombre) ? ` — ${nombreValido(animalSeleccionado.nombre)}` : ''}
             </span>
           : <span className="text-gray-400">{animales.length === 0 ? 'Cargando animales...' : 'Seleccionar animal...'}</span>
         }
@@ -45,7 +46,7 @@ const SelectAnimal = ({ animales = [], value, onChange, busqueda = '', onBusqued
                 type="text"
                 value={busqueda}
                 onChange={e => onBusqueda(e.target.value)}
-                placeholder="Buscar por código o nombre..."
+                placeholder="Buscar por chapeta o nombre..."
                 className="w-full pl-7 pr-3 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -59,7 +60,7 @@ const SelectAnimal = ({ animales = [], value, onChange, busqueda = '', onBusqued
                   className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 flex items-center justify-between ${value === a.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700'}`}>
                   <span>
                     <span className="font-mono font-semibold">{a.codigo}</span>
-                    {a.nombre ? ` — ${a.nombre}` : ''}
+                    {nombreValido(a.nombre) ? ` — ${nombreValido(a.nombre)}` : ''}
                     {a.sexo ? <span className="ml-1 text-xs text-gray-400">({a.sexo})</span> : null}
                   </span>
                   {value === a.id && <CheckCircle className="w-4 h-4 text-blue-600 shrink-0 ml-2" />}

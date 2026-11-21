@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { animalesAPI, razasAPI } from '../servicios/caprino-api';
 import { ESTADOS_PRODUCTIVOS } from '../utilidades/formateo';
+import { nombreValido, chapetaPrincipal, etiquetaAnimal } from '../utilidades/formateo';
 
 // Estados para los botones de filtro rápido (value '' = todos los vigentes)
 const ESTADOS_FILTRO = [
@@ -252,7 +253,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
             </div>
             <h3 className="text-lg font-bold text-gray-800 mb-2">¿Dar de baja?</h3>
             <p className="text-gray-500 text-sm mb-1">
-              <span className="font-semibold text-gray-700">{modalEliminar.animal?.nombre || modalEliminar.animal?.codigo}</span> quedará en estado <em>muerto</em>.
+              <span className="font-semibold text-gray-700">{etiquetaAnimal(chapetaPrincipal(modalEliminar.animal), modalEliminar.animal?.nombre)}</span> quedará en estado <em>muerto</em>.
             </p>
             <p className="text-xs text-gray-400 mb-6">El registro se conserva para auditoría.</p>
             <div className="flex gap-3">
@@ -272,7 +273,7 @@ const ListaAnimales = ({ onEditar, onNuevo }) => {
             {/* Header modal */}
             <div className="flex items-start justify-between mb-5">
               <div>
-                <h3 className="text-xl font-bold text-gray-800">{modalDetalles.animal.nombre || 'Sin nombre'}</h3>
+                <h3 className="text-xl font-bold text-gray-800">{nombreValido(modalDetalles.animal.nombre) || <span className="font-mono">Chapeta {chapetaPrincipal(modalDetalles.animal)}</span>}</h3>
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   {modalDetalles.animal.chapetaNueva && (
                     <span className="text-xs font-mono bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded">Nueva: {modalDetalles.animal.chapetaNueva}</span>
@@ -399,7 +400,11 @@ function TarjetaAnimal({ animal, calcularEdad, onEditar, onVer, onEliminar, onPe
       {/* Info */}
       <div className="p-4">
         <div className="mb-3">
-          <h3 className="font-bold text-gray-800 text-base truncate">{animal.nombre || <span className="text-gray-400 font-normal italic">Sin nombre</span>}</h3>
+          {nombreValido(animal.nombre) ? (
+            <h3 className="font-bold text-gray-800 text-base truncate">{nombreValido(animal.nombre)}</h3>
+          ) : (
+            <h3 className="font-bold text-gray-800 text-lg truncate font-mono tracking-tight"><span className="text-[11px] font-sans font-medium text-gray-400 uppercase tracking-wide mr-1.5">Chapeta</span>{chapetaPrincipal(animal)}</h3>
+          )}
           <div className="flex flex-wrap gap-1 mt-1">
             {animal.chapetaNueva && (
               <span className="text-[10px] font-mono bg-green-50 text-green-700 border border-green-100 px-1.5 py-0.5 rounded">N: {animal.chapetaNueva}</span>
