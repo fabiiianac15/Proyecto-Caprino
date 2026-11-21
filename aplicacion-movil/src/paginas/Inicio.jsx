@@ -11,6 +11,7 @@ import { listarBorradores } from '@servicios/borradores';
 import { obtenerCacheAnimales, fechaCacheAnimales } from '@servicios/almacenamientoLocal';
 import Barra from '@/ui/Barra';
 import Estado from '@/ui/Estado';
+import IconoCabra from '@/ui/IconoCabra';
 import { useAvisos } from '@/ui/Avisos';
 import { haceCuanto } from '@utilidades/formato';
 
@@ -59,23 +60,33 @@ export default function Inicio() {
       </Barra>
 
       <div className="px-4 space-y-4">
-        {/* Resumen del hato (de la lista guardada en el teléfono) */}
-        <button onClick={() => navigate('/rebano')} className="tarjeta w-full text-left active:opacity-80" aria-label="Ver el rebaño">
-          <div className="flex items-center justify-between mb-2">
-            <p className="t-seccion">Hato</p>
-            <ChevronRight className="w-5 h-5 text-terciario" aria-hidden="true" />
-          </div>
-          {animales.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2">
-              <div><p className="t-cifra text-acento">{animales.length}</p><p className="t-sub text-secundario">Activos</p></div>
-              <div><p className="t-cifra">{hembras}</p><p className="t-sub text-secundario">Hembras</p></div>
-              <div><p className="t-cifra">{animales.length - hembras}</p><p className="t-sub text-secundario">Machos</p></div>
-            </div>
-          ) : (
-            <p className="t-sub text-secundario">Abra Rebaño con conexión para descargar la lista de animales.</p>
-          )}
-          {fechaLista ? <p className="t-nota text-secundario mt-2">Lista actualizada {haceCuanto(fechaLista)}</p> : null}
+        {/* Resumen del hato: foto del corral con la cifra de activos, y hembras / machos */}
+        <button onClick={() => navigate('/rebano')} aria-label={`Ver el rebaño: ${animales.length} animales activos`}
+          className="relative w-full h-[168px] rounded-2xl overflow-hidden text-left active:opacity-90 bg-marca"
+          style={{ boxShadow: '0 4px 14px rgb(36 75 58 / 0.18)' }}>
+          <img src="/img/hato-inicio.jpg" alt="" className="absolute inset-0 w-full h-full object-cover object-right" />
+          <span className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgb(27 54 42 / 0.92) 0%, rgb(27 54 42 / 0.7) 42%, rgb(27 54 42 / 0) 78%)' }} aria-hidden="true" />
+          <span className="relative h-full flex flex-col justify-end p-4 text-white">
+            <span className="font-titulo text-[44px] leading-[46px] font-extrabold tabular-nums tracking-tight">{animales.length || '—'}</span>
+            <span className="t-encabezado">Animales activos</span>
+            <span className="t-nota text-white/80 mt-0.5">
+              {fechaLista ? `Lista actualizada ${haceCuanto(fechaLista)}` : 'Abra Rebaño con conexión para descargarla'}
+            </span>
+          </span>
         </button>
+        <div className="grid grid-cols-2 gap-3 -mt-1">
+          {[['hembra', 'Hembras', hembras], ['macho', 'Machos', animales.length - hembras]].map(([sexo, etiqueta, n]) => (
+            <button key={sexo} onClick={() => navigate(`/rebano?sexo=${sexo}`)} className="tarjeta !py-3 flex items-center gap-3 text-left active:opacity-80">
+              <span className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${sexo === 'hembra' ? 'bg-salvia/20 text-acento' : 'bg-ocre/25 text-aviso'}`}>
+                <IconoCabra sexo={sexo} className="w-8 h-8" />
+              </span>
+              <span>
+                <span className="block t-cifra !text-[28px] !leading-[32px]">{n}</span>
+                <span className="block t-sub text-secundario">{etiqueta}</span>
+              </span>
+            </button>
+          ))}
+        </div>
 
         {/* Pendientes por enviar */}
         {pendientes > 0 && (

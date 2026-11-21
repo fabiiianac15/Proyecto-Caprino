@@ -115,6 +115,8 @@ body.escaner-activo #root { visibility: hidden; }
 }
 
 @layer utilities {
+  .sin-barra { scrollbar-width: none; }
+  .sin-barra::-webkit-scrollbar { display: none; }
   .seguro-abajo { padding-bottom: env(safe-area-inset-bottom); }
   .seguro-arriba { padding-top: env(safe-area-inset-top); }
   .animar-entrada { animation: entrada 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }

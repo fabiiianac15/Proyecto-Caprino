@@ -1,14 +1,18 @@
 /** Rebaño: buscar un animal por chapeta o nombre, o leer el código QR. */
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, ScanLine, Tag, X, ChevronRight } from 'lucide-react';
 import { listarAnimales, buscarPorCodigo } from '@servicios/animalesAPI';
 import { obtenerCacheAnimales, fechaCacheAnimales } from '@servicios/almacenamientoLocal';
 import { useEscaner } from '@hooks/useEscaner';
 import Barra, { BotonEncabezado } from '@/ui/Barra';
 import { EstadoVacio } from '@/ui/Lista';
-import { FilaAnimal, filtrar } from '@/ui/SelectorAnimal';
+import { filtrar } from '@/ui/SelectorAnimal';
+import Chapeta, { codigoDe } from '@/ui/Chapeta';
+import FotoAnimal from '@/ui/FotoAnimal';
+import EstadoProductivo from '@/ui/EstadoProductivo';
+import { edadTexto } from '@utilidades/formato';
 import { useAvisos } from '@/ui/Avisos';
 import { haceCuanto } from '@utilidades/formato';
 
@@ -18,7 +22,8 @@ export default function Rebano() {
   const { escanear, escaneando, disponible } = useEscaner();
   const [animales, setAnimales] = useState(() => obtenerCacheAnimales());
   const [texto, setTexto] = useState('');
-  const [sexo, setSexo] = useState('todos');
+  const [params] = useSearchParams();
+  const [sexo, setSexo] = useState(() => (['hembra', 'macho'].includes(params.get('sexo')) ? params.get('sexo') : 'todos'));
   const [cargando, setCargando] = useState(true);
   const [desdeCache, setDesdeCache] = useState(false);
 
@@ -81,7 +86,7 @@ export default function Rebano() {
             </button>
           )}
         </div>
-        <div className="flex gap-2 overflow-x-auto -mx-4 px-4" role="radiogroup" aria-label="Filtrar por sexo">
+        <div className="flex gap-2 overflow-x-auto sin-barra -mx-4 px-4" role="radiogroup" aria-label="Filtrar por sexo">
           {FILTROS.map((f) => {
             const activo = f.valor === sexo;
             return (
@@ -100,16 +105,34 @@ export default function Rebano() {
           titulo={activos.length === 0 ? 'Aún no hay animales en el teléfono' : 'Ningún animal coincide'}
           texto={activos.length === 0 ? 'Conéctese a internet una vez para descargar la lista.' : 'Revise la chapeta o busque por el nombre.'} />
       ) : (
-        <div className="px-4">
-          <div className="lista">
-            {lista.slice(0, 150).map((a) => (
-              <FilaAnimal key={a.id} animal={a} alHacerClic={() => navigate(`/animal/${a.id}`)}
-                derecha={<ChevronRight className="w-5 h-5 text-terciario shrink-0" aria-hidden="true" />} />
-            ))}
-          </div>
+        <div className="px-4 space-y-2.5">
+          {lista.slice(0, 150).map((a) => (
+            <TarjetaAnimal key={a.id} animal={a} alHacerClic={() => navigate(`/animal/${a.id}`)} />
+          ))}
           {lista.length > 150 && <p className="pie-seccion">Se muestran 150 de {lista.length}. Escriba para afinar la búsqueda.</p>}
         </div>
       )}
     </>
+  );
+}
+
+/** Tarjeta del rebaño: foto guardada, chapeta, nombre (si tiene), sexo, raza, edad y estado. */
+function TarjetaAnimal({ animal, alHacerClic }) {
+  const hembra = animal.sexo === 'hembra';
+  return (
+    <button onClick={alHacerClic} className="tarjeta !p-2.5 w-full flex items-center gap-3 text-left active:opacity-80">
+      <FotoAnimal animal={animal} className="w-[76px] h-[76px] rounded-xl" iconoClase="w-9 h-9" />
+      <span className="flex-1 min-w-0 py-0.5">
+        <span className="flex items-center gap-2 min-w-0">
+          <Chapeta codigo={codigoDe(animal)} tamano="sm" vieja={!animal.chapetaNueva && !!animal.chapetaVieja} />
+          {animal.nombre && <span className="t-encabezado truncate">{animal.nombre}</span>}
+        </span>
+        <span className="block t-sub text-secundario truncate mt-1">
+          {[hembra ? 'Hembra' : 'Macho', animal.nombreRaza, edadTexto(animal.fechaNacimiento)].filter(Boolean).join(' · ')}
+        </span>
+        {hembra && animal.estadoProductivo && <EstadoProductivo estado={animal.estadoProductivo} className="mt-1.5" />}
+      </span>
+      <ChevronRight className="w-5 h-5 text-terciario shrink-0" aria-hidden="true" />
+    </button>
   );
 }
