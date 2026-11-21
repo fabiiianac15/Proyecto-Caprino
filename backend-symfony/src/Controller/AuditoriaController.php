@@ -23,10 +23,15 @@ class AuditoriaController extends AbstractController
         $hasta     = $request->query->get('hasta');
         $limite    = min((int) ($request->query->get('limite', 100)), 500);
 
+        // Los CLOB se convierten a texto dentro de la BD: traerlos como LOB cuesta
+        // un viaje de red por fila hasta Oracle Cloud (100 filas tardaban ~20 s).
         $sql    = "SELECT a.id_auditoria, a.tabla, a.operacion, a.id_registro,
                           a.descripcion, a.nombre_usuario, a.id_usuario,
                           a.ip_origen, a.fecha_operacion,
-                          a.datos_anteriores, a.datos_nuevos
+                          CASE WHEN DBMS_LOB.GETLENGTH(a.datos_anteriores) <= 4000
+                               THEN DBMS_LOB.SUBSTR(a.datos_anteriores, 4000, 1) END AS datos_anteriores,
+                          CASE WHEN DBMS_LOB.GETLENGTH(a.datos_nuevos) <= 4000
+                               THEN DBMS_LOB.SUBSTR(a.datos_nuevos, 4000, 1) END AS datos_nuevos
                    FROM AUDITORIA a
                    WHERE 1=1";
         $params = [];

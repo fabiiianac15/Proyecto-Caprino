@@ -318,6 +318,12 @@ class BienestarController extends AbstractController
             $abs = $this->uploadsDir() . '/' . $ruta;
             if (is_file($abs)) { @unlink($abs); }
         }
+        @rmdir($this->uploadsDir() . '/bienestar/' . $id);
+
+        try {
+            $this->auditoria->registrar(tabla: 'EVALUACION_BIENESTAR', operacion: 'ELIMINAR', idRegistro: $id,
+                descripcion: 'Evaluación de bienestar eliminada');
+        } catch (\Throwable) {}
 
         return $this->json(['success' => true, 'message' => 'Evaluación eliminada']);
     }

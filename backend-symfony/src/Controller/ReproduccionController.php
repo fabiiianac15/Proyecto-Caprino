@@ -86,6 +86,24 @@ class ReproduccionController extends AbstractController
             return $this->json(['error' => 'Campo requerido: idHembra'], Response::HTTP_BAD_REQUEST);
         }
 
+        // La hembra debe ser hembra y el macho (si se indica) macho
+        $sexoH = $this->connection->fetchOne('SELECT sexo FROM ANIMAL WHERE id_animal = :id', ['id' => $idHembra]);
+        if ($sexoH === false) {
+            return $this->json(['error' => 'La hembra elegida no existe'], Response::HTTP_BAD_REQUEST);
+        }
+        if (strtolower((string) $sexoH) !== 'hembra') {
+            return $this->json(['error' => 'El animal elegido como hembra es un macho'], Response::HTTP_BAD_REQUEST);
+        }
+        if ($idMacho) {
+            $sexoM = $this->connection->fetchOne('SELECT sexo FROM ANIMAL WHERE id_animal = :id', ['id' => $idMacho]);
+            if ($sexoM === false || strtolower((string) $sexoM) !== 'macho') {
+                return $this->json(['error' => 'El animal elegido como macho no es un macho'], Response::HTTP_BAD_REQUEST);
+            }
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $fechaServicio) || $fechaServicio > date('Y-m-d', strtotime('+1 day'))) {
+            return $this->json(['error' => 'La fecha del servicio no es válida o es futura'], Response::HTTP_BAD_REQUEST);
+        }
+
         $tiposValidos = ['monta_natural', 'inseminacion_artificial', 'transferencia_embrion'];
         if (!in_array($tipoServicio, $tiposValidos)) {
             $tipoServicio = 'monta_natural';

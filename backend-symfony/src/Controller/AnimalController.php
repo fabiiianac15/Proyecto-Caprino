@@ -135,7 +135,7 @@ class AnimalController extends AbstractController
         $chapVieja = $chapVieja ?: null;
         // codigo principal: identificacion explícita, o la chapeta nueva, o la vieja
         $codigo   = $data['codigo'] ?? $data['codigo_identificacion'] ?? $data['codigoIdentificacion'] ?? $data['identificacion'] ?? $chapNueva ?? $chapVieja ?? null;
-        $nombre   = $data['nombre'] ?? null;
+        $nombre   = self::limpiarNombre($data['nombre'] ?? null);
         $sexo     = $data['sexo']   ?? null;
         $idRaza   = $data['idRaza'] ?? $data['razaId'] ?? $data['id_raza'] ?? null;
         $fechaNac = $data['fechaNacimiento'] ?? $data['fecha_nacimiento'] ?? null;
@@ -257,7 +257,7 @@ class AnimalController extends AbstractController
     public function update(int $id, Request $request): JsonResponse
     {
         $data     = json_decode($request->getContent(), true) ?? [];
-        $nombre   = $data['nombre'] ?? null;
+        $nombre   = self::limpiarNombre($data['nombre'] ?? null);
         $sexo     = $data['sexo']   ?? null;
         $idRaza   = $data['idRaza'] ?? $data['razaId'] ?? $data['id_raza'] ?? null;
         $color    = $data['colorPelaje'] ?? $data['color_pelaje'] ?? null;
@@ -275,7 +275,9 @@ class AnimalController extends AbstractController
             ['id' => $id]
         );
 
-        $sets  = "nombre = NVL(:nombre, nombre), sexo = NVL(:sexo, sexo), id_raza = NVL(:raza, id_raza),
+        // Si la petición trae "nombre" (aunque sea vacío) se guarda tal cual: así se puede
+        // quitar el nombre a una cabra que solo se identifica por la chapeta.
+        $sets  = (array_key_exists('nombre', $data) ? 'nombre = :nombre' : 'nombre = NVL(:nombre, nombre)') . ", sexo = NVL(:sexo, sexo), id_raza = NVL(:raza, id_raza),
                   color_pelaje = NVL(:color, color_pelaje), estado = NVL(:estado, estado),
                   observaciones = NVL(:obs, observaciones)";
         $params = [
@@ -408,5 +410,12 @@ class AnimalController extends AbstractController
         file_put_contents($dir . '/' . $filename, $binData);
 
         return '/uploads/animales/' . $filename;
+    }
+
+    /** Nombre opcional: vacío, "." o "-" significa que la cabra solo tiene chapeta. */
+    private static function limpiarNombre(mixed $n): ?string
+    {
+        $n = trim((string) ($n ?? ''));
+        return ($n === '' || preg_match('/^[.\-_ ]+$/', $n)) ? null : mb_substr($n, 0, 100);
     }
 }

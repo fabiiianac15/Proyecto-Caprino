@@ -139,7 +139,7 @@ class MlService
             CURLOPT_POST          => true,
             CURLOPT_POSTFIELDS    => $body,
             CURLOPT_HTTPHEADER    => ['Content-Type: application/json', 'Accept: text/plain'],
-            CURLOPT_TIMEOUT       => 180,   // generación en CPU puede ser lenta
+            CURLOPT_TIMEOUT       => 420,   // generación en CPU (c7i-flex.large): 2-4 min
             CURLOPT_WRITEFUNCTION => function ($ch, string $data) use ($onChunk): int {
                 if ($data !== '') {
                     $onChunk($data);
