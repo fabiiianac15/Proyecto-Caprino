@@ -6,16 +6,17 @@
 
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Camera, CheckCircle2, Trash2, Ruler, ChevronDown, Image as IconoImagen, AlertTriangle, Scale } from 'lucide-react';
+import { Camera, CheckCircle2, Trash2, Ruler, ChevronDown, Image as IconoImagen, AlertTriangle, Scale, Wand2, Info, Eye } from 'lucide-react';
 import { useBorrador } from '@hooks/useBorrador';
 import { useBotonAtras } from '@hooks/useBotonAtras';
-import { catalogoLocal, obtenerCatalogo, medidasLocal } from '@servicios/catalogos';
+import { catalogoLocal, obtenerCatalogo, medidasLocal, tipoCatalogoLineal, medidasDeSexo, reglasLocal, referenciasDe } from '@servicios/catalogos';
+import { indexarReferencias, calcularRasgos, limitesRegla, explicarRangos, compararMedida, anguloGrupa } from '@utilidades/morfometria';
 import { eliminarBorrador } from '@servicios/borradores';
 import { guardarFoto, borrarFoto } from '@servicios/fotosLocales';
 import { tomarFoto } from '@servicios/camara';
 import { calcularLineal, indicesLineal } from '@servicios/calculos';
 import { obtenerCacheAnimales } from '@servicios/almacenamientoLocal';
-import { REGIONES, VISTAS, NIVEL, NOMBRE_CATEGORIA, CON_DIBUJO, MEDIBLES_EN_FOTO, GRUPOS_MEDIDA, hoy } from '@servicios/evaluaciones';
+import { regionesDe, vistasDe, NIVEL, NOMBRE_CATEGORIA, CON_DIBUJO, MEDIBLES_EN_FOTO, GRUPOS_MEDIDA, hoy } from '@servicios/evaluaciones';
 import Barra, { AccionBarra } from '@/ui/Barra';
 import { Seccion, Fila, FilaCampo, EstadoVacio } from '@/ui/Lista';
 import { Boton } from '@/ui/Controles';
@@ -33,11 +34,16 @@ export default function LinealEditor() {
   const avisos = useAvisos();
   const [b, cambiar] = useBorrador(id);
   const envio = useEnvio(id);
-  const [catalogo, setCatalogo] = useState(() => catalogoLocal('lineal'));
+  const sexo = b?.sexo === 'MACHO' ? 'MACHO' : 'HEMBRA';
+  const macho = sexo === 'MACHO';
+  const tipoCat = tipoCatalogoLineal(sexo);
+  const REGIONES = regionesDe(sexo);
+  const VISTAS = vistasDe(sexo);
+  const [catalogo, setCatalogo] = useState(() => catalogoLocal(tipoCat));
   const [confirmar, setConfirmar] = useState(false);
   const [visor, setVisor] = useState(null);
   const [tomando, setTomando] = useState(null);
-  const [medidasCat, setMedidasCat] = useState(() => medidasLocal());
+  const [medidasCat, setMedidasCat] = useState(() => medidasDeSexo(medidasLocal(), sexo));
   const [midiendo, setMidiendo] = useState(null);   // medida que se está midiendo en foto
   const [ayuda, setAyuda] = useState(null);         // código con "Cómo medir" abierto
 
@@ -49,8 +55,29 @@ export default function LinealEditor() {
   const irA = (p) => cambiar({ paso: Math.max(0, Math.min(PASO_RESUMEN, p)) });
 
   useEffect(() => {
-    if (!n || !medidasCat.length) obtenerCatalogo('lineal').then((c) => { setCatalogo(c); setMedidasCat(medidasLocal()); });
-  }, [n, medidasCat.length]);
+    if (!n || !medidasCat.length) obtenerCatalogo(tipoCat).then((c) => { setCatalogo(c); setMedidasCat(medidasDeSexo(medidasLocal(), sexo)); });
+  }, [n, medidasCat.length, tipoCat, sexo]);
+
+  // Reglas morfométricas: las medidas se comparan con la raza y califican solas los rasgos medibles
+  const animalB = obtenerCacheAnimales().find((a) => String(a.id) === String(b?.idAnimal));
+  const refsLista = referenciasDe(animalB?.idRaza, sexo);
+  const refs = indexarReferencias(refsLista);
+  const reglas = reglasLocal();
+  const reglaDe = Object.fromEntries(reglas.map((x) => [x.codigoRasgo, x]));
+  const valoresMedidas = Object.fromEntries(Object.entries(b?.medidas || {}).map(([c, m]) => [c, Number(m?.valor) > 0 ? Number(m.valor) : null]));
+  const auto = calcularRasgos(reglas, valoresMedidas, refs);
+  const autoPorId = Object.fromEntries(catalogo.filter((x) => auto[x.codigo]).map((x) => [x.idRasgo, auto[x.codigo].calif]));
+  const firmaAuto = JSON.stringify(autoPorId);
+  useEffect(() => {
+    if (!b || b.pendienteEnvio || b.idRemoto) return;
+    const manuales = b.manuales || {};
+    const nuevos = { ...b.valores };
+    let cambio = JSON.stringify(b.automaticos || {}) !== firmaAuto;
+    Object.entries(autoPorId).forEach(([idR, cal]) => {
+      if (!manuales[idR] && nuevos[idR] !== cal) { nuevos[idR] = cal; cambio = true; }
+    });
+    if (cambio) cambiar((p) => ({ ...p, valores: nuevos, automaticos: autoPorId }));
+  }, [firmaAuto]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { window.scrollTo(0, 0); }, [paso]);
   // El botón atrás del teléfono vuelve al paso anterior
   useBotonAtras(() => {
@@ -124,15 +151,24 @@ export default function LinealEditor() {
       <>
         <Barra titulo="Clasificación lineal" atras alVolver={volver} />
         <div className="px-4 pt-4">
-          <h2 className="t-titulo">¿Qué cabra va a calificar?</h2>
-          <p className="t-sub text-secundario mt-1">Se califican hembras, mejor si están en ordeño y paradas en piso plano.</p>
+          <h2 className="t-titulo">{macho ? '¿Qué macho va a calificar?' : '¿Qué cabra va a calificar?'}</h2>
+          <p className="t-sub text-secundario mt-1">{macho
+            ? 'Reproductores adultos, parados en piso plano. Se califican cuerpo, patas y testículos (100 puntos).'
+            : 'Hembras adultas, mejor unos 45 días después del parto y paradas en piso plano.'}</p>
         </div>
         <Seccion className="mt-5">
-          <SelectorAnimal valor={b.idAnimal} alCambiar={elegir} soloHembras etiqueta="Cabra" />
+          <SelectorAnimal valor={b.idAnimal} alCambiar={elegir} sexo={macho ? 'macho' : 'hembra'} etiqueta={macho ? 'Macho' : 'Cabra'} />
+          {animalB && <Fila titulo="Raza" valor={animalB.nombreRaza || 'Sin raza'} flecha={false} />}
           <FilaCampo etiqueta="Fecha" type="date" value={b.fechaEvaluacion} max={hoy()} onChange={(e) => cambiar({ fechaEvaluacion: e.target.value })} />
           <FilaCampo etiqueta="Edad en meses" inputMode="numeric" value={b.edadMeses} onChange={(e) => cambiar({ edadMeses: e.target.value })} placeholder="Opcional" />
-          <FilaCampo etiqueta="Número de partos" inputMode="numeric" value={b.numLactancia} onChange={(e) => cambiar({ numLactancia: e.target.value })} placeholder="Opcional" />
+          {!macho && <FilaCampo etiqueta="Número de partos" inputMode="numeric" value={b.numLactancia} onChange={(e) => cambiar({ numLactancia: e.target.value })} placeholder="Opcional" />}
         </Seccion>
+        {animalB && !refsLista.some((x) => x.idRaza != null) && (
+          <p className="t-sub text-aviso px-5 mt-3">Esta raza no tiene medidas de referencia en el teléfono: los rasgos no se llenarán solos con las medidas. Conéctese para actualizar o pida al docente cargarlas.</p>
+        )}
+        {b.edadMeses !== '' && b.edadMeses != null && Number(b.edadMeses) < 24 && (
+          <p className="t-sub text-aviso px-5 mt-2">Tiene menos de 2 años: las referencias son de adultos, es normal que salga "Bajo".</p>
+        )}
         <div className="px-4 mt-6 space-y-3">
           <Boton onClick={() => irA(r.calificados > 0 && r.calificados < n ? r.calificados + 2 : PASO_MEDIDAS)} disabled={!b.idAnimal}>
             {r.calificados > 0 ? 'Continuar' : 'Empezar: medidas y rasgos'}
@@ -154,11 +190,21 @@ export default function LinealEditor() {
         <Barra titulo="Medidas" atras alVolver={volver}
           accion={<AccionBarra alHacerClic={() => irA(PASO_MEDIDAS + 1)}>{numMedidas ? 'Siguiente' : 'Saltar'}</AccionBarra>} />
         <div className="px-4 pt-4">
-          <h2 className="t-titulo">Medidas de la cabra</h2>
+          <h2 className="t-titulo">{macho ? 'Medidas del macho' : 'Medidas de la cabra'}</h2>
           <p className="t-sub text-secundario mt-1">
             Escriba lo que mida con el bastón, la cinta, el compás o el calibrador. Las distancias rectas también se pueden
             <b> medir en una foto</b> con una vara de referencia. Todas son opcionales.
           </p>
+          <div className="tarjeta !bg-info/10 mt-3">
+            <p className="t-encabezado flex items-center gap-1.5"><Info className="w-5 h-5 shrink-0" /> ¿Qué es Bajo, Medio y Alto?</p>
+            <p className="t-sub mt-1">Cada medida se compara con {macho ? 'un macho adulto típico' : 'una hembra adulta típica'} de la raza <b>{animalB?.nombreRaza || 'del animal'}</b>:</p>
+            <ul className="t-sub mt-1.5 space-y-1">
+              <li><b>1 · Bajo:</b> por debajo de lo normal para su raza.</li>
+              <li><b>2 · Medio:</b> dentro de lo normal (el promedio de la raza más o menos una desviación; ahí está cerca de 7 de cada 10 animales).</li>
+              <li><b>3 · Alto:</b> por encima de lo normal.</li>
+            </ul>
+            <p className="t-nota text-secundario mt-1.5">Con las medidas, los rasgos medibles se califican solos. Los demás se eligen a la vista.</p>
+          </div>
         </div>
 
         {!medidasCat.length ? (
@@ -189,6 +235,24 @@ export default function LinealEditor() {
                           className="w-[84px] min-h-[48px] rounded-xl bg-relleno px-3 text-right t-titulo tabular-nums focus:outline-none focus:ring-2 focus:ring-acento" />
                         <span className="t-sub text-secundario w-6">{m.unidad}</span>
                       </div>
+                      {refs[m.codigo] && (() => {
+                        const ref = refs[m.codigo];
+                        const comp = compararMedida(num, ref);
+                        return (
+                          <>
+                            <div className="grid grid-cols-3 mt-2 rounded-xl overflow-hidden text-center t-nota">
+                              {[1, 2, 3].map((k) => (
+                                <span key={k} className={`py-1.5 ${comp?.nivel === k ? 'bg-acento text-sobre-acento font-bold' : 'bg-relleno text-secundario'}`}>
+                                  <span className="block">{NIVEL[k]}</span>
+                                  <span className="block tabular-nums">{k === 1 ? `< ${fmt(Math.round((ref.media - ref.de) * 10) / 10)}` : k === 2 ? `${fmt(Math.round((ref.media - ref.de) * 10) / 10)}–${fmt(Math.round((ref.media + ref.de) * 10) / 10)}` : `> ${fmt(Math.round((ref.media + ref.de) * 10) / 10)}`}</span>
+                                </span>
+                              ))}
+                            </div>
+                            <p className="t-nota text-secundario mt-1">Promedio {ref.idRaza == null ? 'general' : `de la ${ref.raza}`}: {fmt(ref.media)} {m.unidad}{comp ? ` · esta: ${comp.dif > 0 ? '+' : ''}${fmt(comp.dif)} ${m.unidad}` : ''}</p>
+                          </>
+                        );
+                      })()}
+                      {m.rasgoRel && <p className="t-nota text-acento mt-1 flex items-center gap-1"><Wand2 className="w-4 h-4 shrink-0" /> Califica «{catalogo.find((x) => x.codigo === m.rasgoRel)?.nombre || m.rasgoRel}»</p>}
                       {v?.metodo === 'FOTO' && num != null && (
                         <p className="t-nota text-info mt-2 flex items-center gap-1.5"><Camera className="w-4 h-4 shrink-0" /> Medida en foto (estimación). Si la mide con el instrumento, escríbala y queda como directa.</p>
                       )}
@@ -215,6 +279,15 @@ export default function LinealEditor() {
             </section>
           );
         })}
+
+        {anguloGrupa(valoresMedidas) != null && (
+          <p className="t-sub px-5 mt-4">Inclinación de la grupa calculada: <b>{fmt(anguloGrupa(valoresMedidas))}°</b></p>
+        )}
+        {Object.keys(autoPorId).length > 0 && (
+          <div className="px-4 mt-4">
+            <p className="tarjeta !bg-acento/10 t-sub flex items-center gap-2"><Wand2 className="w-5 h-5 text-acento shrink-0" /> Con estas medidas ya quedaron calificados {Object.keys(autoPorId).length} rasgo(s).</p>
+          </div>
+        )}
 
         {(b.fotosMedicion || []).length > 0 && (
           <section className="px-4 mt-6">
@@ -252,9 +325,19 @@ export default function LinealEditor() {
     const rasgo = catalogo[paso - 2];
     const relacionadas = medidasCat.filter((m) => m.rasgoRel === rasgo.codigo && valorMedida(m.codigo));
     const region = REGIONES.find((x) => x.clave === rasgo.region);
+    const dibujo = rasgo.codigo.replace(/^M_/, '');
     const actual = b.valores[rasgo.idRasgo];
+    const a = auto[rasgo.codigo];
+    const regla = reglaDe[rasgo.codigo];
+    const lim = regla ? limitesRegla(regla, refs) : null;
+    const rangos = regla && lim ? explicarRangos(regla, lim, medidasCat.find((m) => m.codigo === regla.calculo)?.unidad || 'cm') : null;
+    const porMedida = a && !b.manuales?.[rasgo.idRasgo];
+    const unidadA = regla?.calculo === 'ANGULO_GRUPA' ? '°' : ` ${medidasCat.find((m) => m.codigo === regla?.calculo)?.unidad || 'cm'}`;
     const elegir = (cal) => {
-      cambiar((p) => ({ ...p, errorEnvio: null, valores: { ...p.valores, [rasgo.idRasgo]: cal } }));
+      cambiar((p) => ({
+        ...p, errorEnvio: null, valores: { ...p.valores, [rasgo.idRasgo]: cal },
+        manuales: { ...(p.manuales || {}), [rasgo.idRasgo]: !!a && a.calif !== cal },
+      }));
       setTimeout(() => irA(paso + 1), 220);   // deja ver la marca antes de pasar
     };
     return (
@@ -269,7 +352,23 @@ export default function LinealEditor() {
           <p className="t-nota text-secundario uppercase tracking-wide">{region?.titulo}{rasgo.vista ? ` · ${rasgo.vista}` : ''}</p>
           <h2 className="t-titulo mt-1">{rasgo.nombre}</h2>
           {rasgo.queMirar && <p className="t-cuerpo text-secundario mt-1">{rasgo.queMirar}</p>}
-          {relacionadas.length > 0 && (
+          <p className={`t-nota mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-lg ${regla ? 'bg-acento/10 text-acento' : 'bg-relleno text-secundario'}`}>
+            {regla ? <><Ruler className="w-4 h-4" /> Se puede medir</> : <><Eye className="w-4 h-4" /> Se califica a la vista</>}
+          </p>
+          {a && (
+            <div className={`t-sub rounded-xl px-3 py-2.5 mt-2 ${porMedida ? 'bg-acento/15' : 'bg-relleno'}`}>
+              <p className="flex items-start gap-1.5"><Wand2 className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>Medida: <b>{fmt(a.valor)}{unidadA}</b> → <b>{NIVEL[a.calif]}</b>. {porMedida ? 'Calificado automáticamente.' : 'Usted eligió otro valor a mano.'}</span></p>
+              {!porMedida && (
+                <button type="button" className="mt-1 t-sub font-semibold text-acento underline"
+                  onClick={() => cambiar((p) => ({ ...p, valores: { ...p.valores, [rasgo.idRasgo]: a.calif }, manuales: { ...(p.manuales || {}), [rasgo.idRasgo]: false } }))}>
+                  Usar la medida
+                </button>
+              )}
+            </div>
+          )}
+          {regla?.explicacion && <p className="t-nota text-secundario mt-1.5">{regla.explicacion}</p>}
+          {relacionadas.length > 0 && !a && (
             <p className="t-sub text-info bg-info/10 rounded-xl px-3 py-2 mt-2 flex items-start gap-1.5">
               <Ruler className="w-4 h-4 mt-0.5 shrink-0" aria-hidden="true" />
               Medida: {relacionadas.map((m) => `${m.nombre.toLowerCase()} ${fmt(valorMedida(m.codigo))} ${m.unidad}`).join(' · ')}
@@ -277,9 +376,9 @@ export default function LinealEditor() {
           )}
         </div>
 
-        {CON_DIBUJO.has(rasgo.codigo) && (
+        {CON_DIBUJO.has(dibujo) && (
           <div className="px-4 mt-4">
-            <img src={`/img/lineal/${rasgo.codigo}.jpg`} alt={`Dibujo de referencia: ${rasgo.nombre} bajo, intermedio y alto`}
+            <img src={`/img/lineal/${dibujo}.jpg`} alt={`Dibujo de referencia: ${rasgo.nombre} bajo, intermedio y alto`}
               className="w-full rounded-lista bg-white" />
           </div>
         )}
@@ -293,7 +392,7 @@ export default function LinealEditor() {
                             ${elegido ? 'bg-acento text-sobre-acento' : 'bg-tarjeta'}`}>
                 <span className={`w-9 h-9 rounded-full flex items-center justify-center t-encabezado shrink-0 ${elegido ? 'bg-white/25' : 'bg-relleno'}`}>{cal}</span>
                 <span className="flex-1 min-w-0">
-                  <span className="block t-encabezado">{NIVEL[cal]}</span>
+                  <span className="block t-encabezado">{NIVEL[cal]}{rangos?.[cal] ? ` · ${rangos[cal]}` : ''}</span>
                   {rasgo.niveles?.[cal] && <span className={`block t-sub ${elegido ? '' : 'text-secundario'}`}>{rasgo.niveles[cal]}</span>}
                 </span>
                 {elegido && <CheckCircle2 className="w-6 h-6 shrink-0" aria-hidden="true" />}
@@ -330,8 +429,8 @@ export default function LinealEditor() {
       <>
         <Barra titulo="Fotos" atras alVolver={volver} />
         <div className="px-4 pt-4">
-          <h2 className="t-titulo">Fotos de la cabra</h2>
-          <p className="t-sub text-secundario mt-1">Una por cada vista, a 2-3 m, agachado a la altura de la barriga, sin zoom y con el bastón parado junto a la cabra. Sirven para revisar la calificación después.</p>
+          <h2 className="t-titulo">{macho ? 'Fotos del macho' : 'Fotos de la cabra'}</h2>
+          <p className="t-sub text-secundario mt-1">Una por cada vista, a 2-3 m, agachado a la altura de la barriga, sin zoom y con el bastón parado junto al animal. Sirven para revisar la calificación después.</p>
         </div>
         <div className="px-4 mt-4 grid grid-cols-2 gap-3">
           {VISTAS.map((v) => {
@@ -374,7 +473,7 @@ export default function LinealEditor() {
     <>
       <Barra titulo="Resultado" atras alVolver={volver} />
       <div className="px-4 pt-5 text-center">
-        <p className="t-sub text-secundario">{animal ? `${animal.nombre ? animal.nombre + ' · ' : 'Chapeta '}${animal.chapetaNueva || animal.chapetaVieja || animal.codigo}` : 'Cabra sin elegir'}</p>
+        <p className="t-sub text-secundario">{macho ? '♂ ' : '♀ '}{animal ? `${animal.nombre ? animal.nombre + ' · ' : 'Chapeta '}${animal.chapetaNueva || animal.chapetaVieja || animal.codigo}` : 'Sin elegir'}</p>
         <p className="text-[56px] leading-[60px] font-bold tabular-nums mt-1">{String(Math.round(r.puntFinal * 10) / 10).replace('.', ',')}</p>
         <p className="t-encabezado">{faltan ? `Faltan ${faltan} rasgos` : NOMBRE_CATEGORIA[r.categoria]}</p>
         <p className="t-nota text-secundario">puntos de 100</p>
@@ -390,6 +489,7 @@ export default function LinealEditor() {
       <Seccion titulo="Rasgos" className="mt-6" pie="Toque un rasgo para cambiar la calificación.">
         {catalogo.map((x, i) => (
           <Fila key={x.idRasgo} titulo={x.nombre} alHacerClic={() => irA(i + 2)}
+            sub={b.automaticos?.[x.idRasgo] && !b.manuales?.[x.idRasgo] ? 'Por medida' : undefined}
             valor={b.valores[x.idRasgo] ? NIVEL[b.valores[x.idRasgo]] : 'Sin calificar'} />
         ))}
         <Fila titulo="Fotos" valor={`${cuantasFotos} de ${VISTAS.length}`} alHacerClic={() => irA(PASO_FOTOS)} />

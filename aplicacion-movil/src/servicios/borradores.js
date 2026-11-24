@@ -37,6 +37,8 @@ export const fotosDeBorrador = (b) => {
   if (b.tipo === 'lineal') return [...Object.values(b.fotos || {}).filter(Boolean), ...(b.fotosMedicion || [])];
   return [
     ...(b.fotosGenerales || []),
+    ...(b.fotosRspp || []),
+    ...(b.fotosAsi || []),
     ...Object.values(b.valores || {}).flatMap((v) => v.fotos || []),
   ];
 };

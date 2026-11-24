@@ -8,9 +8,9 @@ import { useNavigate } from 'react-router-dom';
 import { HeartPulse, Ruler, Plus, UploadCloud, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@contextos/AuthContext';
 import { listarBorradores, fotosDeBorrador } from '@servicios/borradores';
-import { catalogoLocal } from '@servicios/catalogos';
+import { catalogoLocal, tipoCatalogoLineal } from '@servicios/catalogos';
 import { calcularBienestar, calcularLineal } from '@servicios/calculos';
-import { nuevaBienestar, nuevaLineal } from '@servicios/evaluaciones';
+import { nuevaBienestar, nuevaLineal, vigentes } from '@servicios/evaluaciones';
 import { obtenerCacheAnimales } from '@servicios/almacenamientoLocal';
 import Barra from '@/ui/Barra';
 import { Seccion, Fila, IconoFila, EstadoVacio } from '@/ui/Lista';
@@ -31,9 +31,28 @@ const TEXTO = {
   },
   lineal: {
     Icono: Ruler, tono: 'salvia', titulo: 'Clasificación lineal',
-    texto: 'Calificar el cuerpo, la ubre y las patas de una cabra, rasgo por rasgo, con las fotos de cada vista.',
+    texto: 'Medir el animal, compararlo con su raza y calificar su forma rasgo por rasgo. Hembras y machos tienen su propia evaluación.',
   },
 };
+
+/** Dos botones grandes: cada sexo tiene su propia clasificación lineal. */
+function BotonesSexo({ alElegir }) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {[['HEMBRA', '♀', 'Hembra', 'Cuerpo, ubre y patas'], ['MACHO', '♂', 'Macho', 'Cuerpo, patas y testículos']].map(([s, simbolo, t, sub]) => (
+        <button key={s} type="button" onClick={() => alElegir(s)}
+          className={`min-h-[120px] rounded-2xl p-4 text-left flex flex-col justify-between active:scale-[0.98] transition
+                      ${s === 'MACHO' ? 'bg-[#4f46e5] text-white' : 'bg-acento text-sobre-acento'}`}>
+          <span className="text-[40px] leading-none font-black" aria-hidden="true">{simbolo}</span>
+          <span>
+            <span className="block t-titulo">Evaluar {t.toLowerCase()}</span>
+            <span className="block t-nota opacity-90">{sub}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function Evaluar() {
   const navigate = useNavigate();
@@ -54,8 +73,8 @@ export default function Evaluar() {
   const animales = obtenerCacheAnimales();
   const info = TEXTO[tipo];
 
-  const nueva = async () => {
-    if (tipo === 'lineal') { navigate(`/lineal/${nuevaLineal().id}`); return; }
+  const nueva = async (sexo = 'HEMBRA') => {
+    if (tipo === 'lineal') { navigate(`/lineal/${nuevaLineal(null, '', sexo).id}`); return; }
     const b = await nuevaBienestar(usuario?.nombre || '');
     if (!b) { avisos.error('Falta la lista de indicadores', 'Conéctese a internet una vez para descargarla.'); return; }
     navigate(`/bienestar/${b.id}`);
@@ -65,10 +84,11 @@ export default function Evaluar() {
     const fotos = fotosDeBorrador(b).length;
     const partes = [];
     if (b.tipo === 'bienestar') {
-      const r = calcularBienestar(catalogo, b.valores, b.cab.tieneRspp, b.cab.tieneAsi);
+      const v = vigentes(b.cab);
+      const r = calcularBienestar(catalogo, b.valores, v.rspp, v.asi);
       partes.push(`${r.calificados} de ${r.aplicables} indicadores`);
     } else {
-      const r = calcularLineal(catalogo, b.valores);
+      const r = calcularLineal(catalogoLocal(tipoCatalogoLineal(b.sexo)), b.valores);
       partes.push(`${r.calificados} de ${r.total} rasgos`);
     }
     partes.push(`${fotos} ${fotos === 1 ? 'foto' : 'fotos'}`);
@@ -78,7 +98,8 @@ export default function Evaluar() {
   const titulo = (b) => {
     if (b.tipo === 'bienestar') return `Visita del ${fechaCorta(b.cab.fechaEvaluacion)}`;
     const a = animales.find((x) => String(x.id) === String(b.idAnimal));
-    return a ? (a.nombre ? `${codigoDe(a)} · ${a.nombre}` : `Chapeta ${codigoDe(a)}`) : 'Cabra sin elegir';
+    const s = b.sexo === 'MACHO' ? '♂ ' : '♀ ';
+    return s + (a ? (a.nombre ? `${codigoDe(a)} · ${a.nombre}` : `Chapeta ${codigoDe(a)}`) : (b.sexo === 'MACHO' ? 'Macho sin elegir' : 'Cabra sin elegir'));
   };
 
   return (
@@ -96,7 +117,7 @@ export default function Evaluar() {
             </span>
             <p className="t-titulo">{info.titulo}</p>
             <p className="t-sub text-secundario mt-1.5 mb-6">{info.texto}</p>
-            <Boton Icono={Plus} onClick={nueva}>Empezar una evaluación</Boton>
+            {tipo === 'lineal' ? <BotonesSexo alElegir={nueva} /> : <Boton Icono={Plus} onClick={() => nueva()}>Empezar una evaluación</Boton>}
           </div>
         </div>
       ) : (
@@ -112,7 +133,7 @@ export default function Evaluar() {
             ))}
           </Seccion>
           <div className="px-4 mt-5">
-            <Boton variante="tintado" Icono={Plus} onClick={nueva}>Nueva evaluación</Boton>
+            {tipo === 'lineal' ? <BotonesSexo alElegir={nueva} /> : <Boton variante="tintado" Icono={Plus} onClick={() => nueva()}>Nueva evaluación</Boton>}
           </div>
         </>
       )}

@@ -13,7 +13,8 @@ import { fechaCacheAnimales, obtenerCacheAnimales } from '@servicios/almacenamie
 import Barra from '@/ui/Barra';
 import Estado from '@/ui/Estado';
 import { Seccion, Fila, IconoFila } from '@/ui/Lista';
-import { Boton } from '@/ui/Controles';
+import { Boton, Segmentado } from '@/ui/Controles';
+import { TAMANOS, leerLetra, aplicarLetra } from '@utilidades/tamanoLetra';
 import Hoja from '@/ui/Hoja';
 import Confirmar from '@/ui/Confirmar';
 import { useAvisos } from '@/ui/Avisos';
@@ -24,6 +25,7 @@ const ROLES = { administrador_granja: 'Administrador', zootecnista: 'Zootecnista
 const iniciales = (n) => (n || '?').split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
 
 export default function Ajustes() {
+  const [letra, setLetra] = useState(leerLetra());
   const navigate = useNavigate();
   const avisos = useAvisos();
   const { usuario, logout } = useAuth();
@@ -85,6 +87,12 @@ export default function Ajustes() {
           </span>
         </div>
       </Seccion>
+
+      <section className="px-4 mt-6">
+        <h2 className="cabecera-seccion">Tamaño de la letra</h2>
+        <Segmentado opciones={TAMANOS} valor={letra} alCambiar={(v) => { aplicarLetra(v); setLetra(v); }} etiqueta="Tamaño de la letra" />
+        <p className="pie-seccion">Agrande la letra si le cuesta leer en el corral. Cambia en toda la app.</p>
+      </section>
 
       <Seccion titulo="Conexión" className="mt-6" pie="La app se conecta por internet, con wifi o con datos. La dirección solo se cambia si el servidor se muda.">
         <Fila icono={<IconoFila Icono={Server} tono="neutro" />} titulo="Servidor" sub={servidor.replace(/^https?:\/\//, '').replace(/\/api$/, '')}

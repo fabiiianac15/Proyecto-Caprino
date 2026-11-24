@@ -12,6 +12,9 @@ import '@fontsource/manrope/latin-600.css';
 import '@fontsource/manrope/latin-700.css';
 import '@fontsource/manrope/latin-800.css';
 import './index.css';
+import { aplicarLetra } from '@utilidades/tamanoLetra';
+
+aplicarLetra();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

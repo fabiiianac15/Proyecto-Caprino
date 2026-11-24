@@ -32,13 +32,14 @@ export const filtrar = (animales, texto) => {
     [a.codigo, a.chapetaNueva, a.chapetaVieja, a.nombre].some((v) => String(v ?? '').toUpperCase().includes(t)));
 };
 
-export default function SelectorAnimal({ valor, alCambiar, soloHembras = false, etiqueta = 'Animal' }) {
+export default function SelectorAnimal({ valor, alCambiar, soloHembras = false, sexo = null, etiqueta = 'Animal' }) {
+  const filtroSexo = sexo || (soloHembras ? 'hembra' : null);
   const [abierta, setAbierta] = useState(false);
   const [texto, setTexto] = useState('');
   const animales = useMemo(() => {
     const todos = obtenerCacheAnimales().filter((a) => a.estado === 'activo' || !a.estado);
-    return soloHembras ? todos.filter((a) => a.sexo === 'hembra') : todos;
-  }, [soloHembras, abierta]);
+    return filtroSexo ? todos.filter((a) => a.sexo === filtroSexo) : todos;
+  }, [filtroSexo, abierta]);
   const elegido = animales.find((a) => String(a.id) === String(valor));
   const lista = filtrar(animales, texto);
 
@@ -55,7 +56,7 @@ export default function SelectorAnimal({ valor, alCambiar, soloHembras = false, 
           ) : <span className="t-cuerpo text-acento font-medium">Elegir</span>}
         </span>
       </button>
-      <Hoja abierta={abierta} alCerrar={() => setAbierta(false)} titulo={soloHembras ? 'Elegir hembra' : 'Elegir animal'} alta>
+      <Hoja abierta={abierta} alCerrar={() => setAbierta(false)} titulo={filtroSexo === 'hembra' ? 'Elegir hembra' : filtroSexo === 'macho' ? 'Elegir macho' : 'Elegir animal'} alta>
         <div className="px-4 pb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-terciario" aria-hidden="true" />

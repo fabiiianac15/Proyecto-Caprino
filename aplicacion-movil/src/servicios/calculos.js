@@ -90,7 +90,9 @@ export const categoriaLineal = (p) =>
   p >= 90 ? 'EXCELENTE' : p >= 85 ? 'MUY_BUENO' : p >= 80 ? 'BUENO' : p >= 70 ? 'ACEPTABLE' : p >= 60 ? 'REGULAR' : 'POBRE';
 
 export const calcularLineal = (catalogo, valores) => {
-  const subtotales = { APARIENCIA: 0, ESTRUCTURA: 0, MAMARIO: 0, PATAS: 0 };
+  // Las regiones salen del catálogo: hembras (con MAMARIO y PATAS) o machos (con CAPACIDAD)
+  const subtotales = {};
+  catalogo.forEach((r) => { subtotales[r.region] = 0; });
   let calificados = 0;
   catalogo.forEach((r) => {
     const cal = valores[r.idRasgo];

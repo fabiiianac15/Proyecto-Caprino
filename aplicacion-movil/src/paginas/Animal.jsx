@@ -7,14 +7,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Ruler, Tag, ChevronLeft, Syringe, Weight, Milk, Eye, CalendarDays, RefreshCw, WifiOff,
+  Ruler, Tag, ChevronLeft, Syringe, Weight, Milk, Eye, CalendarDays, RefreshCw, WifiOff, Camera,
 } from 'lucide-react';
 import api, { esErrorDeRed } from '@servicios/api';
 import { obtenerCacheAnimales, leerLocal } from '@servicios/almacenamientoLocal';
 import { nuevaLineal } from '@servicios/evaluaciones';
 import Barra from '@/ui/Barra';
 import Chapeta, { codigoDe } from '@/ui/Chapeta';
-import FotoAnimal from '@/ui/FotoAnimal';
+import CarruselAnimal, { useFotosAnimal, HojaNuevaFoto, accionesFoto } from '@/ui/CarruselAnimal';
+import Confirmar from '@/ui/Confirmar';
+import { useAvisos } from '@/ui/Avisos';
 import EstadoProductivo from '@/ui/EstadoProductivo';
 import { Seccion, Fila, IconoFila, EstadoVacio } from '@/ui/Lista';
 import { REGISTROS } from './Inicio';
@@ -57,6 +59,19 @@ export default function Animal() {
   const [historial, setHistorial] = useState(() => leerLocal(CLAVE(id), null));
   const [cargando, setCargando] = useState(false);
   const [sinRed, setSinRed] = useState(false);
+  const avisos = useAvisos();
+  const [fotos, setFotos] = useFotosAnimal(id);
+  const [hojaFoto, setHojaFoto] = useState(false);
+  const [borrarFotoSel, setBorrarFotoSel] = useState(null);
+  const hacerPrincipal = async (f) => {
+    try { const { data } = await api.put(`/animales/fotos/${f.idFoto}/principal`); setFotos(data.data || []); avisos.exito('Foto principal cambiada', ''); }
+    catch (e) { avisos.error('No se pudo cambiar', e.message); }
+  };
+  const borrarFoto = async () => {
+    const f = borrarFotoSel; setBorrarFotoSel(null);
+    try { const { data } = await api.delete(`/animales/fotos/${f.idFoto}`); setFotos(data.data || []); }
+    catch (e) { avisos.error('No se pudo eliminar', e.message); }
+  };
 
   const cargar = async () => {
     setCargando(true);
@@ -81,7 +96,7 @@ export default function Animal() {
   const PESTANAS = [['info', 'Información'], ['salud', 'Salud'], ['pesos', 'Pesos'], ...(hembra ? [['leche', 'Leche']] : [])];
 
   const clasificar = () => {
-    const b = nuevaLineal(animal, edadMeses(animal.fechaNacimiento) ?? '');
+    const b = nuevaLineal(animal, edadMeses(animal.fechaNacimiento) ?? '', animal.sexo === 'macho' ? 'MACHO' : 'HEMBRA');
     navigate(`/lineal/${b.id}`);
   };
 
@@ -114,8 +129,12 @@ export default function Animal() {
     <>
       {/* Foto grande */}
       <div className="relative h-[300px] bg-relleno">
-        <FotoAnimal animal={animal} className="absolute inset-0 w-full h-full" iconoClase="w-24 h-24" alt={`Foto de ${animal.nombre || 'la chapeta ' + codigoDe(animal)}`} />
-        <span className="absolute inset-x-0 top-0 h-24" style={{ background: 'linear-gradient(180deg, rgb(0 0 0 / 0.35), transparent)' }} aria-hidden="true" />
+        <CarruselAnimal fotos={fotos.length ? fotos : (animal.fotoUrl ? [{ url: animal.fotoUrl, tipoVista: 'OTRA', principal: true }] : [])}
+          sexo={animal.sexo} alto="h-[300px]" alAcciones={accionesFoto({ alPrincipal: hacerPrincipal, alBorrar: setBorrarFotoSel })} />
+        <button onClick={() => setHojaFoto(true)} aria-label="Agregar foto"
+          className="absolute right-3 seguro-arriba mt-3 h-11 px-4 rounded-full bg-black/45 text-white t-sub font-semibold flex items-center gap-1.5 active:opacity-70">
+          <Camera className="w-5 h-5" /> Foto
+        </button>
         <button onClick={() => navigate(-1)} aria-label="Atrás"
           className="absolute left-3 seguro-arriba mt-3 w-11 h-11 rounded-full bg-black/35 text-white flex items-center justify-center active:opacity-70">
           <ChevronLeft className="w-6 h-6" strokeWidth={2.4} />
@@ -183,7 +202,7 @@ export default function Animal() {
             ))}
             {hembra && (
               <Fila icono={<IconoFila Icono={Ruler} tono="salvia" />} titulo="Clasificación lineal"
-                sub="Calificar el cuerpo y la ubre, con medidas y fotos" alHacerClic={clasificar} />
+                sub={hembra ? "Medir y calificar cuerpo, ubre y patas" : "Medir y calificar cuerpo, patas y testículos"} alHacerClic={clasificar} />
             )}
           </Seccion>
         </>
@@ -217,6 +236,9 @@ export default function Animal() {
       )}
 
       <p className="t-nota text-secundario px-5 mt-5">El expediente completo (partos, genealogía y reportes) está en la web.</p>
+      <HojaNuevaFoto abierta={hojaFoto} alCerrar={() => setHojaFoto(false)} idAnimal={animal.id} sexo={animal.sexo} alSubir={setFotos} avisos={avisos} />
+      <Confirmar abierta={!!borrarFotoSel} alCerrar={() => setBorrarFotoSel(null)} titulo="Eliminar foto" accion="Eliminar"
+        texto="La foto se borra del sistema para todos." alConfirmar={borrarFoto} />
     </>
   );
 }

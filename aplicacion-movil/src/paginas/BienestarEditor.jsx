@@ -13,10 +13,11 @@ import { useBorrador } from '@hooks/useBorrador';
 import { catalogoLocal } from '@servicios/catalogos';
 import { eliminarBorrador } from '@servicios/borradores';
 import { borrarFotos } from '@servicios/fotosLocales';
-import { calcularBienestar, muestraMinima } from '@servicios/calculos';
-import { GRUPOS, TIPOS_PRODUCTOR, NOMBRE_CLASIF, colorPuntaje, reaplicar, hoy } from '@servicios/evaluaciones';
+import { calcularBienestar } from '@servicios/calculos';
+import { GRUPOS, TIPOS_PRODUCTOR, NOMBRE_CLASIF, colorPuntaje, reaplicar, hoy, docsDe } from '@servicios/evaluaciones';
+import { SeccionMuestra, FilasDocumentos, HojaDocumento } from '@/ui/BienestarICA';
 import Barra from '@/ui/Barra';
-import { Seccion, Fila, FilaCampo, FilaInterruptor } from '@/ui/Lista';
+import { Seccion, Fila, FilaCampo } from '@/ui/Lista';
 import { Boton } from '@/ui/Controles';
 import Hoja from '@/ui/Hoja';
 import Confirmar from '@/ui/Confirmar';
@@ -30,6 +31,7 @@ export default function BienestarEditor() {
   const envio = useEnvio(id);
   const [hojaTipo, setHojaTipo] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
+  const [hojaDoc, setHojaDoc] = useState(null); // 'RSPP' | 'ASI'
   const catalogo = catalogoLocal('bienestar');
 
   if (!b || b.tipo !== 'bienestar') return <Navigate to="/evaluar" replace />;
@@ -44,14 +46,18 @@ export default function BienestarEditor() {
   }
 
   const { cab, valores } = b;
-  const r = calcularBienestar(catalogo, valores, cab.tieneRspp, cab.tieneAsi);
+  const docs = docsDe(cab);
+  const r = calcularBienestar(catalogo, valores, docs.rspp.estado === 'VIGENTE', docs.asi.estado === 'VIGENTE');
+  const cambiarCab = (f) => cambiar((p) => ({ ...p, errorEnvio: null, cab: f(p.cab) }));
+  const ponerDoc = (sigla, d) => cambiarCab((c) => ({ ...c, ...docsDe(c), [sigla.toLowerCase()]: d }));
+  const claveFotosDoc = (sigla) => (sigla === 'RSPP' ? 'fotosRspp' : 'fotosAsi');
+  const ponerFotosDoc = (sigla, claves) => {
+    borrarFotos((b[claveFotosDoc(sigla)] || []).filter((c) => !claves.includes(c)));
+    cambiar({ [claveFotosDoc(sigla)]: claves });
+  };
   const ponerCab = (campo) => (e) => cambiar((p) => ({ ...p, errorEnvio: null, cab: { ...p.cab, [campo]: e?.target ? e.target.value : e } }));
   const tipo = TIPOS_PRODUCTOR.find((t) => t.valor === cab.tipoProductor);
 
-  const ponerAnimales = (e) => {
-    const n = e.target.value;
-    cambiar((p) => ({ ...p, cab: { ...p.cab, numAnimales: n, tamanoMuestra: muestraMinima(n) } }));
-  };
   const ponerTipo = (valor) => {
     cambiar((p) => ({ ...p, cab: { ...p.cab, tipoProductor: valor }, valores: reaplicar(catalogo, p.valores, valor) }));
     setHojaTipo(false);
@@ -95,14 +101,15 @@ export default function BienestarEditor() {
         {b.errorEnvio && <p className="t-sub text-critico mt-3 px-1" role="alert">No se pudo enviar: {b.errorEnvio}</p>}
       </div>
 
-      <Seccion titulo="La visita" className="mt-6"
-        pie={cab.tamanoMuestra ? `Con ${cab.numAnimales} animales, la guía pide revisar al menos ${muestraMinima(cab.numAnimales)}, una por una.` : 'Escriba cuántos animales hay y la app le dice cuántos revisar.'}>
+      <Seccion titulo="1. La visita" className="mt-6">
         <FilaCampo etiqueta="Fecha" type="date" value={cab.fechaEvaluacion} max={hoy()} onChange={ponerCab('fechaEvaluacion')} />
         <Fila titulo="Tipo de granja" valor={tipo?.etiqueta} alHacerClic={() => setHojaTipo(true)} />
-        <FilaCampo etiqueta="Animales en total" inputMode="numeric" value={cab.numAnimales} onChange={ponerAnimales} placeholder="0" />
-        <FilaCampo etiqueta="Animales a revisar" inputMode="numeric" value={cab.tamanoMuestra} onChange={ponerCab('tamanoMuestra')} placeholder="0" />
         <FilaCampo etiqueta="Quién evalúa" value={cab.evaluadores} onChange={ponerCab('evaluadores')} placeholder="Nombres" />
       </Seccion>
+
+      <SeccionMuestra cab={cab} cambiarCab={cambiarCab} />
+
+      <FilasDocumentos docs={docs} total={r.total} alAbrir={setHojaDoc} />
 
       {GRUPOS.map((g) => {
         const inds = catalogo.filter((i) => i.tipoMedida === g.clave);
@@ -121,11 +128,6 @@ export default function BienestarEditor() {
         );
       })}
 
-      <Seccion titulo="Registros de la granja ante el ICA" className="mt-6"
-        pie="Pregunte al encargado. Para que el resultado sea Excelente la granja necesita los dos.">
-        <FilaInterruptor titulo="Tiene registro sanitario (RSPP)" valor={cab.tieneRspp} alCambiar={ponerCab('tieneRspp')} />
-        <FilaInterruptor titulo="Tiene autorización sanitaria (ASI)" valor={cab.tieneAsi} alCambiar={ponerCab('tieneAsi')} />
-      </Seccion>
 
       <div className="px-4 mt-6">
         <h2 className="cabecera-seccion">Fotos generales de la granja</h2>
@@ -164,6 +166,10 @@ export default function BienestarEditor() {
           <p className="pie-seccion">En granjas familiares y extensivas no se califican los indicadores de encierro.</p>
         </div>
       </Hoja>
+
+      <HojaDocumento sigla={hojaDoc} doc={hojaDoc ? docs[hojaDoc.toLowerCase()] : null} fechaVisita={cab.fechaEvaluacion}
+        fotos={hojaDoc ? b[claveFotosDoc(hojaDoc)] || [] : []}
+        alCambiar={(d) => ponerDoc(hojaDoc, d)} alCambiarFotos={(c) => ponerFotosDoc(hojaDoc, c)} alCerrar={() => setHojaDoc(null)} />
 
       <Confirmar abierta={confirmar} alCerrar={() => setConfirmar(false)} titulo="Eliminar evaluación" accion="Eliminar"
         texto="Se borran del teléfono las calificaciones y las fotos de esta visita. No se puede deshacer." alConfirmar={eliminar} />

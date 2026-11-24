@@ -10,6 +10,17 @@ import api, { esErrorDeRed } from './api';
 import { estaConectado } from './conectividad';
 import { leerFoto, borrarFotos } from './fotosLocales';
 import { guardarBorrador, eliminarBorrador, obtenerBorrador, fotosDeBorrador } from './borradores';
+import { docsDe } from './evaluaciones';
+
+const entero = (v) => (v === '' || v == null ? null : Number(v));
+const docsCuerpo = (cab) => {
+  const { rspp, asi } = docsDe(cab);
+  const uno = (p, d) => ({
+    [`${p}Estado`]: d.estado, [`${p}Numero`]: d.numero || null, [`${p}Fecha`]: d.fecha || null,
+    [`${p}Vence`]: d.vence || null, [`${p}Checks`]: d.checks || [], [`${p}Obs`]: d.obs || null,
+  });
+  return { ...uno('rspp', rspp), ...uno('asi', asi) };
+};
 
 const cuerpoBienestar = (b, estado) => ({
   especie: 'CAPRINO',
@@ -20,9 +31,11 @@ const cuerpoBienestar = (b, estado) => ({
   numAnimales: b.cab.numAnimales !== '' ? Number(b.cab.numAnimales) : null,
   tamanoMuestra: b.cab.tamanoMuestra !== '' ? Number(b.cab.tamanoMuestra) : null,
   evaluadores: b.cab.evaluadores || null,
-  tieneRspp: !!b.cab.tieneRspp,
-  tieneAsi: !!b.cab.tieneAsi,
+  ...docsCuerpo(b.cab),
   observaciones: b.cab.observaciones || null,
+  invCrias: entero(b.cab.inventario?.CRIAS), invJovenes: entero(b.cab.inventario?.JOVENES), invAdultos: entero(b.cab.inventario?.ADULTOS),
+  mueCrias: b.cab.porGrupo?.CRIAS ?? null, mueJovenes: b.cab.porGrupo?.JOVENES ?? null, mueAdultos: b.cab.porGrupo?.ADULTOS ?? null,
+  animalesMuestra: b.cab.animalesMuestra || [],
   detalle: Object.entries(b.valores).map(([idIndicador, v]) => ({
     idIndicador: Number(idIndicador),
     puntaje: v.puntaje,
@@ -40,7 +53,11 @@ const cuerpoLineal = (b) => ({
   edadMeses: b.edadMeses !== '' && b.edadMeses != null ? Number(b.edadMeses) : null,
   numLactancia: b.numLactancia !== '' && b.numLactancia != null ? Number(b.numLactancia) : null,
   observaciones: b.observaciones || null,
-  detalle: Object.entries(b.valores).map(([idRasgo, calificacion]) => ({ idRasgo: Number(idRasgo), calificacion })),
+  detalle: Object.entries(b.valores).map(([idRasgo, calificacion]) => ({
+    idRasgo: Number(idRasgo), calificacion,
+    // Calificado solo con la medida (y no cambiado a mano) = MEDIDA
+    origen: b.automaticos?.[idRasgo] && !b.manuales?.[idRasgo] ? 'MEDIDA' : 'VISUAL',
+  })),
   medidas: Object.entries(b.medidas || {})
     .filter(([, m]) => Number(m?.valor) > 0)
     .map(([codigo, m]) => ({ codigo, valor: Number(m.valor), metodo: m.metodo === 'FOTO' ? 'FOTO' : 'INSTRUMENTO' })),
@@ -65,6 +82,8 @@ const fotosPorSubir = (b) => {
   } else {
     lista = [
       ...(b.fotosGenerales || []).map((clave) => ({ clave, campos: {} })),
+      ...(b.fotosRspp || []).map((clave) => ({ clave, campos: { documento: 'RSPP', descripcion: 'Certificado RSPP' } })),
+      ...(b.fotosAsi || []).map((clave) => ({ clave, campos: { documento: 'ASI', descripcion: 'Documento ASI' } })),
       ...Object.entries(b.valores).flatMap(([idInd, v]) => (v.fotos || []).map((clave) => ({ clave, campos: { idIndicador: idInd } }))),
     ];
   }
