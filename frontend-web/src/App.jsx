@@ -176,8 +176,8 @@ function App() {
       </div>
 
       {/* Barra superior: capa flotante con desenfoque, en el verde de la marca */}
-      <nav className="vidrio-verde fixed w-full top-0 z-50 border-b border-white/10 shadow-sm" aria-label="Principal">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className="barra-superior vidrio-verde fixed w-full top-0 z-50 border-b border-white/10 shadow-sm" aria-label="Principal">
+        <div className="max-w-[96rem] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-14 gap-3">
             {/* Marca */}
             <button
@@ -201,7 +201,7 @@ function App() {
                             ${menuModulos ? 'bg-white/25' : 'bg-white/10 hover:bg-white/20'}`}
               >
                 <LayoutGrid className="w-4 h-4" />
-                <span className="hidden sm:inline">{moduloActual ? moduloActual.titulo : 'Módulos'}</span>
+                <span className="hidden sm:inline whitespace-nowrap truncate max-w-[11rem]">{moduloActual ? moduloActual.titulo : 'Módulos'}</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menuModulos ? 'rotate-180' : ''}`} />
               </button>
 
@@ -231,7 +231,7 @@ function App() {
             <div className="flex-1" />
 
             {/* Indicadores del rebaño en tiempo real */}
-            <div className="hidden lg:flex items-center gap-1.5 text-white">
+            <div className="hidden 2xl:flex items-center gap-1.5 text-white">
               {[
                 { ruta: '/animales', Icono: Users, etiqueta: 'Animales', valor: indicadores.totalAnimales, titulo: 'Ver todos los animales' },
                 { ruta: '/notificaciones', Icono: Bell, etiqueta: 'Alertas', valor: indicadores.alertasPendientes, titulo: 'Ver alertas', aviso: indicadores.alertasPendientes > 0 },
@@ -246,8 +246,8 @@ function App() {
                 >
                   <i.Icono className="w-4 h-4 text-white/85" />
                   <span className="text-left leading-none">
-                    <span className="block text-[10px] font-medium text-white/75 mb-0.5">{i.etiqueta}</span>
-                    <span className="block text-sm font-bold tabular-nums">{i.valor}</span>
+                    <span className="block text-[10px] font-medium text-white/75 mb-0.5 whitespace-nowrap">{i.etiqueta}</span>
+                    <span className="block text-sm font-bold tabular-nums whitespace-nowrap">{i.valor}</span>
                   </span>
                   {i.aviso && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-green-700" aria-hidden="true" />}
                 </button>
@@ -256,7 +256,7 @@ function App() {
 
             {/* Usuario, auditoría y salida */}
             <div className="flex items-center gap-1.5">
-              <ControlLetra claro className="hidden sm:inline-flex mr-1" />
+              <ControlLetra claro className="hidden sm:inline-flex mr-1 shrink-0" />
               <button
                 onClick={() => setMostrarPerfil(true)}
                 className="hidden md:flex items-center gap-2.5 h-10 pl-1.5 pr-3 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
@@ -265,9 +265,9 @@ function App() {
                 <span className="flex items-center justify-center w-7 h-7 bg-white rounded-full">
                   <User className="w-4 h-4 text-green-700" />
                 </span>
-                <span className="text-left leading-none">
-                  <span className="block text-sm font-semibold text-white">{usuario?.nombre || usuario?.nombre_completo}</span>
-                  <span className="block text-[11px] text-white/75 mt-0.5 capitalize">
+                <span className="text-left leading-none min-w-0">
+                  <span className="block text-sm font-semibold text-white whitespace-nowrap truncate max-w-[9rem]">{usuario?.nombre || usuario?.nombre_completo}</span>
+                  <span className="block text-[11px] text-white/75 mt-0.5 capitalize whitespace-nowrap truncate max-w-[9rem]">
                     {usuario?.rol === 'administrador' || usuario?.rol === 'administrador_granja' ? 'Administrador de granja' :
                      usuario?.rol === 'pasante'       ? 'Pasante' :
                      usuario?.rol === 'veterinario'   ? 'Veterinario' :
