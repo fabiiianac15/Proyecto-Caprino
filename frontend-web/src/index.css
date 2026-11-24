@@ -145,3 +145,15 @@
   .vidrio-verde { background: #15803d; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .vidrio-claro { background: #ffffff; -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+
+/* Aparición suave (carrusel, pantallas del asistente) */
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-aparecer { animation: aparecer 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* Tamaño de letra elegido por el usuario (todo el sistema usa rem) */
+html[data-letra='normal'] { font-size: 16px; }
+html[data-letra='grande'] { font-size: 17.5px; }
+html[data-letra='muy-grande'] { font-size: 19.5px; }

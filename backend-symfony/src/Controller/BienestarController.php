@@ -17,6 +17,20 @@ use Symfony\Component\Routing\Annotation\Route;
 class BienestarController extends AbstractController
 {
     private const ESTADOS = ['BORRADOR', 'FINALIZADA'];
+    private const ESTADOS_DOC = ['VIGENTE', 'EN_TRAMITE', 'VENCIDO', 'NO_TIENE', 'NO_SABE'];
+    private const GRUPOS_EDAD = ['CRIAS', 'JOVENES', 'ADULTOS'];
+
+    /** Columnas de cabecera que se leen en el listado y el detalle. */
+    private const COLS_CAB = "e.id_evaluacion, e.especie, e.fecha_evaluacion, e.tipo_productor,
+                    e.sistema_productivo, e.num_animales, e.tamano_muestra,
+                    e.tiene_rspp, e.tiene_asi, e.punt_recursos, e.punt_animal,
+                    e.punt_gestion, e.punt_total, e.clasificacion, e.evaluadores, e.estado,
+                    e.inv_crias, e.inv_jovenes, e.inv_adultos, e.mue_crias, e.mue_jovenes, e.mue_adultos,
+                    e.animales_muestra,
+                    e.rspp_estado, e.rspp_numero, TO_CHAR(e.rspp_fecha,'YYYY-MM-DD') AS rspp_fecha,
+                    TO_CHAR(e.rspp_vence,'YYYY-MM-DD') AS rspp_vence, e.rspp_checks, e.rspp_obs,
+                    e.asi_estado, e.asi_numero, TO_CHAR(e.asi_fecha,'YYYY-MM-DD') AS asi_fecha,
+                    TO_CHAR(e.asi_vence,'YYYY-MM-DD') AS asi_vence, e.asi_checks, e.asi_obs";
 
     public function __construct(
         private Connection       $connection,
@@ -62,10 +76,7 @@ class BienestarController extends AbstractController
     public function list(): JsonResponse
     {
         $rows = $this->connection->fetchAllAssociative(
-            "SELECT e.id_evaluacion, e.especie, e.fecha_evaluacion, e.tipo_productor,
-                    e.sistema_productivo, e.num_animales, e.tamano_muestra,
-                    e.tiene_rspp, e.tiene_asi, e.punt_recursos, e.punt_animal,
-                    e.punt_gestion, e.punt_total, e.clasificacion, e.evaluadores, e.estado,
+            "SELECT " . self::COLS_CAB . ",
                     (SELECT COUNT(*) FROM EVAL_BIENESTAR_FOTO f WHERE f.id_evaluacion = e.id_evaluacion) AS num_fotos
                FROM EVALUACION_BIENESTAR e
               ORDER BY e.fecha_evaluacion DESC, e.id_evaluacion DESC"
@@ -81,12 +92,8 @@ class BienestarController extends AbstractController
     public function show(int $id): JsonResponse
     {
         $cab = $this->connection->fetchAssociative(
-            "SELECT id_evaluacion, especie, fecha_evaluacion, tipo_productor,
-                    sistema_productivo, num_animales, tamano_muestra,
-                    tiene_rspp, tiene_asi, punt_recursos, punt_animal,
-                    punt_gestion, punt_total, clasificacion, observaciones,
-                    evaluadores, estado
-               FROM EVALUACION_BIENESTAR WHERE id_evaluacion = :id",
+            "SELECT " . self::COLS_CAB . ", e.observaciones
+               FROM EVALUACION_BIENESTAR e WHERE e.id_evaluacion = :id",
             ['id' => $id]
         );
 
@@ -106,7 +113,7 @@ class BienestarController extends AbstractController
         );
 
         $fotos = $this->connection->fetchAllAssociative(
-            "SELECT id_foto, id_indicador, descripcion, fecha_registro
+            "SELECT id_foto, id_indicador, descripcion, fecha_registro, documento
                FROM EVAL_BIENESTAR_FOTO WHERE id_evaluacion = :id ORDER BY id_foto",
             ['id' => $id]
         );
@@ -141,11 +148,32 @@ class BienestarController extends AbstractController
     {
         $sug = [];
 
-        // Inventario actual de caprinos (para el tamaño de muestra, Tabla 1)
+        // Inventario actual por grupo de edad (tamaño de muestra, Tabla 1 y numeral 4.4):
+        // crías lactantes < 3 meses, jóvenes 3 a 12 meses, adultos > 12 meses.
+        $grupos = array_fill_keys(self::GRUPOS_EDAD, 0);
+        $sinFecha = 0;
+        $animales = [];
+        foreach ($this->connection->fetchAllAssociative(
+            "SELECT id_animal, codigo_identificacion, nombre, sexo,
+                    MONTHS_BETWEEN(SYSDATE, fecha_nacimiento) AS meses
+               FROM ANIMAL WHERE estado = 'activo' ORDER BY codigo_identificacion"
+        ) as $a) {
+            $m = $a['MESES'] !== null ? (float) $a['MESES'] : null;
+            if ($m === null) { $sinFecha++; }
+            $g = $m === null ? 'ADULTOS' : ($m < 3 ? 'CRIAS' : ($m <= 12 ? 'JOVENES' : 'ADULTOS'));
+            $grupos[$g]++;
+            $nombre = trim((string) $a['NOMBRE']);
+            $animales[] = [
+                'id' => (int) $a['ID_ANIMAL'], 'codigo' => $a['CODIGO_IDENTIFICACION'],
+                'nombre' => ($nombre === '' || preg_match('/^[.\-_ ]+$/', $nombre)) ? null : $nombre,
+                'sexo' => $a['SEXO'], 'grupo' => $g, 'meses' => $m !== null ? (int) floor($m) : null,
+            ];
+        }
         $sug['_INVENTARIO'] = [
-            'totalAnimales' => (int) $this->connection->fetchOne(
-                "SELECT COUNT(*) FROM ANIMAL WHERE estado = 'activo'"
-            ),
+            'totalAnimales' => count($animales),
+            'grupos'        => $grupos,
+            'sinFecha'      => $sinFecha,
+            'animales'      => $animales,
         ];
 
         // FAMACHA: animales cuya última evaluación es 1 o 2 (Tabla 24)
@@ -206,10 +234,18 @@ class BienestarController extends AbstractController
                    (especie, fecha_evaluacion, tipo_productor, sistema_productivo,
                     num_animales, tamano_muestra, tiene_rspp, tiene_asi,
                     punt_recursos, punt_animal, punt_gestion, punt_total,
-                    clasificacion, observaciones, evaluadores, estado, usuario_registro)
+                    clasificacion, observaciones, evaluadores, estado,
+                    inv_crias, inv_jovenes, inv_adultos, mue_crias, mue_jovenes, mue_adultos, animales_muestra,
+                    rspp_estado, rspp_numero, rspp_fecha, rspp_vence, rspp_checks, rspp_obs,
+                    asi_estado, asi_numero, asi_fecha, asi_vence, asi_checks, asi_obs,
+                    usuario_registro)
                  VALUES
                    (:esp, TO_DATE(:fec,'YYYY-MM-DD'), :tp, :sis, :na, :ms, :rspp, :asi,
-                    :pr, :pa, :pg, :pt, :clas, :obs, :evs, :est, :ur)",
+                    :pr, :pa, :pg, :pt, :clas, :obs, :evs, :est,
+                    :ic, :ij, :ia, :mc, :mj, :ma, :am,
+                    :re, :rn, TO_DATE(:rf,'YYYY-MM-DD'), TO_DATE(:rv,'YYYY-MM-DD'), :rc, :ro,
+                    :ae, :an, TO_DATE(:af,'YYYY-MM-DD'), TO_DATE(:av,'YYYY-MM-DD'), :ac, :ao,
+                    :ur)",
                 $this->paramsCabecera($in, $r) + ['esp' => $in['especie'], 'ur' => $uReg]
             );
             $idEval = (int) $this->connection->fetchOne(
@@ -267,6 +303,12 @@ class BienestarController extends AbstractController
                     tiene_rspp = :rspp, tiene_asi = :asi,
                     punt_recursos = :pr, punt_animal = :pa, punt_gestion = :pg, punt_total = :pt,
                     clasificacion = :clas, observaciones = :obs, evaluadores = :evs, estado = :est,
+                    inv_crias = :ic, inv_jovenes = :ij, inv_adultos = :ia,
+                    mue_crias = :mc, mue_jovenes = :mj, mue_adultos = :ma, animales_muestra = :am,
+                    rspp_estado = :re, rspp_numero = :rn, rspp_fecha = TO_DATE(:rf,'YYYY-MM-DD'),
+                    rspp_vence = TO_DATE(:rv,'YYYY-MM-DD'), rspp_checks = :rc, rspp_obs = :ro,
+                    asi_estado = :ae, asi_numero = :an, asi_fecha = TO_DATE(:af,'YYYY-MM-DD'),
+                    asi_vence = TO_DATE(:av,'YYYY-MM-DD'), asi_checks = :ac, asi_obs = :ao,
                     fecha_modificacion = CURRENT_TIMESTAMP
                   WHERE id_evaluacion = :id",
                 $this->paramsCabecera($in, $r) + ['id' => $id]
@@ -342,6 +384,8 @@ class BienestarController extends AbstractController
         $idInd = $request->request->get('idIndicador');
         $idInd = $idInd !== null && $idInd !== '' ? (int) $idInd : null;
         $descripcion = $request->request->get('descripcion');
+        $documento = strtoupper((string) $request->request->get('documento', ''));
+        $documento = in_array($documento, ['RSPP', 'ASI'], true) ? $documento : null;
         $file = $request->files->get('file');
 
         if ($idInd !== null && !$this->connection->fetchOne(
@@ -363,7 +407,7 @@ class BienestarController extends AbstractController
         }
 
         $ext = $file->guessExtension() ?: 'jpg';
-        $nombre = uniqid(($idInd ?? 'general') . '_', true) . '.' . $ext;
+        $nombre = uniqid(($documento ?? $idInd ?? 'general') . '_', true) . '.' . $ext;
         try {
             $file->move($dirAbs, $nombre);
         } catch (\Throwable) {
@@ -371,9 +415,10 @@ class BienestarController extends AbstractController
         }
 
         $this->connection->executeStatement(
-            "INSERT INTO EVAL_BIENESTAR_FOTO (id_evaluacion, id_indicador, ruta_archivo, descripcion)
-             VALUES (:ie, :ind, :ruta, :desc)",
-            ['ie' => $id, 'ind' => $idInd, 'ruta' => $dirRel . '/' . $nombre, 'desc' => $descripcion ?: null]
+            "INSERT INTO EVAL_BIENESTAR_FOTO (id_evaluacion, id_indicador, ruta_archivo, descripcion, documento)
+             VALUES (:ie, :ind, :ruta, :desc, :doc)",
+            ['ie' => $id, 'ind' => $documento ? null : $idInd, 'ruta' => $dirRel . '/' . $nombre,
+             'desc' => $descripcion ?: null, 'doc' => $documento]
         );
         $idFoto = (int) $this->connection->fetchOne(
             "SELECT id_foto FROM EVAL_BIENESTAR_FOTO WHERE id_evaluacion = :ie ORDER BY id_foto DESC FETCH FIRST 1 ROWS ONLY",
@@ -382,7 +427,7 @@ class BienestarController extends AbstractController
 
         return $this->json([
             'success' => true,
-            'data' => ['idFoto' => $idFoto, 'idIndicador' => $idInd, 'descripcion' => $descripcion ?: null],
+            'data' => ['idFoto' => $idFoto, 'idIndicador' => $documento ? null : $idInd, 'descripcion' => $descripcion ?: null, 'documento' => $documento],
         ], Response::HTTP_CREATED);
     }
 
@@ -477,15 +522,44 @@ class BienestarController extends AbstractController
             ];
         }
 
+        // RSPP y ASI: el estado manda; "tieneRspp/tieneAsi" solo para clientes viejos.
+        $doc = function (string $p) use ($data): array {
+            $estado = strtoupper((string) ($data[$p . 'Estado'] ?? ''));
+            if (!in_array($estado, self::ESTADOS_DOC, true)) {
+                $estado = !empty($data['tiene' . ucfirst($p)]) ? 'VIGENTE' : 'NO_SABE';
+            }
+            $fecha = fn($k) => isset($data[$k]) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $data[$k]) ? $data[$k] : null;
+            $checks = array_filter(array_map(fn($c) => preg_replace('/[^A-Z0-9_]/', '', strtoupper((string) $c)), (array) ($data[$p . 'Checks'] ?? [])));
+            return [
+                'estado' => $estado,
+                'numero' => isset($data[$p . 'Numero']) ? (mb_substr(trim((string) $data[$p . 'Numero']), 0, 60) ?: null) : null,
+                'fecha'  => $fecha($p . 'Fecha'),
+                'vence'  => $fecha($p . 'Vence'),
+                'checks' => $checks ? mb_substr(implode(',', array_unique($checks)), 0, 400) : null,
+                'obs'    => isset($data[$p . 'Obs']) ? (mb_substr(trim((string) $data[$p . 'Obs']), 0, 500) ?: null) : null,
+            ];
+        };
+        $rspp = $doc('rspp');
+        $asi  = $doc('asi');
+        $entero = fn($k) => isset($data[$k]) && $data[$k] !== '' && $data[$k] !== null ? max(0, (int) $data[$k]) : null;
+        $muestra = array_values(array_unique(array_filter(array_map('intval', (array) ($data['animalesMuestra'] ?? [])))));
+
         return [
+            'rsppDoc'   => $rspp,
+            'asiDoc'    => $asi,
+            'grupos'    => [
+                'ic' => $entero('invCrias'), 'ij' => $entero('invJovenes'), 'ia' => $entero('invAdultos'),
+                'mc' => $entero('mueCrias'), 'mj' => $entero('mueJovenes'), 'ma' => $entero('mueAdultos'),
+                'am' => $muestra ? mb_substr(implode(',', $muestra), 0, 4000) : null,
+            ],
             'especie'   => strtoupper($data['especie'] ?? 'CAPRINO'),
             'fecha'     => $data['fechaEvaluacion']   ?? date('Y-m-d'),
             'tipoProd'  => $data['tipoProductor']     ?? null,
             'sistema'   => $data['sistemaProductivo'] ?? null,
             'numAnim'   => $data['numAnimales']       ?? null,
             'muestra'   => $data['tamanoMuestra']     ?? null,
-            'rspp'      => !empty($data['tieneRspp']) ? 1 : 0,
-            'asi'       => !empty($data['tieneAsi'])  ? 1 : 0,
+            'rspp'      => $rspp['estado'] === 'VIGENTE' ? 1 : 0,
+            'asi'       => $asi['estado'] === 'VIGENTE' ? 1 : 0,
             'obs'       => $data['observaciones']     ?? null,
             'evaluadores' => isset($data['evaluadores']) ? (mb_substr(trim((string) $data['evaluadores']), 0, 400) ?: null) : null,
             'estado'    => $estado,
@@ -501,7 +575,11 @@ class BienestarController extends AbstractController
             'pr' => $r['puntRecursos'], 'pa' => $r['puntAnimal'], 'pg' => $r['puntGestion'],
             'pt' => $r['puntTotal'], 'clas' => $r['clasificacion'], 'obs' => $in['obs'],
             'evs' => $in['evaluadores'], 'est' => $in['estado'],
-        ];
+            're' => $in['rsppDoc']['estado'], 'rn' => $in['rsppDoc']['numero'], 'rf' => $in['rsppDoc']['fecha'],
+            'rv' => $in['rsppDoc']['vence'], 'rc' => $in['rsppDoc']['checks'], 'ro' => $in['rsppDoc']['obs'],
+            'ae' => $in['asiDoc']['estado'], 'an' => $in['asiDoc']['numero'], 'af' => $in['asiDoc']['fecha'],
+            'av' => $in['asiDoc']['vence'], 'ac' => $in['asiDoc']['checks'], 'ao' => $in['asiDoc']['obs'],
+        ] + $in['grupos'];
     }
 
     private function insertarDetalle(int $idEval, array $detalles): void
@@ -588,12 +666,26 @@ class BienestarController extends AbstractController
             'idFoto'      => (int) $r['ID_FOTO'],
             'idIndicador' => $r['ID_INDICADOR'] !== null ? (int) $r['ID_INDICADOR'] : null,
             'descripcion' => $r['DESCRIPCION'],
+            'documento'   => $r['DOCUMENTO'] ?? null,
             'fecha'       => $r['FECHA_REGISTRO'],
+        ];
+    }
+
+    private function mapDoc(array $r, string $p): array
+    {
+        return [
+            'estado' => $r[$p . '_ESTADO'] ?? ((bool) $r['TIENE_' . $p] ? 'VIGENTE' : 'NO_SABE'),
+            'numero' => $r[$p . '_NUMERO'] ?? null,
+            'fecha'  => $r[$p . '_FECHA'] ?? null,
+            'vence'  => $r[$p . '_VENCE'] ?? null,
+            'checks' => !empty($r[$p . '_CHECKS']) ? explode(',', $r[$p . '_CHECKS']) : [],
+            'obs'    => $r[$p . '_OBS'] ?? null,
         ];
     }
 
     private function mapCabecera(array $r): array
     {
+        $int = fn($v) => $v !== null ? (int) $v : null;
         return [
             'id'                => (int) $r['ID_EVALUACION'],
             'especie'           => $r['ESPECIE'],
@@ -612,6 +704,13 @@ class BienestarController extends AbstractController
             'evaluadores'       => $r['EVALUADORES'] ?? null,
             'estado'            => $r['ESTADO'] ?? 'FINALIZADA',
             'numFotos'          => isset($r['NUM_FOTOS']) ? (int) $r['NUM_FOTOS'] : null,
+            'grupos'            => [
+                'inventario' => ['CRIAS' => $int($r['INV_CRIAS'] ?? null), 'JOVENES' => $int($r['INV_JOVENES'] ?? null), 'ADULTOS' => $int($r['INV_ADULTOS'] ?? null)],
+                'muestra'    => ['CRIAS' => $int($r['MUE_CRIAS'] ?? null), 'JOVENES' => $int($r['MUE_JOVENES'] ?? null), 'ADULTOS' => $int($r['MUE_ADULTOS'] ?? null)],
+            ],
+            'animalesMuestra'   => !empty($r['ANIMALES_MUESTRA']) ? array_map('intval', explode(',', $r['ANIMALES_MUESTRA'])) : [],
+            'rspp'              => $this->mapDoc($r, 'RSPP'),
+            'asi'               => $this->mapDoc($r, 'ASI'),
         ];
     }
 }

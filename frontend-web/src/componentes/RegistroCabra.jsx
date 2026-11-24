@@ -1,3 +1,4 @@
+import GaleriaAnimal from './GaleriaAnimal';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Save, X, Upload, Camera, AlertCircle, CheckCircle2,
@@ -105,6 +106,7 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
   const [corralesDisponibles, setCorralesDisponibles] = useState([]);
   const [seccionAbierta, setSeccionAbierta] = useState('identidad');
   const inputFotoRef = useRef(null);
+  const galeriaRef = useRef(null);
 
   useEffect(() => {
     razasAPI.getAll()
@@ -230,7 +232,8 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
         colorPelaje: formData.color,
         pesoNacimiento: formData.pesoNacimiento ? parseFloat(formData.pesoNacimiento) : null,
         observaciones: formData.observaciones,
-        fotoUrl: fotoBase64,
+        // Las fotos van por la galería (se suben aparte); fotoUrl solo si quedó una vieja en base64
+        fotoUrl: typeof fotoBase64 === 'string' && fotoBase64.startsWith('data:') ? fotoBase64 : null,
         estado: formData.estado,
         motivoEstado: formData.estado !== 'activo' ? (formData.motivoEstado || null) : null,
         estadoProductivo: formData.sexo === 'hembra' ? (formData.estadoProductivo || null) : null,
@@ -244,6 +247,12 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
       } else {
         resp = await animalesAPI.create(payload);
         setMensaje({ tipo: 'success', texto: 'Cabra registrada correctamente.' });
+      }
+      const idNuevo = cabraEditar?.id || resp?.data?.id || resp?.id;
+      if (!cabraEditar && idNuevo && galeriaRef.current?.hayPendientes()) {
+        setMensaje({ tipo: 'success', texto: 'Cabra registrada. Subiendo fotos…' });
+        const fallidas = await galeriaRef.current.subirPendientes(idNuevo);
+        setMensaje({ tipo: fallidas ? 'error' : 'success', texto: fallidas ? `Cabra registrada, pero ${fallidas} foto(s) no se subieron. Agréguelas desde Editar.` : 'Cabra y fotos guardadas.' });
       }
       setTimeout(() => onGuardar(resp), 1200);
     } catch (err) {
@@ -284,37 +293,11 @@ const RegistroCabra = ({ cabraEditar, onGuardar, onCancelar }) => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-24 space-y-4">
               <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                <Camera className="w-4 h-4 text-green-600" /> Fotografía
+                <Camera className="w-5 h-5 text-green-600" /> Fotos de la cabra
               </h3>
 
-              <div className="aspect-square w-full bg-gray-50 rounded-xl overflow-hidden border-2 border-dashed border-gray-200 flex items-center justify-center">
-                {imagenPreview ? (
-                  <img src={imagenPreview} alt="Preview" className="w-full h-full object-cover"
-                    onError={() => setImagenPreview(null)} />
-                ) : (
-                  <div className="text-center text-gray-300">
-                    <Camera className="w-14 h-14 mx-auto mb-2" />
-                    <p className="text-xs">Sin fotografía</p>
-                  </div>
-                )}
-              </div>
-
-              <input ref={inputFotoRef} type="file" accept="image/*" onChange={cambiarImagen} className="hidden" />
-
-              <button type="button" onClick={() => inputFotoRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors">
-                <Upload className="w-4 h-4" /> Subir foto
-              </button>
-
-              {imagenPreview && (
-                <button type="button"
-                  onClick={() => { setImagenPreview(null); setFormData(p => ({ ...p, foto: null })); if (inputFotoRef.current) inputFotoRef.current.value = ''; }}
-                  className="w-full px-4 py-2 text-red-600 border border-red-200 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors">
-                  Eliminar foto
-                </button>
-              )}
-
-              <p className="text-xs text-gray-400 text-center">JPG o PNG · máx. 5 MB</p>
+              <p className="text-sm text-gray-600 -mt-2">Tome varias fotos (de lado, de frente, desde atrás…). Sirven para reconocerla y para las mediciones.</p>
+              <GaleriaAnimal ref={galeriaRef} idAnimal={cabraEditar?.id || null} sexo={formData.sexo} alto="h-64" compacta />
 
               {formData.fechaNacimiento && (
                 <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-3 flex items-center gap-2">

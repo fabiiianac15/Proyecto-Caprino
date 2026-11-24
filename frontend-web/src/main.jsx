@@ -6,6 +6,10 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AuthProvider } from './contextos/AuthContext';
 import App from './App';
 import './index.css';
+import { aplicarLetra } from './utilidades/tamanoLetra';
+
+// Tamaño de letra guardado (o "grande" por defecto) antes de pintar
+aplicarLetra();
 
 // Configuración del cliente de React Query
 const queryClient = new QueryClient({

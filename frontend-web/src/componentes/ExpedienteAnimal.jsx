@@ -10,6 +10,7 @@ import {
   animalesAPI, produccionAPI, saludAPI, pesajeAPI, reproduccionAPI, genealogiaAPI, famachaAPI
 } from '../servicios/caprino-api';
 import { FormularioProduccion } from './ModuloProduccion';
+import GaleriaAnimal from './GaleriaAnimal';
 import { FormularioSalud } from './ModuloSalud';
 import { FormularioPeso } from './ModuloPeso';
 import { FormMonta } from './ModuloReproduccion';
@@ -930,7 +931,8 @@ const ExpedienteAnimal = () => {
 
         <div className="p-6 flex flex-col md:flex-row gap-6">
           {/* Foto */}
-          <div className="w-full md:w-36 h-36 bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-gray-100">
+          <div onClick={() => document.getElementById('fotos-cabra')?.scrollIntoView({ behavior: 'smooth' })} title="Ver todas las fotos"
+            className="cursor-pointer w-full md:w-36 h-36 bg-gradient-to-br from-green-50 to-emerald-100 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-gray-100">
             {animal.fotoUrl ? (
               <img src={animal.fotoUrl} alt={animal.nombre} className="w-full h-full object-cover" onError={e => { e.target.style.display = 'none'; }} />
             ) : (
@@ -1021,6 +1023,13 @@ const ExpedienteAnimal = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Fotos de la cabra en carrusel ── */}
+      <div id="fotos-cabra" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6 mb-5">
+        <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">Fotos de {animal.sexo === 'macho' ? 'el macho' : 'la cabra'}</h2>
+        <GaleriaAnimal idAnimal={animal.id} sexo={animal.sexo}
+          onCambio={(lista) => setAnimal((a) => ({ ...a, fotoUrl: lista.find((f) => f.principal)?.url || null }))} />
       </div>
 
       {/* ── Pestañas ── */}

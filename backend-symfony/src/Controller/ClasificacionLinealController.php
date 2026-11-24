@@ -16,7 +16,14 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/clasificacion-lineal')]
 class ClasificacionLinealController extends AbstractController
 {
-    private const VISTAS = ['FRONTAL', 'LATERAL', 'POSTERIOR', 'UBRE_POST', 'UBRE_LAT', 'PATAS', 'MEDICION'];
+    private const VISTAS = ['FRONTAL', 'LATERAL', 'POSTERIOR', 'UBRE_POST', 'UBRE_LAT', 'PATAS', 'MEDICION', 'TESTICULOS'];
+    private const SEXOS  = ['HEMBRA', 'MACHO'];
+
+    private function sexoDe(?string $s): string
+    {
+        $s = strtoupper((string) $s);
+        return in_array($s, self::SEXOS, true) ? $s : 'HEMBRA';
+    }
 
     public function __construct(
         private Connection                 $connection,
@@ -37,12 +44,14 @@ class ClasificacionLinealController extends AbstractController
     // Catálogo de rasgos (y de medidas, en "medidas")
     // ------------------------------------------------------------------
     #[Route('/catalogo', name: 'api_clasif_catalogo', methods: ['GET'])]
-    public function catalogo(): JsonResponse
+    public function catalogo(Request $request): JsonResponse
     {
+        $sexo = $this->sexoDe($request->query->get('sexo'));
         $rows = $this->connection->fetchAllAssociative(
             "SELECT id_rasgo, codigo, nombre, region, pts_region, pts_rasgo, orden,
                     vista, que_mirar, desc_1, desc_2, desc_3
-               FROM CLASIF_RASGO_CAT ORDER BY orden"
+               FROM CLASIF_RASGO_CAT WHERE sexo = :s ORDER BY orden",
+            ['s' => $sexo]
         );
         $porRegion = array_count_values(array_column($rows, 'REGION'));
 
@@ -61,14 +70,100 @@ class ClasificacionLinealController extends AbstractController
                 'queMirar'  => $r['QUE_MIRAR'],
                 'niveles'   => [1 => $r['DESC_1'], 2 => $r['DESC_2'], 3 => $r['DESC_3']],
             ], $rows),
-            'medidas' => $this->catalogoMedidas(),
+            'medidas' => $this->catalogoMedidas($sexo),
+            'reglas'  => $this->reglas(),
+            'sexo'    => $sexo,
         ]);
     }
 
     #[Route('/medidas/catalogo', name: 'api_clasif_medidas_catalogo', methods: ['GET'])]
-    public function medidasCatalogo(): JsonResponse
+    public function medidasCatalogo(Request $request): JsonResponse
     {
-        return $this->json(['data' => $this->catalogoMedidas()]);
+        $s = $request->query->get('sexo');
+        return $this->json(['data' => $this->catalogoMedidas($s ? $this->sexoDe($s) : null)]);
+    }
+
+    // ------------------------------------------------------------------
+    // Medidas de referencia por raza (base de las reglas morfométricas)
+    // ------------------------------------------------------------------
+    #[Route('/referencias', name: 'api_clasif_referencias', methods: ['GET'])]
+    public function referencias(Request $request): JsonResponse
+    {
+        $idRaza = $request->query->get('idRaza');
+        $sexo   = $request->query->get('sexo');
+        $sql = "SELECT r.id_raza, z.nombre_raza, r.sexo, r.codigo_medida, r.media, r.de, r.fuente
+                  FROM RAZA_MEDIDA_REF r LEFT JOIN RAZA z ON z.id_raza = r.id_raza WHERE 1 = 1";
+        $p = [];
+        if ($idRaza !== null && $idRaza !== '') {
+            // La de la raza más la general (ubre), que aplica a todas
+            $sql .= ' AND (r.id_raza = :ir OR r.id_raza IS NULL)';
+            $p['ir'] = (int) $idRaza;
+        }
+        if ($sexo) {
+            $sql .= ' AND r.sexo = :sx';
+            $p['sx'] = $this->sexoDe($sexo);
+        }
+        $sql .= ' ORDER BY z.nombre_raza NULLS FIRST, r.sexo, r.codigo_medida';
+
+        return $this->json(['data' => array_map(fn($r) => [
+            'idRaza'  => $r['ID_RAZA'] !== null ? (int) $r['ID_RAZA'] : null,
+            'raza'    => $r['NOMBRE_RAZA'] ?? 'General (todas las razas)',
+            'sexo'    => $r['SEXO'],
+            'codigo'  => $r['CODIGO_MEDIDA'],
+            'media'   => (float) $r['MEDIA'],
+            'de'      => (float) $r['DE'],
+            'fuente'  => $r['FUENTE'],
+        ], $this->connection->fetchAllAssociative($sql, $p))]);
+    }
+
+    /** Guarda (crea o actualiza) valores de referencia. Cuerpo: {referencias:[{idRaza,sexo,codigo,media,de,fuente}]} */
+    #[Route('/referencias', name: 'api_clasif_referencias_guardar', methods: ['PUT'])]
+    public function guardarReferencias(Request $request): JsonResponse
+    {
+        if (!$this->isGranted('ROLE_ADMIN') && !$this->isGranted('ROLE_ZOOTECNISTA') && !$this->isGranted('ROLE_VETERINARIO')) {
+            return $this->json(['error' => 'Solo el docente (administrador, zootecnista o veterinario) puede cambiar las referencias'], Response::HTTP_FORBIDDEN);
+        }
+        $data  = json_decode($request->getContent(), true) ?? [];
+        $lista = $data['referencias'] ?? [];
+        $codigos = array_flip($this->connection->fetchFirstColumn('SELECT codigo FROM CLASIF_MEDIDA_CAT'));
+        $n = 0;
+        $this->connection->beginTransaction();
+        try {
+            foreach ((array) $lista as $r) {
+                $cod   = (string) ($r['codigo'] ?? '');
+                $media = (float) str_replace(',', '.', (string) ($r['media'] ?? 0));
+                $de    = (float) str_replace(',', '.', (string) ($r['de'] ?? 0));
+                $idR   = isset($r['idRaza']) && $r['idRaza'] !== '' && $r['idRaza'] !== null ? (int) $r['idRaza'] : null;
+                if (!isset($codigos[$cod]) || $media <= 0 || $media >= 300 || $de <= 0 || $de >= 100) {
+                    throw new \InvalidArgumentException("Valor inválido en {$cod}: el promedio y la desviación deben ser mayores que cero");
+                }
+                $params = ['ir' => $idR, 'sx' => $this->sexoDe($r['sexo'] ?? null), 'cod' => $cod, 'me' => round($media, 2),
+                           'de' => round($de, 2), 'fu' => isset($r['fuente']) ? (mb_substr(trim((string) $r['fuente']), 0, 200) ?: null) : null];
+                $this->connection->executeStatement(
+                    "MERGE INTO RAZA_MEDIDA_REF t
+                     USING (SELECT :ir id_raza, :sx sexo, :cod codigo_medida FROM dual) s
+                        ON (NVL(t.id_raza, 0) = NVL(s.id_raza, 0) AND t.sexo = s.sexo AND t.codigo_medida = s.codigo_medida)
+                     WHEN MATCHED THEN UPDATE SET t.media = :me, t.de = :de, t.fuente = NVL(:fu, t.fuente), t.fecha_modificacion = CURRENT_TIMESTAMP
+                     WHEN NOT MATCHED THEN INSERT (id_raza, sexo, codigo_medida, media, de, fuente)
+                          VALUES (:ir, :sx, :cod, :me, :de, :fu)",
+                    $params
+                );
+                $n++;
+            }
+            $this->connection->commit();
+        } catch (\InvalidArgumentException $e) {
+            $this->connection->rollBack();
+            return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        } catch (\Doctrine\DBAL\Exception $e) {
+            $this->connection->rollBack();
+            return $this->errorOracle($e);
+        }
+        try {
+            $this->auditoria->registrar(tabla: 'RAZA_MEDIDA_REF', operacion: 'ACTUALIZAR', idRegistro: 0,
+                descripcion: "Medidas de referencia por raza actualizadas ({$n})");
+        } catch (\Throwable) {}
+
+        return $this->json(['success' => true, 'message' => "{$n} valor(es) de referencia guardados"]);
     }
 
     // ------------------------------------------------------------------
@@ -79,14 +174,22 @@ class ClasificacionLinealController extends AbstractController
     {
         $idAnimal = $request->query->get('idAnimal');
         $sql = "SELECT e.id_evaluacion, e.id_animal, a.nombre AS nombre_animal,
-                       a.codigo_identificacion, e.fecha_evaluacion, e.punt_final, e.categoria,
+                       a.codigo_identificacion, a.sexo, e.fecha_evaluacion, e.punt_final, e.categoria,
                        (SELECT COUNT(*) FROM EVAL_LINEAL_FOTO f WHERE f.id_evaluacion = e.id_evaluacion) AS num_fotos,
                        (SELECT COUNT(*) FROM EVAL_LINEAL_MEDIDA m WHERE m.id_evaluacion = e.id_evaluacion) AS num_medidas
                   FROM EVALUACION_LINEAL e JOIN ANIMAL a ON e.id_animal = a.id_animal";
         $params = [];
+        $where = [];
         if ($idAnimal) {
-            $sql .= ' WHERE e.id_animal = :ia';
+            $where[] = 'e.id_animal = :ia';
             $params['ia'] = (int) $idAnimal;
+        }
+        if ($request->query->get('sexo')) {
+            $where[] = 'LOWER(a.sexo) = :sx';
+            $params['sx'] = strtolower($this->sexoDe($request->query->get('sexo')));
+        }
+        if ($where) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
         }
         $sql .= ' ORDER BY e.fecha_evaluacion DESC, e.id_evaluacion DESC';
 
@@ -97,6 +200,7 @@ class ClasificacionLinealController extends AbstractController
             'idAnimal'        => (int) $r['ID_ANIMAL'],
             'nombreAnimal'    => $this->nombreVisible($r['NOMBRE_ANIMAL']),
             'codigoAnimal'    => $r['CODIGO_IDENTIFICACION'],
+            'sexo'            => strtoupper((string) $r['SEXO']),
             'fechaEvaluacion' => $r['FECHA_EVALUACION'],
             'puntFinal'       => $r['PUNT_FINAL'] !== null ? (float) $r['PUNT_FINAL'] : null,
             'categoria'       => $r['CATEGORIA'],
@@ -113,10 +217,11 @@ class ClasificacionLinealController extends AbstractController
     {
         $cab = $this->connection->fetchAssociative(
             "SELECT e.id_evaluacion, e.id_animal, a.nombre AS nombre_animal, a.codigo_identificacion,
-                    e.fecha_evaluacion, e.edad_meses, e.num_lactancia,
+                    a.sexo, a.id_raza, z.nombre_raza, e.fecha_evaluacion, e.edad_meses, e.num_lactancia,
                     e.punt_apariencia, e.punt_estructura, e.punt_mamario, e.punt_patas,
                     e.punt_final, e.categoria, e.observaciones
                FROM EVALUACION_LINEAL e JOIN ANIMAL a ON e.id_animal = a.id_animal
+               LEFT JOIN RAZA z ON z.id_raza = a.id_raza
               WHERE e.id_evaluacion = :id",
             ['id' => $id]
         );
@@ -126,7 +231,7 @@ class ClasificacionLinealController extends AbstractController
 
         $det = $this->connection->fetchAllAssociative(
             "SELECT d.id_detalle, d.id_rasgo, c.codigo, c.nombre, c.region,
-                    d.calificacion, d.puntaje, d.observacion, c.desc_1, c.desc_2, c.desc_3
+                    d.calificacion, d.puntaje, d.observacion, d.origen, c.desc_1, c.desc_2, c.desc_3
                FROM EVAL_LINEAL_DETALLE d JOIN CLASIF_RASGO_CAT c ON d.id_rasgo = c.id_rasgo
               WHERE d.id_evaluacion = :id ORDER BY c.orden",
             ['id' => $id]
@@ -152,6 +257,9 @@ class ClasificacionLinealController extends AbstractController
             'idAnimal'        => (int) $cab['ID_ANIMAL'],
             'nombreAnimal'    => $this->nombreVisible($cab['NOMBRE_ANIMAL']),
             'codigoAnimal'    => $cab['CODIGO_IDENTIFICACION'],
+            'sexo'            => strtoupper((string) $cab['SEXO']),
+            'idRaza'          => $cab['ID_RAZA'] !== null ? (int) $cab['ID_RAZA'] : null,
+            'nombreRaza'      => $cab['NOMBRE_RAZA'],
             'fechaEvaluacion' => $cab['FECHA_EVALUACION'],
             'edadMeses'       => $cab['EDAD_MESES'] !== null ? (int) $cab['EDAD_MESES'] : null,
             'numLactancia'    => $cab['NUM_LACTANCIA'] !== null ? (int) $cab['NUM_LACTANCIA'] : null,
@@ -171,6 +279,7 @@ class ClasificacionLinealController extends AbstractController
                 'calificacion' => (int) $r['CALIFICACION'],
                 'puntaje'      => $r['PUNTAJE'] !== null ? (float) $r['PUNTAJE'] : null,
                 'observacion'  => $r['OBSERVACION'],
+                'origen'       => $r['ORIGEN'] ?? 'VISUAL',
                 'nivelTexto'   => $r['DESC_' . (int) $r['CALIFICACION']] ?? null,
             ], $det),
             'medidas'         => array_map(fn($r) => [
@@ -215,9 +324,9 @@ class ClasificacionLinealController extends AbstractController
                 "INSERT INTO EVALUACION_LINEAL
                    (id_animal, fecha_evaluacion, edad_meses, num_lactancia,
                     punt_apariencia, punt_estructura, punt_mamario, punt_patas,
-                    punt_final, categoria, observaciones, usuario_registro)
+                    punt_final, categoria, observaciones, sexo, usuario_registro)
                  VALUES (:ia, TO_DATE(:fec,'YYYY-MM-DD'), :ed, :lc,
-                    :pap, :pes, :pma, :ppa, :pf, :cat, :obs, :ur)",
+                    :pap, :pes, :pma, :ppa, :pf, :cat, :obs, :sx, :ur)",
                 $this->paramsCabecera($in, $r) + ['ia' => $in['idAnimal'], 'ur' => $uReg]
             );
             $idEval = (int) $this->connection->fetchOne(
@@ -271,7 +380,7 @@ class ClasificacionLinealController extends AbstractController
                     id_animal = :ia, fecha_evaluacion = TO_DATE(:fec,'YYYY-MM-DD'),
                     edad_meses = :ed, num_lactancia = :lc,
                     punt_apariencia = :pap, punt_estructura = :pes, punt_mamario = :pma, punt_patas = :ppa,
-                    punt_final = :pf, categoria = :cat, observaciones = :obs,
+                    punt_final = :pf, categoria = :cat, observaciones = :obs, sexo = :sx,
                     fecha_modificacion = CURRENT_TIMESTAMP
                   WHERE id_evaluacion = :id",
                 $this->paramsCabecera($in, $r) + ['ia' => $in['idAnimal'], 'id' => $id]
@@ -442,9 +551,8 @@ class ClasificacionLinealController extends AbstractController
         if (!$animal) {
             return ['error' => 'La cabra elegida no existe'];
         }
-        if (strtolower((string) $animal['SEXO']) !== 'hembra') {
-            return ['error' => 'La clasificación lineal se hace solo a hembras'];
-        }
+        // Hembras y machos tienen cada uno su propio catálogo de rasgos
+        $sexo = strtoupper((string) $animal['SEXO']) === 'MACHO' ? 'MACHO' : 'HEMBRA';
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $fecha)) {
             return ['error' => 'Fecha inválida (use AAAA-MM-DD)'];
         }
@@ -458,7 +566,7 @@ class ClasificacionLinealController extends AbstractController
         $catalogo = [];
         $nombres  = [];
         foreach ($this->connection->fetchAllAssociative(
-            'SELECT id_rasgo, nombre, region, pts_region, pts_rasgo FROM CLASIF_RASGO_CAT'
+            'SELECT id_rasgo, nombre, region, pts_region, pts_rasgo FROM CLASIF_RASGO_CAT WHERE sexo = :s', ['s' => $sexo]
         ) as $r) {
             $catalogo[(int) $r['ID_RASGO']] = [
                 'region'    => $r['REGION'],
@@ -473,7 +581,9 @@ class ClasificacionLinealController extends AbstractController
             $idRasgo = (int) ($d['idRasgo'] ?? 0);
             $cal     = (int) ($d['calificacion'] ?? 0);
             if (!isset($catalogo[$idRasgo])) {
-                return ['error' => "Rasgo inválido: {$idRasgo}"];
+                return ['error' => $sexo === 'MACHO'
+                    ? 'Los rasgos enviados no son los de un macho. Vuelva a abrir la evaluación desde la sección de machos.'
+                    : "Rasgo inválido: {$idRasgo}"];
             }
             if (!in_array($cal, [1, 2, 3], true)) {
                 return ['error' => "Califique «{$nombres[$idRasgo]}» con 1, 2 o 3"];
@@ -481,6 +591,7 @@ class ClasificacionLinealController extends AbstractController
             $detalles[$idRasgo] = [
                 'idRasgo' => $idRasgo, 'calificacion' => $cal,
                 'observacion' => isset($d['observacion']) ? mb_substr((string) $d['observacion'], 0, 500) : null,
+                'origen'      => strtoupper((string) ($d['origen'] ?? '')) === 'MEDIDA' ? 'MEDIDA' : 'VISUAL',
             ];
         }
         $faltan = array_diff_key($nombres, $detalles);
@@ -518,6 +629,7 @@ class ClasificacionLinealController extends AbstractController
 
         return [
             'idAnimal' => $idAnimal,
+            'sexo'     => $sexo,
             'fecha'    => $fecha,
             'edad'     => isset($data['edadMeses']) && $data['edadMeses'] !== '' ? max(0, (int) $data['edadMeses']) : null,
             'lact'     => isset($data['numLactancia']) && $data['numLactancia'] !== '' ? max(0, (int) $data['numLactancia']) : null,
@@ -534,7 +646,7 @@ class ClasificacionLinealController extends AbstractController
             'fec' => $in['fecha'], 'ed' => $in['edad'], 'lc' => $in['lact'],
             'pap' => $r['subtotales']['APARIENCIA'], 'pes' => $r['subtotales']['ESTRUCTURA'],
             'pma' => $r['subtotales']['MAMARIO'], 'ppa' => $r['subtotales']['PATAS'],
-            'pf' => $r['puntFinal'], 'cat' => $r['categoria'], 'obs' => $in['obs'],
+            'pf' => $r['puntFinal'], 'cat' => $r['categoria'], 'obs' => $in['obs'], 'sx' => $in['sexo'],
         ];
     }
 
@@ -542,11 +654,11 @@ class ClasificacionLinealController extends AbstractController
     {
         foreach ($detalles as $d) {
             $this->connection->executeStatement(
-                "INSERT INTO EVAL_LINEAL_DETALLE (id_evaluacion, id_rasgo, calificacion, puntaje, observacion)
-                 VALUES (:ie, :ir, :cal, :pun, :ob)",
+                "INSERT INTO EVAL_LINEAL_DETALLE (id_evaluacion, id_rasgo, calificacion, puntaje, observacion, origen)
+                 VALUES (:ie, :ir, :cal, :pun, :ob, :org)",
                 [
                     'ie' => $idEval, 'ir' => $d['idRasgo'], 'cal' => $d['calificacion'],
-                    'pun' => $r['puntajes'][$d['idRasgo']] ?? 0, 'ob' => $d['observacion'],
+                    'pun' => $r['puntajes'][$d['idRasgo']] ?? 0, 'ob' => $d['observacion'], 'org' => $d['origen'],
                 ]
             );
         }
@@ -562,7 +674,24 @@ class ClasificacionLinealController extends AbstractController
         }
     }
 
-    private function catalogoMedidas(): array
+    private function reglas(): array
+    {
+        $num = fn($v) => $v !== null ? (float) $v : null;
+        return array_map(fn($r) => [
+            'codigoRasgo' => $r['CODIGO_RASGO'],
+            'calculo'     => $r['CALCULO'],
+            'tipo'        => $r['TIPO'],
+            'sentido'     => $r['SENTIDO'],
+            'k'           => (float) $r['K'],
+            'corteBajo'   => $num($r['CORTE_BAJO']),
+            'corteAlto'   => $num($r['CORTE_ALTO']),
+            'explicacion' => $r['EXPLICACION'],
+        ], $this->connection->fetchAllAssociative(
+            'SELECT codigo_rasgo, calculo, tipo, sentido, k, corte_bajo, corte_alto, explicacion FROM CLASIF_REGLA_MORFO'
+        ));
+    }
+
+    private function catalogoMedidas(?string $sexo = null): array
     {
         $num = fn($v) => $v !== null ? (float) $v : null;
         return array_map(fn($r) => [
@@ -576,11 +705,13 @@ class ClasificacionLinealController extends AbstractController
             'minNormal'   => $num($r['MIN_NORMAL']),
             'maxNormal'   => $num($r['MAX_NORMAL']),
             'rasgoRel'    => $r['RASGO_REL'],
-            'orden'       => (int) $r['ORDEN'],
+            'sexo'        => $r['SEXO'],
+            'orden'       => (float) $r['ORDEN'],
         ], $this->connection->fetchAllAssociative(
             'SELECT id_medida, codigo, nombre, grupo, unidad, instrumento, como_medir,
-                    min_normal, max_normal, rasgo_rel, orden
-               FROM CLASIF_MEDIDA_CAT ORDER BY orden'
+                    min_normal, max_normal, rasgo_rel, orden, sexo
+               FROM CLASIF_MEDIDA_CAT' . ($sexo ? " WHERE sexo IN ('AMBOS', :s)" : '') . ' ORDER BY orden',
+            $sexo ? ['s' => $sexo] : []
         ));
     }
 

@@ -4,6 +4,11 @@ export default {
     "./index.html",
     "./src/**/*.{js,jsx}",
   ],
+  // Clases que se arman con el color de la sección (hembras rosa, machos índigo)
+  safelist: [
+    { pattern: /^(bg|text|border)-(rose|indigo)-(50|100|200|300|500|600|700)$/ },
+    { pattern: /^ring-(rose|indigo)-500$/, variants: ['focus'] },
+  ],
   theme: {
     extend: {
       colors: {

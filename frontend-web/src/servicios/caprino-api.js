@@ -768,11 +768,13 @@ export const bienestarAPI = {
   },
 
   // Foto de evidencia; idIndicador null = foto general de la visita
-  subirFoto: async (id, file, idIndicador = null, descripcion = '') => {
+  // documento: 'RSPP' o 'ASI' cuando la foto es del certificado
+  subirFoto: async (id, file, idIndicador = null, descripcion = '', documento = null) => {
     const fd = new FormData();
     fd.append('file', await reducirImagen(file));
     if (idIndicador) fd.append('idIndicador', idIndicador);
     if (descripcion) fd.append('descripcion', descripcion);
+    if (documento) fd.append('documento', documento);
     const token = getAuthToken();
     const response = await fetch(`${API_BASE_URL}/bienestar/${id}/foto`, {
       method: 'POST',
@@ -790,6 +792,44 @@ export const bienestarAPI = {
   },
 };
 
+// ==================== GALERÍA DE FOTOS DEL ANIMAL ====================
+
+export const fotosAnimalAPI = {
+  listar: async (idAnimal) => {
+    const response = await apiFetch(`${API_BASE_URL}/animales/${idAnimal}/fotos`);
+    const data = await handleResponse(response);
+    return data.data || [];
+  },
+
+  // Multipart: NO usar apiFetch (forzaría Content-Type JSON)
+  subir: async (idAnimal, file, tipoVista, principal = false) => {
+    const fd = new FormData();
+    fd.append('file', await reducirImagen(file));
+    fd.append('tipoVista', tipoVista);
+    if (principal) fd.append('principal', '1');
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/animales/${idAnimal}/fotos`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    const data = await handleResponse(response);
+    return data.data || [];
+  },
+
+  hacerPrincipal: async (idFoto) => {
+    const response = await apiFetch(`${API_BASE_URL}/animales/fotos/${idFoto}/principal`, { method: 'PUT' });
+    const data = await handleResponse(response);
+    return data.data || [];
+  },
+
+  eliminar: async (idFoto) => {
+    const response = await apiFetch(`${API_BASE_URL}/animales/fotos/${idFoto}`, { method: 'DELETE' });
+    const data = await handleResponse(response);
+    return data.data || [];
+  },
+};
+
 // ==================== CLASIFICACIÓN LINEAL FENOTÍPICA API ====================
 
 export const clasificacionLinealAPI = {
@@ -799,11 +839,36 @@ export const clasificacionLinealAPI = {
     return data.data || [];
   },
 
-  // Rasgos y medidas en una sola llamada
-  getCatalogoCompleto: async () => {
-    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/catalogo`);
+  // Rasgos, medidas y reglas morfométricas del sexo indicado (HEMBRA | MACHO)
+  getCatalogoCompleto: async (sexo = 'HEMBRA') => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/catalogo?sexo=${sexo}`);
     const data = await handleResponse(response);
-    return { rasgos: data.data || [], medidas: data.medidas || [] };
+    return { rasgos: data.data || [], medidas: data.medidas || [], reglas: data.reglas || [] };
+  },
+
+  // Todas las medidas (de hembras y de machos)
+  getMedidas: async () => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/medidas/catalogo`);
+    const data = await handleResponse(response);
+    return data.data || [];
+  },
+
+  // Medidas de referencia (promedio y desviación) por raza y sexo
+  getReferencias: async ({ idRaza, sexo } = {}) => {
+    const q = new URLSearchParams();
+    if (idRaza) q.set('idRaza', idRaza);
+    if (sexo) q.set('sexo', sexo);
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/referencias?${q}`);
+    const data = await handleResponse(response);
+    return data.data || [];
+  },
+
+  guardarReferencias: async (referencias) => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/referencias`, {
+      method: 'PUT',
+      body: JSON.stringify({ referencias }),
+    });
+    return await handleResponse(response);
   },
 
   getByAnimal: async (idAnimal) => {
@@ -812,8 +877,8 @@ export const clasificacionLinealAPI = {
     return { data: data.data || [] };
   },
 
-  getAll: async () => {
-    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal`);
+  getAll: async (sexo = null) => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal${sexo ? `?sexo=${sexo}` : ''}`);
     const data = await handleResponse(response);
     return { data: data.data || [], total: data.total || 0 };
   },

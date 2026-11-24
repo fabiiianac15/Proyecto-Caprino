@@ -34,6 +34,7 @@ import ModuloReportes from './componentes/ModuloReportes';
 import ModuloAuditoria from './componentes/ModuloAuditoria';
 import Notificaciones from './componentes/Notificaciones';
 import PerfilUsuario from './componentes/PerfilUsuario';
+import ControlLetra from './componentes/ControlLetra';
 import ExpedienteAnimal from './componentes/ExpedienteAnimal';
 
 function App() {
@@ -255,6 +256,7 @@ function App() {
 
             {/* Usuario, auditoría y salida */}
             <div className="flex items-center gap-1.5">
+              <ControlLetra claro className="hidden sm:inline-flex mr-1" />
               <button
                 onClick={() => setMostrarPerfil(true)}
                 className="hidden md:flex items-center gap-2.5 h-10 pl-1.5 pr-3 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"

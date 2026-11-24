@@ -384,6 +384,144 @@ class AnimalController extends AbstractController
         return $this->json(['success' => true, 'message' => 'Animal dado de baja']);
     }
 
+    // ------------------------------------------------------------------
+    // Galería de fotos por vista (carrusel). ANIMAL.foto_url es la principal.
+    // ------------------------------------------------------------------
+    public const VISTAS_FOTO = ['LATERAL', 'FRONTAL', 'POSTERIOR', 'CABEZA', 'UBRE', 'TESTICULOS', 'PATAS', 'OTRA'];
+
+    #[Route('/{id}/fotos', name: 'api_animales_fotos', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function fotos(int $id): JsonResponse
+    {
+        return $this->json(['data' => $this->listarFotos($id)]);
+    }
+
+    /**
+     * Sube una foto a la galería. Acepta multipart (file + tipoVista) o JSON
+     * con {foto: "data:image/...;base64,...", tipoVista}. principal=1 la deja
+     * además como foto principal del animal.
+     */
+    #[Route('/{id}/fotos', name: 'api_animales_fotos_subir', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function subirFotoGaleria(int $id, Request $request): JsonResponse
+    {
+        if (!$this->connection->fetchOne('SELECT 1 FROM ANIMAL WHERE id_animal = :id', ['id' => $id])) {
+            return $this->json(['error' => 'Animal no encontrado'], Response::HTTP_NOT_FOUND);
+        }
+        $json = str_contains((string) $request->headers->get('Content-Type'), 'application/json')
+            ? (json_decode($request->getContent(), true) ?? []) : [];
+        $vista = strtoupper((string) ($request->request->get('tipoVista') ?? $json['tipoVista'] ?? 'OTRA'));
+        if (!in_array($vista, self::VISTAS_FOTO, true)) {
+            return $this->json(['error' => 'Tipo de foto inválido'], Response::HTTP_BAD_REQUEST);
+        }
+        $descripcion = $request->request->get('descripcion') ?? $json['descripcion'] ?? null;
+        $principal = filter_var($request->request->get('principal') ?? $json['principal'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        $dirRel = '/uploads/animales/' . $id;
+        $dirAbs = $this->getParameter('kernel.project_dir') . '/public' . $dirRel;
+        if (!is_dir($dirAbs) && !mkdir($dirAbs, 0775, true) && !is_dir($dirAbs)) {
+            return $this->json(['error' => 'No se pudo crear la carpeta de fotos'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $file = $request->files->get('file');
+        if ($file) {
+            if (!str_starts_with($file->getMimeType() ?? '', 'image/')) {
+                return $this->json(['error' => 'El archivo debe ser una imagen'], Response::HTTP_BAD_REQUEST);
+            }
+            $nombre = uniqid(strtolower($vista) . '_', true) . '.' . ($file->guessExtension() ?: 'jpg');
+            try {
+                $file->move($dirAbs, $nombre);
+            } catch (\Throwable) {
+                return $this->json(['error' => 'Error al guardar la imagen'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+        } else {
+            $b64 = (string) ($json['foto'] ?? '');
+            if (!preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/i', $b64, $m) || ($bin = base64_decode($m[2], true)) === false) {
+                return $this->json(['error' => 'No se recibió la imagen'], Response::HTTP_BAD_REQUEST);
+            }
+            $nombre = uniqid(strtolower($vista) . '_', true) . '.' . (strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]));
+            file_put_contents($dirAbs . '/' . $nombre, $bin);
+        }
+        $ruta = $dirRel . '/' . $nombre;
+
+        $user = $this->getUser();
+        $this->connection->executeStatement(
+            'INSERT INTO ANIMAL_FOTO (id_animal, tipo_vista, ruta, descripcion, usuario_registro) VALUES (:ia, :tv, :ru, :de, :ur)',
+            ['ia' => $id, 'tv' => $vista, 'ru' => $ruta,
+             'de' => $descripcion ? mb_substr(trim((string) $descripcion), 0, 200) : null,
+             'ur' => $user instanceof User ? $user->getId() : null]
+        );
+        // Si no tenía foto principal (o se pidió), esta queda como principal
+        $actual = $this->connection->fetchOne('SELECT foto_url FROM ANIMAL WHERE id_animal = :id', ['id' => $id]);
+        if ($principal || !$actual) {
+            $this->connection->executeStatement('UPDATE ANIMAL SET foto_url = :f WHERE id_animal = :id', ['f' => $ruta, 'id' => $id]);
+        }
+
+        return $this->json(['success' => true, 'data' => $this->listarFotos($id)], Response::HTTP_CREATED);
+    }
+
+    /** Deja una foto de la galería como principal del animal. */
+    #[Route('/fotos/{idFoto}/principal', name: 'api_animales_fotos_principal', methods: ['PUT'], requirements: ['idFoto' => '\d+'])]
+    public function fotoPrincipal(int $idFoto): JsonResponse
+    {
+        $f = $this->connection->fetchAssociative('SELECT id_animal, ruta FROM ANIMAL_FOTO WHERE id_foto = :id', ['id' => $idFoto]);
+        if (!$f) {
+            return $this->json(['error' => 'Foto no encontrada'], Response::HTTP_NOT_FOUND);
+        }
+        $this->connection->executeStatement('UPDATE ANIMAL SET foto_url = :r WHERE id_animal = :ia', ['r' => $f['RUTA'], 'ia' => $f['ID_ANIMAL']]);
+
+        return $this->json(['success' => true, 'data' => $this->listarFotos((int) $f['ID_ANIMAL'])]);
+    }
+
+    #[Route('/fotos/{idFoto}', name: 'api_animales_fotos_eliminar', methods: ['DELETE'], requirements: ['idFoto' => '\d+'])]
+    public function eliminarFotoGaleria(int $idFoto): JsonResponse
+    {
+        $f = $this->connection->fetchAssociative('SELECT id_animal, ruta FROM ANIMAL_FOTO WHERE id_foto = :id', ['id' => $idFoto]);
+        if (!$f) {
+            return $this->json(['error' => 'Foto no encontrada'], Response::HTTP_NOT_FOUND);
+        }
+        $idAnimal = (int) $f['ID_ANIMAL'];
+        $this->connection->executeStatement('DELETE FROM ANIMAL_FOTO WHERE id_foto = :id', ['id' => $idFoto]);
+        $abs = $this->getParameter('kernel.project_dir') . '/public' . $f['RUTA'];
+        if (str_starts_with((string) $f['RUTA'], '/uploads/animales/') && is_file($abs)) {
+            @unlink($abs);
+        }
+        // Si era la principal, pasa a la siguiente de la galería (o queda sin foto)
+        $actual = $this->connection->fetchOne('SELECT foto_url FROM ANIMAL WHERE id_animal = :id', ['id' => $idAnimal]);
+        if ($actual === $f['RUTA']) {
+            $otra = $this->connection->fetchOne(
+                'SELECT ruta FROM ANIMAL_FOTO WHERE id_animal = :id ORDER BY id_foto FETCH FIRST 1 ROWS ONLY', ['id' => $idAnimal]
+            );
+            $this->connection->executeStatement('UPDATE ANIMAL SET foto_url = :f WHERE id_animal = :id', ['f' => $otra ?: null, 'id' => $idAnimal]);
+        }
+
+        return $this->json(['success' => true, 'data' => $this->listarFotos($idAnimal)]);
+    }
+
+    private function listarFotos(int $idAnimal): array
+    {
+        $principal = $this->connection->fetchOne('SELECT foto_url FROM ANIMAL WHERE id_animal = :id', ['id' => $idAnimal]);
+        $orden = "CASE tipo_vista WHEN 'LATERAL' THEN 1 WHEN 'FRONTAL' THEN 2 WHEN 'POSTERIOR' THEN 3 WHEN 'CABEZA' THEN 4
+                  WHEN 'UBRE' THEN 5 WHEN 'TESTICULOS' THEN 5 WHEN 'PATAS' THEN 6 ELSE 7 END";
+        $filas = $this->connection->fetchAllAssociative(
+            "SELECT id_foto, tipo_vista, ruta, descripcion, TO_CHAR(fecha_registro, 'YYYY-MM-DD') AS fecha
+               FROM ANIMAL_FOTO WHERE id_animal = :id ORDER BY {$orden}, id_foto",
+            ['id' => $idAnimal]
+        );
+        $fotos = array_map(fn($r) => [
+            'idFoto'      => (int) $r['ID_FOTO'],
+            'tipoVista'   => $r['TIPO_VISTA'],
+            'url'         => $r['RUTA'],
+            'descripcion' => $r['DESCRIPCION'],
+            'fecha'       => $r['FECHA'],
+            'principal'   => $r['RUTA'] === $principal,
+        ], $filas);
+        // La foto principal antigua (de antes de la galería) se muestra primero como "General"
+        if ($principal && !in_array($principal, array_column($fotos, 'url'), true)) {
+            array_unshift($fotos, ['idFoto' => null, 'tipoVista' => 'OTRA', 'url' => $principal,
+                'descripcion' => 'Foto principal', 'fecha' => null, 'principal' => true]);
+        }
+        return $fotos;
+    }
+
     private function guardarFoto(?string $fotoData): ?string
     {
         if (!$fotoData || !str_starts_with($fotoData, 'data:image')) {
