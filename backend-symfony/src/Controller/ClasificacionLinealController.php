@@ -138,7 +138,7 @@ class ClasificacionLinealController extends AbstractController
                     throw new \InvalidArgumentException("Valor inválido en {$cod}: el promedio y la desviación deben ser mayores que cero");
                 }
                 $params = ['ir' => $idR, 'sx' => $this->sexoDe($r['sexo'] ?? null), 'cod' => $cod, 'me' => round($media, 2),
-                           'de' => round($de, 2), 'fu' => isset($r['fuente']) ? (mb_substr(trim((string) $r['fuente']), 0, 200) ?: null) : null];
+                           'de' => round($de, 2), 'fu' => isset($r['fuente']) ? (mb_substr(trim((string) $r['fuente']), 0, 400) ?: null) : null];
                 $this->connection->executeStatement(
                     "MERGE INTO RAZA_MEDIDA_REF t
                      USING (SELECT :ir id_raza, :sx sexo, :cod codigo_medida FROM dual) s
@@ -164,6 +164,79 @@ class ClasificacionLinealController extends AbstractController
         } catch (\Throwable) {}
 
         return $this->json(['success' => true, 'message' => "{$n} valor(es) de referencia guardados"]);
+    }
+
+    // ------------------------------------------------------------------
+    // Base morfométrica publicada (perfiles, estándares y bibliografía).
+    // Solo consulta: lo que califica es RAZA_MEDIDA_REF.
+    // ?idRaza=… filtra perfiles y estándares por la raza; sin él trae todo.
+    // ------------------------------------------------------------------
+    #[Route('/morfometria', name: 'api_clasif_morfometria', methods: ['GET'])]
+    public function morfometria(Request $request): JsonResponse
+    {
+        $num = fn($v) => $v !== null ? (float) $v : null;
+        $idRaza = $request->query->get('idRaza');
+        $filtro = '';
+        $p = [];
+        if ($idRaza !== null && $idRaza !== '') {
+            $filtro = ' WHERE UPPER(x.raza) = (SELECT UPPER(nombre_raza) FROM RAZA WHERE id_raza = :ir)';
+            $p['ir'] = (int) $idRaza;
+        }
+
+        $perfiles = $this->connection->fetchAllAssociative(
+            "SELECT x.id_perfil, x.raza, x.sexo, x.etapa, x.edad_meses, x.edad_publicada, x.edad_min, x.edad_max,
+                    x.n, x.pais, x.tipo_dato, x.preliminar, x.observaciones, x.verificacion, x.fuente, x.localizacion
+               FROM MORFO_PERFIL x{$filtro} ORDER BY x.orden", $p
+        );
+        $valores = [];
+        if ($perfiles) {
+            $ids = array_map(fn($r) => (int) $r['ID_PERFIL'], $perfiles);
+            foreach ($this->connection->fetchAllAssociative(
+                'SELECT id_perfil, codigo_medida, media, dispersion, tipo_dispersion, minimo, maximo
+                   FROM MORFO_PERFIL_VALOR WHERE id_perfil IN (' . implode(',', $ids) . ')'
+            ) as $v) {
+                $valores[(int) $v['ID_PERFIL']][] = [
+                    'codigo' => $v['CODIGO_MEDIDA'], 'media' => (float) $v['MEDIA'],
+                    'dispersion' => $num($v['DISPERSION']), 'tipoDispersion' => $v['TIPO_DISPERSION'],
+                    'minimo' => $num($v['MINIMO']), 'maximo' => $num($v['MAXIMO']),
+                ];
+            }
+        }
+
+        $estandares = $this->connection->fetchAllAssociative(
+            "SELECT x.raza, x.sexo, x.grupo, x.codigo_medida, x.tipo, x.minimo, x.maximo, x.optimo, x.observaciones, x.fuente
+               FROM MORFO_ESTANDAR x{$filtro} ORDER BY x.orden", $p
+        );
+
+        return $this->json([
+            'perfiles' => array_map(fn($r) => [
+                'id'            => (int) $r['ID_PERFIL'],
+                'raza'          => $r['RAZA'],
+                'sexo'          => $r['SEXO'],
+                'etapa'         => $r['ETAPA'],
+                'edadMeses'     => $num($r['EDAD_MESES']),
+                'edadPublicada' => $r['EDAD_PUBLICADA'],
+                'edadMin'       => $num($r['EDAD_MIN']),
+                'edadMax'       => $num($r['EDAD_MAX']),
+                'n'             => $r['N'] !== null ? (int) $r['N'] : null,
+                'pais'          => $r['PAIS'],
+                'tipoDato'      => $r['TIPO_DATO'],
+                'preliminar'    => $r['PRELIMINAR'] === 'S',
+                'observaciones' => $r['OBSERVACIONES'],
+                'verificacion'  => $r['VERIFICACION'],
+                'fuente'        => $r['FUENTE'],
+                'localizacion'  => $r['LOCALIZACION'],
+                'valores'       => $valores[(int) $r['ID_PERFIL']] ?? [],
+            ], $perfiles),
+            'estandares' => array_map(fn($r) => [
+                'raza' => $r['RAZA'], 'sexo' => $r['SEXO'], 'grupo' => $r['GRUPO'], 'codigo' => $r['CODIGO_MEDIDA'],
+                'tipo' => $r['TIPO'], 'minimo' => $num($r['MINIMO']), 'maximo' => $num($r['MAXIMO']),
+                'optimo' => $num($r['OPTIMO']), 'observaciones' => $r['OBSERVACIONES'], 'fuente' => $r['FUENTE'],
+            ], $estandares),
+            'fuentes' => array_map(fn($r) => [
+                'codigo' => $r['CODIGO'], 'referencia' => $r['REFERENCIA'], 'verificacion' => $r['VERIFICACION'], 'url' => $r['URL'],
+            ], $this->connection->fetchAllAssociative('SELECT codigo, referencia, verificacion, url FROM MORFO_FUENTE ORDER BY codigo')),
+        ]);
     }
 
     // ------------------------------------------------------------------
@@ -707,9 +780,14 @@ class ClasificacionLinealController extends AbstractController
             'rasgoRel'    => $r['RASGO_REL'],
             'sexo'        => $r['SEXO'],
             'orden'       => (float) $r['ORDEN'],
+            'codigoRef'   => $r['CODIGO_REF'] ?? null,
+            'definicion'  => $r['DEFINICION_TECNICA'] ?? null,
+            'advertencia' => $r['ADVERTENCIA'] ?? null,
+            'fuenteMetodo'=> $r['FUENTE_METODO'] ?? null,
         ], $this->connection->fetchAllAssociative(
             'SELECT id_medida, codigo, nombre, grupo, unidad, instrumento, como_medir,
-                    min_normal, max_normal, rasgo_rel, orden, sexo
+                    min_normal, max_normal, rasgo_rel, orden, sexo,
+                    codigo_ref, definicion_tecnica, advertencia, fuente_metodo
                FROM CLASIF_MEDIDA_CAT' . ($sexo ? " WHERE sexo IN ('AMBOS', :s)" : '') . ' ORDER BY orden',
             $sexo ? ['s' => $sexo] : []
         ));

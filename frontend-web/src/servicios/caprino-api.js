@@ -871,6 +871,13 @@ export const clasificacionLinealAPI = {
     return await handleResponse(response);
   },
 
+  // Base morfométrica publicada: perfiles por edad, estándares y bibliografía
+  getMorfometria: async (idRaza) => {
+    const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal/morfometria${idRaza ? `?idRaza=${idRaza}` : ''}`);
+    const data = await handleResponse(response);
+    return { perfiles: data.perfiles || [], estandares: data.estandares || [], fuentes: data.fuentes || [] };
+  },
+
   getByAnimal: async (idAnimal) => {
     const response = await apiFetch(`${API_BASE_URL}/clasificacion-lineal?idAnimal=${idAnimal}`);
     const data = await handleResponse(response);

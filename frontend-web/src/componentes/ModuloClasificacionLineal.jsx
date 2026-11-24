@@ -10,7 +10,9 @@ import CarruselFotos from './CarruselFotos';
 import ControlLetra from './ControlLetra';
 import {
   NIVELES, aNumero, fmt, indexarReferencias, calcularRasgos, limitesRegla, explicarRangos, compararMedida, anguloGrupa,
+  etapaPorEdad, origenReferencia, deDeValor, textoFuentePerfil, perfilParaEdad,
 } from '../utilidades/morfometria';
+import { CriteriosUso, EstandaresRaza, DatosPublicados, FichaTecnica, Bibliografia } from './ReferenciasPublicadas';
 
 const inp = 'w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent bg-white';
 const lbl = 'block text-base font-semibold text-gray-700 mb-2';
@@ -142,6 +144,16 @@ const BotonesFoto = ({ onArchivo, compacto = false }) => {
   );
 };
 
+const MORFO_VACIA = { perfiles: [], estandares: [], fuentes: [] };
+
+// Etiqueta: la referencia es publicada (con su código de fuente), aproximada o ajustada por el docente
+const OrigenRef = ({ fuente }) => {
+  const o = origenReferencia(fuente);
+  if (o.tipo === 'PUBLICADA') return <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300" title={fuente}>Publicada · {o.codigo}</span>;
+  if (o.tipo === 'APROXIMADA') return <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300" title="Valor inicial aproximado: validar con el docente">Aproximada</span>;
+  return <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-300" title={fuente}>Ajustada por el docente</span>;
+};
+
 // Recuadro que explica qué significan Bajo / Medio / Alto
 const QueSignifica = ({ raza, sexo }) => (
   <div className="bg-sky-50 border border-sky-200 rounded-2xl p-5 text-base text-sky-950">
@@ -195,6 +207,9 @@ const ModuloClasificacionLineal = () => {
   const [refFilas, setRefFilas] = useState({});
   const [refMensaje, setRefMensaje] = useState('');
   const [medidasTodas, setMedidasTodas] = useState([]);
+  const [refOrigen, setRefOrigen] = useState({}); // codigo -> fuente guardada
+  // Base morfométrica publicada de la raza (editor de referencias y formulario)
+  const [morfo, setMorfo] = useState(MORFO_VACIA);
 
   useEffect(() => {
     cargarLista();
@@ -238,8 +253,12 @@ const ModuloClasificacionLineal = () => {
     const { rasgos, medidas: med, reglas: rg } = await clasificacionLinealAPI.getCatalogoCompleto(sexo);
     setCatalogo(rasgos); setMedidasCat(med); setReglas(rg);
   };
+  const cargarMorfo = async (idRaza) => {
+    try { setMorfo(await clasificacionLinealAPI.getMorfometria(idRaza)); } catch { setMorfo(MORFO_VACIA); }
+  };
   const cargarReferencias = async (idRaza, sexo) => {
-    if (!idRaza) { setReferencias([]); return; }
+    if (!idRaza) { setReferencias([]); setMorfo(MORFO_VACIA); return; }
+    cargarMorfo(idRaza);
     try { setReferencias(await clasificacionLinealAPI.getReferencias({ idRaza, sexo })); } catch { setReferencias([]); }
   };
 
@@ -369,11 +388,28 @@ const ModuloClasificacionLineal = () => {
     if (!medidasTodas.length) {
       try { setMedidasTodas(await clasificacionLinealAPI.getMedidas()); } catch { /* */ }
     }
-    if (!idRaza) { setRefFilas({}); return; }
+    if (!idRaza) { setRefFilas({}); setRefOrigen({}); cargarMorfo(); return; }
+    cargarMorfo(idRaza);
     try {
-      const refs = await clasificacionLinealAPI.getReferencias({ idRaza, sexo });
-      setRefFilas(Object.fromEntries(refs.filter((r) => r.idRaza === Number(idRaza)).map((r) => [r.codigo, { media: String(r.media).replace('.', ','), de: String(r.de).replace('.', ','), fuente: r.fuente || '' }])));
+      const refs = (await clasificacionLinealAPI.getReferencias({ idRaza, sexo })).filter((r) => r.idRaza === Number(idRaza));
+      setRefFilas(Object.fromEntries(refs.map((r) => [r.codigo, { media: String(r.media).replace('.', ','), de: String(r.de).replace('.', ','), fuente: r.fuente || '' }])));
+      setRefOrigen(Object.fromEntries(refs.map((r) => [r.codigo, r.fuente || ''])));
     } catch (e) { setRefMensaje(e.message); }
+  };
+
+  // Copia un estudio publicado a la tabla de referencias (queda sin guardar hasta "Guardar referencias")
+  const usarPerfil = (p) => {
+    const base = textoFuentePerfil(p, morfo.fuentes);
+    const nuevas = {};
+    p.valores.forEach((v) => {
+      const de = deDeValor(v, p.n);
+      if (de == null || !(de > 0)) return;
+      const como = v.tipoDispersion === 'DE' ? 'media ± DE' : `DE = EE × √n (${v.dispersion} × √${p.n})`;
+      nuevas[v.codigo] = { media: String(Math.round(v.media * 100) / 100).replace('.', ','), de: String(de).replace('.', ','), fuente: `${base} · ${como}`.slice(0, 400) };
+    });
+    setRefFilas((x) => ({ ...x, ...nuevas }));
+    setRefMensaje(`Se copiaron ${Object.keys(nuevas).length} medida(s) de ${p.fuente} (${p.edadPublicada}). Revise y pulse "Guardar referencias".`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   useEffect(() => { if (seccion === 'referencias') abrirReferencias(); }, [seccion, refRaza, refSexo]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -385,6 +421,7 @@ const ModuloClasificacionLineal = () => {
         .map(([codigo, f]) => ({ idRaza: Number(refRaza), sexo: refSexo, codigo, media: aNumero(f.media), de: aNumero(f.de), fuente: f.fuente || null }));
       const r = await clasificacionLinealAPI.guardarReferencias(lista);
       setRefMensaje(r.message || 'Guardado');
+      setRefOrigen(Object.fromEntries(lista.map((x) => [x.codigo, x.fuente || refOrigen[x.codigo] || ''])));
     } catch (e) { setRefMensaje(`Error: ${e.message}`); }
   };
 
@@ -460,9 +497,9 @@ const ModuloClasificacionLineal = () => {
         </div>
         <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2"><BookOpen className="w-8 h-8 text-rose-600" /> Medidas de referencia por raza</h1>
         <p className="text-base text-gray-600 mt-2">Cada raza tiene medidas propias. Por ejemplo, una cabra Spanish adulta es más pequeña que una Saanen: si se mide una Spanish, se compara con el promedio de las Spanish, no con el de todas las cabras. Aquí el docente revisa y ajusta esos promedios.</p>
-        <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-base text-amber-900 flex items-start gap-2">
-          <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
-          Los valores que trae el sistema son <b className="mx-1">iniciales y aproximados</b>. Deben validarse con el docente o con estudios de la raza y corregirse aquí antes de usarlos para decisiones.
+        <div className="mt-4 p-4 rounded-xl bg-sky-50 border border-sky-200 text-base text-sky-950 flex items-start gap-2">
+          <Info className="w-5 h-5 mt-0.5 shrink-0" />
+          <span>Cada valor dice de dónde viene: <OrigenRef fuente="S01 " /> sale de un estudio publicado (media ± desviación estándar), <OrigenRef fuente="" /> es un valor inicial que debe validar el docente y <OrigenRef fuente="docente" /> lo cambió el docente. Abajo están los estudios publicados de la raza: el botón <b>Usar como referencia</b> copia sus valores a la tabla.</span>
         </div>
         <div className={`${tarjeta} mt-4 grid sm:grid-cols-2 gap-4`}>
           <label className="text-base font-semibold text-gray-700">Raza
@@ -488,15 +525,22 @@ const ModuloClasificacionLineal = () => {
             <p className="text-lg font-bold text-gray-800 mb-3">{razaSel?.nombre_raza ?? razaSel?.nombre} · {refSexo === 'MACHO' ? 'machos' : 'hembras'} adultos</p>
             <div className="overflow-x-auto">
               <table className="w-full text-base">
-                <thead><tr className="text-left text-gray-600 border-b-2"><th className="py-2 pr-2">Medida</th><th className="pr-2">Promedio</th><th className="pr-2">Desviación</th><th>Bajo · Medio · Alto</th></tr></thead>
+                <thead><tr className="text-left text-gray-600 border-b-2"><th className="py-2 pr-2">Medida y origen</th><th className="pr-2">Promedio</th><th className="pr-2">Desviación</th><th>Bajo · Medio · Alto</th></tr></thead>
                 <tbody>
                   {meds.map((m) => {
-                    const f = refFilas[m.codigo] || { media: '', de: '' };
+                    const f = refFilas[m.codigo] || { media: '', de: '', fuente: '' };
                     const me = aNumero(f.media); const de = aNumero(f.de);
-                    const set = (k, v) => setRefFilas((x) => ({ ...x, [m.codigo]: { ...f, [k]: v.replace(/[^0-9.,]/g, '') } }));
+                    // Si el docente escribe un número a mano, la fuente pasa a ser "ajustada por el docente"
+                    const set = (k, v) => setRefFilas((x) => ({ ...x, [m.codigo]: { ...f, [k]: v.replace(/[^0-9.,]/g, ''), fuente: 'Ajustado por el docente' } }));
+                    const fuenteVista = f.fuente || refOrigen[m.codigo] || '';
+                    const sinCambios = fuenteVista === (refOrigen[m.codigo] || '');
                     return (
-                      <tr key={m.codigo} className="border-b border-gray-100">
-                        <td className="py-2 pr-2 font-medium text-gray-800">{m.nombre} <span className="text-gray-400 text-sm">({m.unidad})</span></td>
+                      <tr key={m.codigo} className="border-b border-gray-100 align-top">
+                        <td className="py-2 pr-2 font-medium text-gray-800">
+                          {m.nombre} <span className="text-gray-400 text-sm">({m.unidad})</span>
+                          {(me || de) ? <span className="block mt-1"><OrigenRef fuente={fuenteVista} />{!sinCambios && <span className="ml-1 text-xs text-gray-500">sin guardar</span>}</span> : null}
+                          {origenReferencia(fuenteVista).tipo === 'PUBLICADA' && <span className="block text-xs font-normal text-gray-500 mt-0.5 max-w-xs">{fuenteVista}</span>}
+                        </td>
                         <td className="pr-2"><input className="w-24 border-2 border-gray-200 rounded-lg px-2 py-2 text-base text-right" inputMode="decimal" value={f.media} onChange={(e) => set('media', e.target.value)} /></td>
                         <td className="pr-2"><input className="w-20 border-2 border-gray-200 rounded-lg px-2 py-2 text-base text-right" inputMode="decimal" value={f.de} onChange={(e) => set('de', e.target.value)} /></td>
                         <td className="text-sm text-gray-700">{me && de ? <>menos de <b>{fmt(me - de)}</b> · <b>{fmt(me - de)}–{fmt(me + de)}</b> · más de <b>{fmt(me + de)}</b></> : '—'}</td>
@@ -512,6 +556,15 @@ const ModuloClasificacionLineal = () => {
             </div>
           </div>
         )}
+        {refRaza && (
+          <>
+            <EstandaresRaza estandares={morfo.estandares} sexo={refSexo} medidas={medidasTodas} fuentes={morfo.fuentes} />
+            <DatosPublicados perfiles={morfo.perfiles} sexo={refSexo} medidas={medidasTodas} fuentes={morfo.fuentes} onUsar={usarPerfil} puedeEditar />
+          </>
+        )}
+        <CriteriosUso />
+        <FichaTecnica medidas={medidasTodas} fuentes={morfo.fuentes} />
+        <Bibliografia fuentes={morfo.fuentes} />
       </div>
     );
   }
@@ -734,6 +787,9 @@ const ModuloClasificacionLineal = () => {
   const listaSel = animalElegido && !delSexo.some((h) => h.id === animalElegido.id) ? [animalElegido, ...delSexo] : delSexo;
   const sinRefRaza = cab.idAnimal && !referencias.some((r) => r.idRaza != null);
   const joven = cab.edadMeses !== '' && Number(cab.edadMeses) < 24;
+  const etapa = etapaPorEdad(cab.edadMeses);
+  const perfilEdad = joven ? perfilParaEdad(morfo.perfiles, sexoForm, cab.edadMeses) : null;
+  const estandarDe = (codigo) => morfo.estandares.filter((e) => e.codigo === codigo && (e.sexo === sexoForm || e.sexo === 'AMBOS'));
   const angulo = anguloGrupa(medidas);
   const hechoPaso = (k) => ({
     ANIMAL: !!cab.idAnimal, MEDIDAS: numMedidas > 0, RASGOS: catalogo.length > 0 && faltantes.length === 0, RESUMEN: false,
@@ -802,7 +858,8 @@ const ModuloClasificacionLineal = () => {
                   </div>
                 )}
               </div>
-              {joven && <p className="md:col-span-2 text-base text-amber-800 bg-amber-50 rounded-xl px-4 py-3">Tiene menos de 2 años. Las medidas de referencia son de adultos, así que es normal que salga "Bajo" por la edad.</p>}
+              {etapa && <p className="md:col-span-2 text-base text-gray-800 bg-gray-50 rounded-xl px-4 py-3">Etapa: <b>{etapa.texto}</b> ({etapa.rango}).</p>}
+              {joven && <p className="md:col-span-2 text-base text-amber-800 bg-amber-50 rounded-xl px-4 py-3">Tiene menos de 2 años. Las medidas de referencia son de adultos, así que es normal que salga "Bajo" por la edad.{perfilEdad && <> En Medidas verá también lo publicado para {macho ? 'machos' : 'hembras'} de su raza a los <b>{fmt(perfilEdad.edadMeses)} meses</b> ({perfilEdad.fuente}), solo como guía.</>}</p>}
             </div>
             <div className={`rounded-2xl p-5 text-base border ${macho ? 'bg-indigo-50 border-indigo-200 text-indigo-950' : 'bg-rose-50 border-rose-200 text-rose-950'}`}>
               <p className="text-lg font-bold flex items-center gap-2"><Info className="w-5 h-5" /> Cómo se hace</p>
@@ -866,7 +923,20 @@ const ModuloClasificacionLineal = () => {
                               ))}
                             </div>
                           )}
-                          {ref && <p className="text-sm text-gray-500 mt-1.5">Promedio {ref.idRaza == null ? 'general' : `de la raza ${ref.raza}`}: <b>{fmt(ref.media)} {m.unidad}</b>{comp && <> · esta medida está {comp.dif === 0 ? 'en el promedio' : <b>{comp.dif > 0 ? '+' : ''}{fmt(comp.dif)} {m.unidad} ({comp.pct > 0 ? '+' : ''}{comp.pct} %)</b>}</>}</p>}
+                          {ref && <p className="text-sm text-gray-500 mt-1.5">Promedio {ref.idRaza == null ? 'general' : `de la raza ${ref.raza}`}: <b>{fmt(ref.media)} {m.unidad}</b> <OrigenRef fuente={ref.fuente} />{comp && <> · esta medida está {comp.dif === 0 ? 'en el promedio' : <b>{comp.dif > 0 ? '+' : ''}{fmt(comp.dif)} {m.unidad} ({comp.pct > 0 ? '+' : ''}{comp.pct} %)</b>}</>}</p>}
+                          {!joven && estandarDe(m.codigo).map((e, i) => {
+                            const bajoMin = n != null && !invalido && e.minimo != null && e.maximo == null && n < e.minimo;
+                            return (
+                              <p key={i} className={`text-sm mt-1 ${bajoMin ? 'text-amber-800 font-semibold' : 'text-gray-500'}`}>
+                                {e.tipo}{e.grupo && !/no informada/.test(e.grupo) ? ` (${e.grupo.toLowerCase()})` : ''}: {e.maximo == null ? `mínimo ${fmt(e.minimo)}` : `${fmt(e.minimo)}–${fmt(e.maximo)}`} {m.unidad}{e.optimo != null && `, óptimo ${fmt(e.optimo)}`}
+                                {bajoMin && ' · está por debajo del mínimo de la raza'}
+                              </p>
+                            );
+                          })}
+                          {perfilEdad && (() => {
+                            const v = perfilEdad.valores.find((x) => x.codigo === m.codigo);
+                            return v ? <p className="text-sm mt-1 text-teal-700">Publicado a los {fmt(perfilEdad.edadMeses)} meses: <b>{fmt(v.media)} {m.unidad}</b> (n={perfilEdad.n}, {perfilEdad.pais}, {perfilEdad.fuente}{perfilEdad.preliminar ? ', preliminar' : ''})</p> : null;
+                          })()}
                           {metodos[m.codigo] === 'FOTO' && val !== '' && <p className="text-sm mt-1 text-sky-700">Estimada en la app sobre una foto. Si la mide con el instrumento, escriba el valor.</p>}
                           {invalido && <p className="text-sm mt-1 text-red-700">Escriba solo el número.</p>}
                           {m.rasgoRel && <p className="text-sm mt-1 text-violet-700 flex items-center gap-1"><Wand2 className="w-4 h-4" /> Califica el rasgo «{catalogo.find((r) => r.codigo === m.rasgoRel)?.nombre || m.rasgoRel}»</p>}
@@ -874,6 +944,7 @@ const ModuloClasificacionLineal = () => {
                             <ChevronDown className={`w-4 h-4 transition-transform ${ayuda ? 'rotate-180' : ''}`} /> Cómo medir
                           </button>
                           {ayuda && <p className="text-base text-gray-700 mt-1 leading-snug">{m.comoMedir}</p>}
+                          {ayuda && m.definicion && <p className="text-sm text-gray-500 mt-1">Definición técnica: {m.definicion}{m.advertencia && <span className="block text-amber-800">{m.advertencia}</span>}</p>}
                         </div>
                       );
                     })}

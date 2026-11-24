@@ -100,3 +100,60 @@ export const compararMedida = (valor, ref, k = 1) => {
   const dif = redondo(valor - ref.media);
   return { nivel, bajo: redondo(bajo), alto: redondo(alto), dif, pct: redondo((dif / ref.media) * 100, 0) };
 };
+
+// ---------------------------------------------------------------------
+// Base morfométrica publicada (Excel "Parámetros morfométricos caprinos APP")
+// ---------------------------------------------------------------------
+
+/** Etapas operativas por edad (convención de diseño de la base, no definición universal de madurez). */
+export const ETAPAS = [
+  { key: 'NACIMIENTO', texto: 'Nacimiento', desde: 0, hasta: 1, rango: '0 meses' },
+  { key: 'CRIA', texto: 'Cría', desde: 1, hasta: 6, rango: '1 a menos de 6 meses' },
+  { key: 'CABRETON', texto: 'Cabretón', desde: 6, hasta: 12, rango: '6 a menos de 12 meses' },
+  { key: 'JOVEN', texto: 'Joven', desde: 12, hasta: 24, rango: '12 a menos de 24 meses' },
+  { key: 'ADULTO', texto: 'Adulto', desde: 24, hasta: Infinity, rango: '24 meses o más' },
+];
+export const etapaPorEdad = (meses) => {
+  const m = aNumero(meses);
+  if (m == null) return null;
+  return ETAPAS.find((e) => m >= e.desde && m < e.hasta) || null;
+};
+
+/** La referencia viene de una publicación (fuente "S01 · …") o es un valor inicial aproximado. */
+export const origenReferencia = (fuente) => {
+  const f = String(fuente || '');
+  const m = f.match(/^(S\d\d)\s/);
+  if (m) return { tipo: 'PUBLICADA', codigo: m[1] };
+  if (/^Valor inicial aproximado/i.test(f) || !f) return { tipo: 'APROXIMADA' };
+  return { tipo: 'DOCENTE' };
+};
+
+/** Desviación estándar de un valor publicado: la DE tal cual, o EE × √n. Null si no se puede. */
+export const deDeValor = (v, n) => {
+  if (!v || v.dispersion == null) return null;
+  if (v.tipoDispersion === 'DE') return v.dispersion;
+  if (v.tipoDispersion === 'EE' && n > 1) return redondo(v.dispersion * Math.sqrt(n), 2);
+  return null;
+};
+
+/** Un perfil sirve como referencia para calificar si es de un sexo, observado (no preliminar) y con dispersión utilizable. */
+export const perfilApto = (p) => !!p && !p.preliminar && p.sexo !== 'AMBOS' && p.tipoDato === 'Media observada'
+  && p.valores.some((v) => deDeValor(v, p.n) != null);
+
+/** Texto corto de la fuente para guardar en la referencia. */
+export const textoFuentePerfil = (p, fuentes = []) => {
+  const cita = fuentes.find((f) => f.codigo === p.fuente)?.referencia || '';
+  const autor = cita.split('(')[0].trim().replace(/,$/, '');
+  const anio = (cita.match(/\((\d{4})\)/) || [])[1];
+  return `${p.fuente} · ${autor}${anio ? ` (${anio})` : ''}, ${p.localizacion || 'tabla'} · n=${p.n}, ${p.edadPublicada}, ${p.pais}`.slice(0, 400);
+};
+
+/** Perfil publicado de la misma raza y sexo con la edad exacta más cercana (±3 meses). */
+export const perfilParaEdad = (perfiles, sexo, meses) => {
+  const m = aNumero(meses);
+  if (m == null) return null;
+  const c = perfiles
+    .filter((p) => p.sexo === sexo && p.edadMeses != null && Math.abs(p.edadMeses - m) <= 3)
+    .sort((a, b) => Math.abs(a.edadMeses - m) - Math.abs(b.edadMeses - m) || (b.n || 0) - (a.n || 0));
+  return c[0] || null;
+};
