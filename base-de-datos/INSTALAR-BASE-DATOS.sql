@@ -15,7 +15,7 @@
 -- PASO 2: Ejecutar como caprino_user (el usuario recién creado)
 -- ==================================================================
 -- Conectar como caprino_user:
---   sqlplus caprino_user/CaprinoPass2025@localhost:1521/XEPDB1
+--   sqlplus caprino_user/<password_caprino>@localhost:1521/XEPDB1
 -- Luego ejecutar EN ESTE ORDEN:
 
 --   @<ruta>\base-de-datos\esquemas\01-tablas-principales.sql
@@ -51,14 +51,14 @@
 -- CREDENCIALES DE LA BASE DE DATOS (Oracle Autonomous Cloud)
 -- ==================================================================
 -- Usuario Oracle de la aplicación: caprino_user
--- Contraseña Oracle:               CaprinoPass2025!
+-- Contraseña Oracle:               (la definida al crear el usuario)
 -- TNS Name (wallet):               dbcaprino_high
 -- Wallet path (servidor):          /ruta/al/wallet/Caprino-Wallet
 --
 -- IMPORTANTE: Configurar en backend-symfony/.env.local (no subir a git):
 --   DATABASE_TNS_NAME=dbcaprino_high
 --   DATABASE_USER=caprino_user
---   DATABASE_PASSWORD=CaprinoPass2025!
+--   DATABASE_PASSWORD=<password_caprino>
 --   DATABASE_WALLET_PATH=/ruta/al/wallet/en/servidor
 -- ==================================================================
 

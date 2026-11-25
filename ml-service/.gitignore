@@ -3,3 +3,5 @@ modelo_guardado/*.joblib
 modelo_guardado/metrics.json
 __pycache__/
 *.pyc
+.env
+!.env.example

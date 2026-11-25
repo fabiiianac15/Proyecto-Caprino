@@ -7,7 +7,8 @@
 ALTER SESSION SET CONTAINER = xe;
 
 -- Crear el usuario
-CREATE USER caprino_user IDENTIFIED BY CaprinoPass2025;
+-- Reemplace <PASSWORD_CAPRINO> por una contraseña propia antes de ejecutar.
+CREATE USER caprino_user IDENTIFIED BY "<PASSWORD_CAPRINO>";
 
 -- Otorgar permisos
 GRANT CONNECT TO caprino_user;

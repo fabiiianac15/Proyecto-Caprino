@@ -99,7 +99,11 @@ Write-Host "Paso 1/3: Creando usuario caprino_user..." -ForegroundColor Yellow
 
 # En ADB se usa CREATE USER normal (no SYS/sysdba).
 # IDENTIFIED EXTERNALLY AS 'CN=...' es para LDAP  -  aqui usamos password directa.
-$caprino_password = "CaprinoPass2025!"
+# La password de caprino_user se pide al ejecutar; no se guarda en el codigo.
+$caprinoPwdSecure = Read-Host "Password nueva para caprino_user" -AsSecureString
+$caprino_password = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($caprinoPwdSecure)
+)
 $sqlCrearUsuario = @"
 -- Crear usuario de la aplicacion en ADB
 CREATE USER caprino_user IDENTIFIED BY "$caprino_password"
@@ -190,10 +194,10 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host "Conexion:" -ForegroundColor Cyan
 Write-Host "  Usuario  : caprino_user" -ForegroundColor Gray
-Write-Host "  Password : $caprino_password" -ForegroundColor Gray
+Write-Host "  Password : (la que escribiste arriba, guardada en backend-symfony\.env)" -ForegroundColor Gray
 Write-Host "  TNS      : $tnsName" -ForegroundColor Gray
 Write-Host "  Wallet   : $env:TNS_ADMIN" -ForegroundColor Gray
 Write-Host ""
 Write-Host "Credenciales de acceso al sistema:" -ForegroundColor Cyan
-Write-Host "  admin@caprino.com / Admin123!" -ForegroundColor Gray
+Write-Host "  Usuario administrador inicial: admin@caprino.com (cambie su password al primer ingreso)" -ForegroundColor Gray
 Write-Host ""

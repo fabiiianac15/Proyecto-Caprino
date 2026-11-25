@@ -101,3 +101,12 @@ Realizar-Temporal/
 # Sistema operativo
 Thumbs.db
 Desktop.ini
+
+# Variables de entorno con claves: solo en local, nunca en git
+.env
+.env.*
+!.env.example
+!backend-symfony/.env.test
+venv/
+.venv/
+__pycache__/

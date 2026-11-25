@@ -267,12 +267,6 @@ const LoginRegistro = () => {
                     {cargando ? 'Entrando…' : 'Iniciar sesión'}
                   </button>
 
-                  {import.meta.env.DEV && (
-                    <div className="p-3 bg-green-50 rounded-lg text-xs border border-green-200 text-green-800">
-                      <p className="font-semibold mb-1">Credenciales de prueba</p>
-                      <p>admin@caprino.com · Admin123!</p>
-                    </div>
-                  )}
                 </form>
               )}
 

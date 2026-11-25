@@ -109,7 +109,9 @@ echo ""
 # ── PASO 1: Crear usuario caprino_user ───────────────────────────────────────
 echo -e "${AMARILLO}Paso 1/3: Creando usuario caprino_user...${NC}"
 
-CAPRINO_PASSWORD="CaprinoPass2025!"
+# La password de caprino_user se pide al ejecutar; no se guarda en el codigo.
+read -rsp "Password nueva para caprino_user: " CAPRINO_PASSWORD
+echo ""
 
 SQL_CREAR_USUARIO="CREATE USER caprino_user IDENTIFIED BY \"${CAPRINO_PASSWORD}\"
   DEFAULT TABLESPACE data
@@ -203,10 +205,10 @@ echo -e "${CYAN}============================================================${NC
 echo ""
 echo -e "${CYAN}Conexion:${NC}"
 info "  Usuario  : caprino_user"
-info "  Password : $CAPRINO_PASSWORD"
+info "  Password : (la que escribiste arriba, guardada en backend-symfony/.env)"
 info "  TNS      : $TNS_NAME"
 info "  Wallet   : $TNS_ADMIN"
 echo ""
 echo -e "${CYAN}Credenciales de acceso al sistema:${NC}"
-info "  admin@caprino.com / Admin123!"
+info "  Usuario administrador inicial: admin@caprino.com (cambie su password al primer ingreso)"
 echo ""
